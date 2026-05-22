@@ -3,12 +3,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
 
+from piaoxiaozhu_core.field_extractor import ExtractedFields, extract_fields
+
 
 @dataclass(frozen=True)
 class OCRResult:
     raw_text: str
     fields: dict[str, str]
     confidence: float
+    extracted_fields: Optional[ExtractedFields] = None
 
 
 class PaddleOCRService:
@@ -52,8 +55,11 @@ class PaddleOCRService:
         avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
         fields["raw_text"] = raw_text
 
+        extracted = extract_fields(raw_text)
+
         return OCRResult(
             raw_text=raw_text,
             fields=fields,
             confidence=avg_confidence,
+            extracted_fields=extracted,
         )

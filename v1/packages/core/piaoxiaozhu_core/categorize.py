@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from piaoxiaozhu_core.templates.restaurant import RESTAURANT_MERCHANT_DICT
+
+if TYPE_CHECKING:
+    from piaoxiaozhu_core.llm import LLMClassifier
 
 
 @dataclass(frozen=True)
@@ -37,6 +40,13 @@ CATEGORY_L2_MAP: dict[str, str] = {
     "office": "办公/文具/打印/纸张/耗材",
     "other": "",
 }
+
+_llm_classifier_instance: Optional[LLMClassifier] = None
+
+
+def set_llm_classifier(classifier: Optional[LLMClassifier]) -> None:
+    global _llm_classifier_instance
+    _llm_classifier_instance = classifier
 
 
 class _ReceiptRule:
@@ -135,8 +145,13 @@ def _layer4_llm(
     merchant: Optional[str],
     text: Optional[str],
     name: Optional[str],
+    llm_classifier: Optional[LLMClassifier] = None,
 ) -> Optional[CategorizeResult]:
-    return None
+    classifier = llm_classifier or _llm_classifier_instance
+    if classifier is None:
+        return None
+    categories = list(CATEGORY_L1_MAP.keys())
+    return classifier.classify(merchant, text or name, categories)
 
 
 def _make_other_result(reason: str) -> CategorizeResult:
@@ -153,6 +168,7 @@ def categorize_expense(
     merchant: Optional[str] = None,
     text: Optional[str] = None,
     name: Optional[str] = None,
+    llm_classifier: Optional[LLMClassifier] = None,
 ) -> CategorizeResult:
     result = _layer1_merchant_dict(merchant)
     if result is not None:
@@ -166,7 +182,7 @@ def categorize_expense(
     if result is not None:
         return result
 
-    result = _layer4_llm(merchant, text, name)
+    result = _layer4_llm(merchant, text, name, llm_classifier)
     if result is not None:
         return result
 

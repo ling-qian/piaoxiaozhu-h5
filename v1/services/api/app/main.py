@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, files, records, projects, reports, payments, plans, toolkit, users
+from app.routers import auth, files, records, projects, reports, payments, plans, toolkit, users, manual_income
 
 app = FastAPI(title="PiaoXiaoZhu API", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
 
@@ -22,6 +22,7 @@ app.include_router(payments.router)
 app.include_router(plans.router)
 app.include_router(toolkit.router)
 app.include_router(users.router)
+app.include_router(manual_income.router)
 
 
 @app.get("/health")
