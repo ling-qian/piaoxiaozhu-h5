@@ -1,229 +1,136 @@
 <div align="center"><a name="readme-top"></a>
 
-<img src="public/logo/512.png" alt="" width="320">
-
 <br>
 
-# TaxHacker: Self-Hosted AI Accounting
+# 票小助 — 餐饮票据整理助手
 
-[![GitHub Stars](https://img.shields.io/github/stars/vas3k/TaxHacker?color=ffcb47&labelColor=black&style=flat-square)](https://github.com/vas3k/TaxHacker/stargazers)
-[![License](https://img.shields.io/badge/license-MIT-ffcb47?labelColor=black&style=flat-square)](https://github.com/vas3k/TaxHacker/blob/main/LICENSE)
-[![Support Us](https://img.shields.io/badge/-Donate-f04f88?logo=githubsponsors&logoColor=white&style=flat-square)](https://vas3k.com/donate/)
+[![License](https://img.shields.io/badge/license-MIT-ffcb47?labelColor=black&style=flat-square)](https://github.com/ling-qian/piaoxiaozhu/blob/main/LICENSE)
 
 </div>
 
-> [!NOTE]  
-> ☝️ I'm currently looking for a job! Particularly interested in companies in Berlin or remote positions in Germany. Here's [my CV](https://raw.githubusercontent.com/vas3k/vas3k/master/cv.pdf) and [Linkedin profile](https://www.linkedin.com/in/vas3k/). Thank you 🙏
+票小助是一款面向餐饮行业的智能票据整理工具，帮助小餐饮店主、个体经营者快速完成发票/收据的 AI 识别、自动分类和利润统计。
 
-TaxHacker is a self-hosted accounting app designed for freelancers, indie-hackers, and small businesses who want to save time and automate expense and income tracking using the power of modern AI.
+上传票据照片或 PDF，票小助会自动识别商户名称、金额、日期、税额等关键信息，结合规则引擎自动归类（食材、房租、工资、水电、平台佣金等），还可以手工录入月营业额，一键查看毛利润和毛利率，并导出 CSV 报表。
 
-Upload photos of receipts, invoices, or PDFs, and TaxHacker will automatically recognize and extract all the important data you need for accounting: product names, amounts, items, dates, merchants, taxes, and save it into a structured Excel-like database. You can even create custom fields with your own AI prompts to extract any specific information you need.
+> ⚠️ 本项目仍处于早期开发阶段（POC），请谨慎用于生产环境。
 
-The app features automatic currency conversion (including crypto!) based on historical exchange rates from the transaction date. With built-in filtering, multi-project support, import/export capabilities, and custom categories, TaxHacker simplifies reporting and makes tax filing a bit easier.
+## ✨ 核心功能
 
-> 🎥 [Watch demo video](https://taxhacker.app/landing/video.mp4)
+### `1` AI 票据识别 + 自动分类
 
-![Dashboard](public/landing/main-page.webp)
+上传收据照片或发票 PDF，AI 自动识别并提取关键信息：
 
-> \[!IMPORTANT]
->
-> This project is still in early development. Use at your own risk! **Star us** to get notified about new features and bugfixes ⭐️
+- **智能 OCR**：支持拍照上传、PDF 上传，自动识别商户、金额、日期、税额等
+- **规则分类引擎**：基于关键词的规则分类覆盖 LLM 结果，分类更稳定可靠
+  - 🥬 食材（蔬菜/生鲜/粮油/冻品/调味/肉禽/海鲜…）
+  - 🏠 房租（房租/租赁/物业/场地…）
+  - 💰 工资（工资/薪资/劳务/用工…）
+  - 💧 水电（电费/水费/燃气…）
+  - 📱 平台佣金（美团/饿了么/抖音/技术服务费/佣金…）
+  - 📦 其他
+- **可手动修改**：规则分类结果可手动调整，AI 识别字段均可编辑
 
-## ✨ Features
+### `2` 手工录入营业额 + 利润统计
 
-### `1` Analyze photos and invoices with AI
+- **月度营业额录入**：手工输入每月营业额，系统自动计算毛利润和毛利率
+- **利润概览**：总收入、总成本、毛利润、毛利率一目了然
+- **分类成本占比**：按分类查看成本构成（食材占多少、房租占多少…）
 
-![Currency Conversion](public/landing/ai-scanner-big.webp)
+### `3` CSV 导出
 
-Snap a photo of any receipt or upload an invoice PDF, and TaxHacker will automatically recognize, extract, categorize, and store all the information in a structured database.
+- 按月份筛选，一键导出交易记录为 CSV
+- 包含日期、商户、金额、税额、分类、备注等完整字段
+- 可直接用于财务报表或交给会计
 
-- **Upload and organize your docs**: Store multiple documents in "unsorted" until you're ready to process them manually or with AI assistance
-- **AI data extraction**: Use AI to automatically pull key information like dates, amounts, vendors, and line items
-- **Auto-categorization**: Transactions are automatically sorted into relevant categories based on their content
-- **Item splitting**: Extract individual items from invoices and split them into separate transactions when needed
-- **Structured storage**: Everything gets saved in an organized database for easy filtering and retrieval
-- **Choose your LLM**: You can use OpenAI, Google Gemini, or Mistral or even your local LLM (in the self-hosted version). Only you're responsible for the quality and privacy of your data.
+### `4` 多 LLM 支持
 
-TaxHacker works with a wide variety of documents, including store receipts, restaurant bills, invoices, bank statements, letters, even handwritten receipts. It handles any language and any currency with ease.
+票小助支持多种 LLM 提供商，可按优先级排序：
 
-### `2` Multi-currency support with automatic conversion (even crypto!)
+| 提供商 | 默认模型 | 说明 |
+|--------|---------|------|
+| **OpenAI 兼容** | 自定义 | 支持 NVIDIA NIM、Ollama、LM Studio、vLLM 等 |
+| **OpenAI** | gpt-4o-mini | 官方 API |
+| **Google** | gemini-2.5-flash | 免费额度大，支持 Vision |
+| **Mistral** | mistral-medium-latest | 欧洲提供商 |
 
-![Currency Conversion](public/landing/multi-currency.webp)
+排在前面的提供商优先使用，失败后自动降级到下一个。
 
-TaxHacker automatically detects currencies in your documents and converts them to your base currency using historical exchange rates.
+### `5` 自托管，数据自主
 
-- **Foreight currency detection**: Automatically identify the currency used in any document
-- **Historical rates**: Get conversion rates from the actual transaction date
-- **All-world coverage**: Support for 170+ world currencies and 14 popular cryptocurrencies (BTC, ETH, LTC, DOT, and more)
-- **Flexible input**: Manual entry is always available when you need more control
+- **本地部署**：数据完全存储在你自己的服务器上
+- **Docker 支持**：一键 Docker Compose 部署
+- **无供应商锁定**：随时导出全部数据
 
-### `3` Use your own LLM: Ollama, LM Studio, vLLM, LocalAI etc
+## 🛳 部署
 
-It's compatible with your local LLM OpenAI-compatible API endpoint. Just make sure that your local model is good in OCR tasks, results are not guaranteed :)
-
-![Local LLMs](public/landing/local-llms.webp)
-
-### `4` Organize your transactions using fully customizable categories, projects and fields
-
-![Transactions Table](public/landing/transactions-big.webp)
-
-Adapt TaxHacker to your unique needs with unlimited customization options. Create custom fields, projects, and categories that better suit your specific needs, idustry standards or country.
-
-- **Custom categories and projecst**: Create your own categories and projects to group your transactions in any convenient way
-- **Custom fields**: You can create unlimited number of custom fields to extraxt more information from your invoices (it's like creating extra columns in Excel)
-- **Full-text search**: Search through the actual content of recognized documents
-- **Advanced filtering**: Find exactly what you need with search and filter options
-- **AI-powered extraction**: Write your own prompts to extract any custom information from documents
-- **Bulk operations**: Process multiple documents or transactions at once
-
-### `5` Customize any LLM prompt. Even system ones
-
-![Custom Categories](public/landing/custom-llm.webp)
-
-Take full control of how TaxHacker's AI processes your documents. Write custom AI prompts for fields, categories, and projects, or modify the built-in ones to match your specific needs.
-
-- **Customizable system prompts**: Modify the general prompt template in settings to suit your business
-- **Field or project-specific prompts**: Create custom extraction rules for your industry-specific documents
-- **Full control**: Adjust field extraction priorities and naming conventions to match your workflow
-- **Industry optimization**: Fine-tune the AI to understand your specific type of business documents
-- **Full transparency**: Every aspect of the AI extraction process is under your control and can be changed right in settings
-
-TaxHacker is 100% adaptable and tunable to your unique requirements — whether you need to extract emails, addresses, project codes, or any other custom information from your documents.
-
-### `6` Flexible data filtering and export
-
-![Data Export](public/landing/export.webp)
-
-Once your documents are processed, easily view, filter, and export your complete transaction history exactly how you need it.
-
-- **Advanced filtering**: Filter by date ranges, categories, projects, amounts, and any custom fields
-- **Flexible exports**: Export filtered transactions to CSV with all attached documents included
-- **Tax-ready reports**: Generate comprehensive reports for your accountant or tax advisor
-- **Data portability**: Download complete data archives to migrate to other services—your data stays yours
-
-### `7` Self-hosted mode for data privacy
-
-![Self-hosting](docs/screenshots/exported_archive.png)
-
-Keep complete control over your financial data with local storage and self-hosting options. TaxHacker respects your privacy and gives you full ownership of your information.
-
-- **Home server ready**: Host on your own infrastructure for maximum privacy and control
-- **Docker native**: Simple setup with provided Docker containers and compose files
-- **Data ownership**: Your financial documents never leaves your control
-- **No vendor lock-in**: Export everything and migrate whenever you want
-- **Transparent operations**: Full access to source code and complete operational transparency
-
-## 🛳 Deployment and Self-hosting
-
-TaxHacker can be easily self-hosted on your own infrastructure for complete control over your data and application environment. We provide a [Docker image](./Dockerfile) and [Docker Compose](./docker-compose.yml) setup that makes deployment simple:
+### Docker Compose（推荐）
 
 ```bash
-curl -O https://raw.githubusercontent.com/vas3k/TaxHacker/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/ling-qian/piaoxiaozhu/main/docker-compose.yml
 
 docker compose up
 ```
 
-The Docker Compose setup includes:
+### Vercel + Neon（免费方案）
 
-- TaxHacker application container
-- PostgreSQL 17+ database (or connect to your existing database)
-- Automatic database migrations on startup
-- Volume mounts for persistent data storage
-- Production-ready configuration
+1. 在 [Neon](https://neon.tech) 创建免费 PostgreSQL 数据库
+2. 在 [Vercel](https://vercel.com) 导入 GitHub 仓库
+3. 配置环境变量（见下方）
+4. 部署
 
-New Docker images are automatically built and published with every release. You can use specific version tags (e.g., `v1.0.0`) or `latest` for the most recent version.
+### 环境变量
 
-For advanced setups, you can customize the Docker Compose configuration to fit your infrastructure. The default configuration uses the pre-built image from GitHub Container Registry, but you can also build locally using the provided [Dockerfile](./Dockerfile).
+| 变量 | 必填 | 说明 | 示例 |
+|------|------|------|------|
+| `DATABASE_URL` | ✅ | PostgreSQL 连接字符串 | `postgresql://user@localhost:5432/piaoxiaozhu` |
+| `BETTER_AUTH_SECRET` | ✅ | 认证密钥（至少 16 字符） | `your-secure-random-key` |
+| `BASE_URL` | ❌ | 应用基础 URL | `http://localhost:7331` |
+| `PORT` | ❌ | 端口号 | `7331`（默认） |
+| `SELF_HOSTED_MODE` | ❌ | 自托管模式，跳过注册 | `true` |
+| `OPENAI_COMPATIBLE_API_KEY` | ❌ | OpenAI 兼容 API 密钥 | `nvapi-...` |
+| `OPENAI_COMPATIBLE_MODEL_NAME` | ❌ | OpenAI 兼容模型名称 | `nvidia/nemotron-nano-12b-v2-vl` |
+| `OPENAI_COMPATIBLE_BASE_URL` | ❌ | OpenAI 兼容 API 地址 | `https://integrate.api.nvidia.com/v1` |
+| `OPENAI_API_KEY` | ❌ | OpenAI API 密钥 | `sk-...` |
+| `GOOGLE_API_KEY` | ❌ | Google AI API 密钥 | `AIza...` |
+| `MISTRAL_API_KEY` | ❌ | Mistral API 密钥 | `...` |
 
-Example custom configuration:
+## ⌨️ 本地开发
 
-```yaml
-services:
-  app:
-    image: ghcr.io/vas3k/taxhacker:latest
-    ports:
-      - "7331:7331"
-    environment:
-      - SELF_HOSTED_MODE=true
-      - UPLOAD_PATH=/app/data/uploads
-      - DATABASE_URL=postgresql://postgres:postgres@localhost:5432/taxhacker
-    volumes:
-      - ./data:/app/data
-    restart: unless-stopped
-```
+技术栈：
 
-### Environment Variables
-
-Configure TaxHacker for your specific needs with these environment variables:
-
-| Variable | Required | Description | Example |
-|----------|----------|-------------|---------|
-| `UPLOAD_PATH` | Yes | Local directory for file uploads and storage | `./data/uploads` |
-| `DATABASE_URL` | Yes | PostgreSQL connection string | `postgresql://user@localhost:5432/taxhacker` |
-| `PORT` | No | Port to run the application on | `7331` (default) |
-| `BASE_URL` | No | Base URL for the application | `http://localhost:7331` |
-| `SELF_HOSTED_MODE` | No | Set to "true" for self-hosting: enables auto-login, custom API keys, and additional features | `true` |
-| `DISABLE_SIGNUP` | No | Disable new user registration on your instance | `false` |
-| `BETTER_AUTH_SECRET` | Yes | Secret key for authentication (minimum 16 characters) | `your-secure-random-key` |
-
-
-## ⌨️ Local Development
-
-We use:
-
-- **Next.js 15+** for the frontend and API
-- **Prisma** for database models and migrations
-- **PostgreSQL** as the database (PostgreSQL 17+ recommended)
-- **Ghostscript and GraphicsMagick** for PDF processing (install on macOS via `brew install gs graphicsmagick`)
-
-Set up your local development environment:
+- **Next.js 15+**（App Router + Server Actions + Turbopack）
+- **Prisma** ORM + **PostgreSQL**（金额单位为分）
+- **LangChain** + 多 LLM 提供商
+- **Vision API** 用于票据图片 OCR
 
 ```bash
-# Clone the repository
-git clone https://github.com/vas3k/TaxHacker.git
-cd TaxHacker
+# 克隆仓库
+git clone https://github.com/ling-qian/piaoxiaozhu.git
+cd piaoxiaozhu
 
-# Install dependencies
+# 安装依赖
 npm install
 
-# Set up environment variables
+# 配置环境变量
 cp .env.example .env
+# 编辑 .env，设置 DATABASE_URL 和 LLM API Key
 
-# Edit .env with your configuration
-# Make sure to set DATABASE_URL to your PostgreSQL connection string
-# Example: postgresql://user@localhost:5432/taxhacker
-
-# Initialize the database
+# 初始化数据库
 npx prisma generate && npx prisma migrate dev
 
-# Start the development server
+# 启动开发服务器
 npm run dev
 ```
 
-Visit `http://localhost:7331` to see your local TaxHacker instance in action.
+访问 http://localhost:7331 即可使用。
 
-For a production build, instead of `npm run dev` use the following commands:
+生产构建：
 
 ```bash
-# Build the application
 npm run build
-
-# Start the production server
 npm run start
 ```
 
-## 🤝 Contributing
+## 📄 许可证
 
-No AI-slop PRs. Please open a new Issue and discuss the details with maintainers before sending new changes.
-
-
-
-## ❤️ Support the Project
-
-If TaxHacker has helped you save time or manage your finances better, consider supporting its development! Your donations help us maintain the project, add new features, and keep it free and open source. Every contribution helps ensure we can keep improving and maintaining this tool for the community: <https://vas3k.com/donate/>
-
-[![Thank the TaxHacker devs](https://img.shields.io/badge/❤️-donate%20to%20Taxhacker%20devs-f08080?labelColor=black&style=for-the-badge)](https://vas3k.com/donate/)
-
-## 📄 License
-
-TaxHacker is licensed under the [MIT License](LICENSE).
+票小助基于 [MIT License](LICENSE) 开源。
