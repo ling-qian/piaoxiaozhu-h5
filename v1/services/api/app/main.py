@@ -1,0 +1,29 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from app.routers import auth, files, records, projects, reports, payments, plans, toolkit, users
+
+app = FastAPI(title="PiaoXiaoZhu API", version="1.0.0", docs_url="/docs", redoc_url="/redoc")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(files.router)
+app.include_router(records.router)
+app.include_router(projects.router)
+app.include_router(reports.router)
+app.include_router(payments.router)
+app.include_router(plans.router)
+app.include_router(toolkit.router)
+app.include_router(users.router)
+
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "service": "piaoxiaozhu-api", "version": "1.0.0"}

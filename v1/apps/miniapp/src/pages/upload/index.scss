@@ -1,0 +1,142 @@
+.upload-page {
+  min-height: 100vh;
+  padding: 24px;
+  background: var(--color-bg-page);
+}
+
+.upload-area {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-lg);
+  padding: 48px 24px;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 24px;
+}
+
+.upload-icon-wrap {
+  margin-bottom: 20px;
+}
+
+.upload-icon {
+  font-size: 80px;
+}
+
+.upload-title {
+  display: block;
+  font-size: 34px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 12px;
+}
+
+.upload-desc {
+  display: block;
+  font-size: 24px;
+  color: var(--color-text-hint);
+  margin-bottom: 40px;
+}
+
+.upload-actions {
+  display: flex;
+  gap: 24px;
+  padding: 0 24px;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 160px;
+  border-radius: var(--radius-md);
+  border: 2px dashed #ddd;
+  background: #fafafa;
+
+  &.camera-btn {
+    border-color: var(--color-brand);
+    background: var(--color-brand-bg);
+  }
+
+  &.album-btn {
+    border-color: var(--color-brand-light);
+    background: #FFF8F2;
+  }
+}
+
+.action-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.action-label {
+  font-size: 26px;
+  color: var(--color-text-secondary);
+}
+
+.progress-section {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.progress-text {
+  display: block;
+  font-size: 26px;
+  color: var(--color-text-secondary);
+  margin-bottom: 16px;
+}
+
+.project-selector {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.selector-label {
+  display: block;
+  font-size: 26px;
+  color: var(--color-text-hint);
+  margin-bottom: 12px;
+}
+
+.selector-value {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 28px;
+  color: var(--color-text-primary);
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.selector-arrow {
+  font-size: 36px;
+  color: var(--color-text-hint);
+}
+
+.upload-tips {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.tips-title {
+  display: block;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 16px;
+}
+
+.tip-item {
+  display: block;
+  font-size: 24px;
+  color: var(--color-text-hint);
+  line-height: 2;
+}

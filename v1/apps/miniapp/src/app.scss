@@ -1,0 +1,37 @@
+:root {
+  --color-brand: #FF6B35;
+  --color-brand-light: #FF8F5E;
+  --color-brand-dark: #E55A28;
+  --color-brand-bg: #FFF3ED;
+  --color-success: #52C41A;
+  --color-warning: #FAAD14;
+  --color-error: #FF4D4F;
+  --color-text-primary: #333333;
+  --color-text-secondary: #666666;
+  --color-text-hint: #999999;
+  --color-bg-page: #F5F5F5;
+  --color-bg-card: #FFFFFF;
+  --color-border: #EEEEEE;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica,
+    Segoe UI, Arial, Roboto, 'PingFang SC', 'miui', 'Hiragino Sans GB',
+    'Microsoft Yahei', sans-serif;
+  font-size: 28px;
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-page);
+  box-sizing: border-box;
+}
+
+view, text, image, button, input {
+  box-sizing: border-box;
+}
+
+.container {
+  padding: 24px;
+}

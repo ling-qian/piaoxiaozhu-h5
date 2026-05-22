@@ -1,0 +1,76 @@
+.quota-card {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.quota-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.quota-plan {
+  font-size: 24px;
+  color: var(--color-brand);
+  background: var(--color-brand-bg);
+  padding: 4px 16px;
+  border-radius: 20px;
+}
+
+.quota-upgrade {
+  font-size: 24px;
+  color: var(--color-brand);
+}
+
+.quota-body {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.quota-remaining {
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--color-brand);
+}
+
+.quota-total {
+  font-size: 26px;
+  color: var(--color-text-hint);
+}
+
+.quota-label {
+  display: block;
+  font-size: 22px;
+  color: var(--color-text-hint);
+  margin-bottom: 16px;
+}
+
+.quota-track {
+  height: 8px;
+  background: #F0F0F0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.quota-fill {
+  height: 100%;
+  background: var(--color-brand);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+
+  &.low {
+    background: var(--color-error);
+  }
+}
+
+.quota-warning {
+  display: block;
+  font-size: 22px;
+  color: var(--color-error);
+  margin-top: 12px;
+}

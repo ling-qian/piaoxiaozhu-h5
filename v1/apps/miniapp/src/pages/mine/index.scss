@@ -1,0 +1,171 @@
+.mine-page {
+  min-height: 100vh;
+  background: var(--color-bg-page);
+}
+
+.user-header {
+  background: linear-gradient(135deg, #FF6B35, #FF8F5E);
+  padding: 48px 24px 32px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+}
+
+.user-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.5);
+  margin-right: 20px;
+}
+
+.user-detail {
+  .user-name {
+    display: block;
+    font-size: 34px;
+    font-weight: 600;
+    color: #ffffff;
+    margin-bottom: 8px;
+  }
+  .user-plan {
+    display: inline-block;
+    font-size: 22px;
+    color: var(--color-brand-dark);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px 16px;
+    border-radius: 20px;
+  }
+}
+
+.login-entry {
+  display: flex;
+  align-items: center;
+}
+
+.login-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 20px;
+}
+
+.login-icon {
+  font-size: 48px;
+}
+
+.login-btn {
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--color-brand);
+  font-size: 28px;
+  font-weight: 600;
+  border: none;
+  border-radius: 40px;
+  padding: 0 40px;
+  height: 72px;
+  line-height: 72px;
+}
+
+.quota-bar {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  margin: -16px 24px 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.quota-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.quota-label {
+  font-size: 24px;
+  color: var(--color-text-hint);
+}
+
+.quota-value {
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--color-brand);
+}
+
+.quota-track {
+  height: 8px;
+  background: #F0F0F0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.quota-fill {
+  height: 100%;
+  background: var(--color-brand);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.quota-upgrade {
+  display: block;
+  text-align: right;
+  font-size: 24px;
+  color: var(--color-brand);
+}
+
+.menu-list {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-md);
+  margin: 0 24px;
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px;
+  border-bottom: 1px solid var(--color-border);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.menu-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.menu-icon {
+  font-size: 36px;
+}
+
+.menu-title {
+  font-size: 28px;
+  color: var(--color-text-primary);
+}
+
+.menu-arrow {
+  font-size: 36px;
+  color: var(--color-text-hint);
+}
+
+.logout-btn {
+  margin: 40px 24px;
+  height: 88px;
+  line-height: 88px;
+  font-size: 30px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-card);
+  color: var(--color-error);
+  border: 1px solid var(--color-border);
+}
