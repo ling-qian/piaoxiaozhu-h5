@@ -4,7 +4,7 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: {
-    template: "%s | 票小猪",
+    template: "%s | 票小助",
     default: config.app.title,
   },
   description: config.app.description,

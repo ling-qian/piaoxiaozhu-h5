@@ -18,7 +18,7 @@ export async function WelcomeWidget() {
       <div className="flex flex-col">
         <CardTitle className="flex items-center justify-between">
           <span className="text-2xl font-bold">
-            <ColoredText>你好，我是票小猪 👋</ColoredText>
+            <ColoredText>你好，我是票小助 👋</ColoredText>
           </span>
           <Button
             variant="outline"

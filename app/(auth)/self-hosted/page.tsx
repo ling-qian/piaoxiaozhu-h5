@@ -18,7 +18,7 @@ export default async function SelfHostedWelcomePage() {
         </CardTitle>
         <CardDescription className="text-center text-lg flex flex-col gap-2">
           <p>
-            要使用票小猪的自托管模式，请在环境变量中设置 <code className="font-bold">SELF_HOSTED_MODE=true</code>。
+            要使用票小助的自托管模式，请在环境变量中设置 <code className="font-bold">SELF_HOSTED_MODE=true</code>。
           </p>
           <p>在自托管模式下，您可以使用自己的 ChatGPT API 密钥，并将数据存储在自己的服务器上。</p>
         </CardDescription>
@@ -42,10 +42,10 @@ export default async function SelfHostedWelcomePage() {
     <Card className="w-full max-w-xl mx-auto p-8 flex flex-col items-center justify-center gap-4">
       <Image src="/logo/512.png" alt="Logo" width={144} height={144} className="w-36 h-36" />
       <CardTitle className="text-3xl font-bold ">
-        <ColoredText>票小猪：自托管版</ColoredText>
+        <ColoredText>票小助：自托管版</ColoredText>
       </CardTitle>
       <CardDescription className="flex flex-col gap-4 text-center text-lg">
-        <p>欢迎使用票小猪。请先完成以下设置即可开始使用。</p>
+        <p>欢迎使用票小助。请先完成以下设置即可开始使用。</p>
         <SelfHostedSetupFormClient defaultProvider={defaultProvider} defaultApiKeys={defaultApiKeys} />
       </CardDescription>
     </Card>

@@ -10,6 +10,9 @@ const envSchema = z.object({
   GOOGLE_MODEL_NAME: z.string().default("gemini-2.5-flash"),
   MISTRAL_API_KEY: z.string().optional(),
   MISTRAL_MODEL_NAME: z.string().default("mistral-medium-latest"),
+  OPENAI_COMPATIBLE_API_KEY: z.string().optional(),
+  OPENAI_COMPATIBLE_MODEL_NAME: z.string().optional(),
+  OPENAI_COMPATIBLE_BASE_URL: z.string().optional(),
   BETTER_AUTH_SECRET: z
     .string()
     .min(16, "Auth secret must be at least 16 characters")
@@ -26,7 +29,7 @@ const env = envSchema.parse(process.env)
 
 const config = {
   app: {
-    title: "票小猪",
+    title: "票小助",
     description: "餐饮票据整理助手",
     version: process.env.npm_package_version || "0.0.1",
     baseURL: env.BASE_URL || `http://localhost:${env.PORT || "7331"}`,
@@ -59,6 +62,9 @@ const config = {
     googleModelName: env.GOOGLE_MODEL_NAME,
     mistralApiKey: env.MISTRAL_API_KEY,
     mistralModelName: env.MISTRAL_MODEL_NAME,
+    openaiCompatibleApiKey: env.OPENAI_COMPATIBLE_API_KEY,
+    openaiCompatibleModelName: env.OPENAI_COMPATIBLE_MODEL_NAME,
+    openaiCompatibleBaseUrl: env.OPENAI_COMPATIBLE_BASE_URL,
   },
   auth: {
     secret: env.BETTER_AUTH_SECRET,

@@ -56,6 +56,7 @@ async function requestLLMUnified(config: LLMConfig, req: LLMRequest): Promise<LL
         apiKey: config.apiKey || "not-needed",
         model: config.model,
         temperature: temperature,
+        maxTokens: 4096,
         configuration: {
           baseURL: config.baseUrl?.trim(),
         },
@@ -83,7 +84,21 @@ async function requestLLMUnified(config: LLMConfig, req: LLMRequest): Promise<LL
     let response: any
     if (config.provider === "openai_compatible") {
       const raw = await model.invoke(messages)
-      const text = typeof raw.content === "string" ? raw.content : raw.content.map((c: any) => c.text || "").join("")
+      let text: string
+      if (typeof raw.content === "string" && raw.content.trim()) {
+        text = raw.content
+      } else if (Array.isArray(raw.content)) {
+        text = raw.content.map((c: any) => c.text || "").join("")
+      } else {
+        text = raw.additional_kwargs?.reasoning_content || raw.additional_kwargs?.reasoning || ""
+      }
+      if (!text.trim()) {
+        return {
+          output: {},
+          provider: config.provider,
+          error: "LLM returned empty content (reasoning model may have run out of tokens)",
+        }
+      }
       response = JSON.parse(text.replace(/```(?:json)?\s*/g, "").trim())
     } else {
       const structuredModel = model.withStructuredOutput(req.schema, { name: "transaction" })

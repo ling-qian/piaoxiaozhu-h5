@@ -14,7 +14,7 @@ export default async function ChoosePlanPage() {
     <div className="container mx-auto px-4 py-8">
       <Card className="w-full max-w-4xl mx-auto p-8 flex flex-col items-center justify-center gap-8">
         <CardTitle className="text-4xl font-bold text-center">
-          <ColoredText>票小猪云端版</ColoredText>
+          <ColoredText>票小助云端版</ColoredText>
           <h2 className="mt-3 text-2xl font-semibold text-muted-foreground">云端方案暂未开放</h2>
         </CardTitle>
         <CardContent className="p-0 w-full">

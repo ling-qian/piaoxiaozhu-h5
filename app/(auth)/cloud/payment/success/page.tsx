@@ -48,7 +48,7 @@ export default async function CloudPaymentSuccessPage({
           <ColoredText>支付成功</ColoredText>
         </CardTitle>
         <CardDescription className="text-center text-xl">
-          欢迎使用票小猪，{user.name}。您现在可以登录您的账户了
+          欢迎使用票小助，{user.name}。您现在可以登录您的账户了
         </CardDescription>
         <CardContent className="w-full">
           <LoginForm defaultEmail={user.email} />
