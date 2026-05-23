@@ -15,7 +15,7 @@ function App({ children }: PropsWithChildren) {
     }
   });
 
-  return children as React.ReactElement;
+  return <>{children}</>;
 }
 
 export default App;

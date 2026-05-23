@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -6,18 +7,18 @@ from pydantic import BaseModel, Field
 
 class ProjectCreate(BaseModel):
     name: str = Field(..., max_length=256)
-    industry: str | None = None
-    report_month: str | None = Field(None, pattern=r"^\d{4}-\d{2}$")
-    customer_id: UUID | None = None
+    industry: Optional[str] = None
+    report_month: Optional[str] = Field(None, pattern=r"^\d{4}-\d{2}$")
+    customer_id: Optional[UUID] = None
 
 
 class ProjectResponse(BaseModel):
     id: UUID
     user_id: UUID
-    customer_id: UUID | None = None
+    customer_id: Optional[UUID] = None
     name: str
-    industry: str | None = None
-    report_month: str | None = None
+    industry: Optional[str] = None
+    report_month: Optional[str] = None
     status: str = "draft"
     created_at: datetime
     record_count: int = 0
@@ -28,5 +29,5 @@ class ProjectResponse(BaseModel):
 
 
 class ProjectListResponse(BaseModel):
-    items: list[ProjectResponse]
+    items: List[ProjectResponse]
     total: int

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -13,9 +15,9 @@ class WechatLoginResponse(BaseModel):
 class UserBrief(BaseModel):
     id: str
     openid: str
-    nickname: str | None = None
-    avatar_url: str | None = None
-    phone: str | None = None
+    nickname: Optional[str] = None
+    avatar_url: Optional[str] = None
+    phone: Optional[str] = None
     plan_code: str = "free"
 
     model_config = {"from_attributes": True}

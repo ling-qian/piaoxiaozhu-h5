@@ -5,3 +5,8 @@ node_modules/
 .env*.local
 *.tsbuildinfo
 prisma/client/
+dist/
+.swc/
+__pycache__/
+*.pyc
+.venv/
