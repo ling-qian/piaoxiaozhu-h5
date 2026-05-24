@@ -2,6 +2,7 @@ import io
 import json
 import uuid
 from datetime import date
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -22,7 +23,7 @@ router = APIRouter(prefix="/api", tags=["reports"])
 
 async def _get_project_records(
     project_id: str, user_id, db: AsyncSession
-) -> list[InvoiceRecord]:
+) -> list:
     result = await db.execute(
         select(InvoiceRecord).where(
             InvoiceRecord.project_id == project_id,
@@ -32,7 +33,7 @@ async def _get_project_records(
     return result.scalars().all()
 
 
-def _records_to_report_input(records: list[InvoiceRecord]) -> list:
+def _records_to_report_input(records: list) -> list:
     class _Rec:
         __slots__ = ("type", "total", "category_code")
 
@@ -48,7 +49,7 @@ def _records_to_report_input(records: list[InvoiceRecord]) -> list:
     return items
 
 
-def _records_to_export_records(records: list[InvoiceRecord]) -> list[ExportRecord]:
+def _records_to_export_records(records: list) -> list:
     items = []
     for r in records:
         issued = None
@@ -74,22 +75,25 @@ def _records_to_export_records(records: list[InvoiceRecord]) -> list[ExportRecor
     return items
 
 
+async def _verify_project_owner(
+    project_id: str, user_id, db: AsyncSession
+) -> Project:
+    result = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == user_id)
+    )
+    project = result.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return project
+
+
 @router.get("/projects/{project_id}/report", response_model=ReportResponse)
 async def get_report(
     project_id: str,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    project_result = await db.execute(
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        )
-    )
-    project = project_result.scalar_one_or_none()
-    if project is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-        )
+    await _verify_project_owner(project_id, current_user.id, db)
 
     records = await _get_project_records(project_id, current_user.id, db)
     report_input = _records_to_report_input(records)
@@ -150,18 +154,15 @@ async def export_report(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    project_result = await db.execute(
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        )
-    )
-    project = project_result.scalar_one_or_none()
-    if project is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-        )
+    project = await _verify_project_owner(project_id, current_user.id, db)
 
     records = await _get_project_records(project_id, current_user.id, db)
+    if not records:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No records found for this project",
+        )
+
     export_records = _records_to_export_records(records)
     report_input = _records_to_report_input(records)
     report = build_restaurant_poc_report(report_input)
@@ -198,16 +199,7 @@ async def share_report(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    project_result = await db.execute(
-        select(Project).where(
-            Project.id == project_id, Project.user_id == current_user.id
-        )
-    )
-    project = project_result.scalar_one_or_none()
-    if project is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
-        )
+    await _verify_project_owner(project_id, current_user.id, db)
 
     latest_result = await db.execute(
         select(ReportSnapshot)
@@ -234,3 +226,26 @@ async def share_report(
 
     share_url = f"https://app.piaoxiaozhu.com/share/{share_token}"
     return ShareResponse(share_token=share_token, share_url=share_url)
+
+
+@router.get("/share/{share_token}")
+async def get_shared_report(
+    share_token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(ReportSnapshot).where(ReportSnapshot.share_token == share_token)
+    )
+    snapshot = result.scalar_one_or_none()
+    if snapshot is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
+
+    return {
+        "id": str(snapshot.id),
+        "project_id": str(snapshot.project_id),
+        "version": snapshot.version,
+        "summary": snapshot.summary,
+        "detail": json.loads(snapshot.detail_json) if snapshot.detail_json else None,
+        "status": snapshot.status,
+        "created_at": snapshot.created_at.isoformat() if snapshot.created_at else None,
+    }

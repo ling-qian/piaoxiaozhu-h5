@@ -1,21 +1,17 @@
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, status
 from jose import jwt
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.models.database import AsyncSessionLocal
+from app.models.user import User
 from app.schemas.auth import WechatLoginRequest, WechatLoginResponse, UserBrief, BindPhoneRequest
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-MOCK_USER = UserBrief(
-    id="00000000-0000-0000-0000-000000000001",
-    openid="mock_openid_123456",
-    nickname="测试用户",
-    avatar_url="https://thirdwx.qlogo.cn/mmopen/vi_32/mock/132",
-    phone=None,
-    plan_code="free",
-)
 
 
 def _create_access_token(user_id: str) -> str:
@@ -24,14 +20,35 @@ def _create_access_token(user_id: str) -> str:
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
+def _user_to_brief(user_obj: User) -> UserBrief:
+    return UserBrief(
+        id=str(user_obj.id),
+        openid=user_obj.openid,
+        nickname=user_obj.nickname,
+        avatar_url=user_obj.avatar_url,
+        phone=user_obj.phone,
+        plan_code=user_obj.plan_code,
+    )
+
+
+async def _find_or_create_user(db: AsyncSession, openid: str, unionid: Optional[str] = None) -> User:
+    result = await db.execute(select(User).where(User.openid == openid))
+    user_obj = result.scalar_one_or_none()
+    if user_obj is None:
+        user_obj = User(openid=openid, unionid=unionid)
+        db.add(user_obj)
+        await db.commit()
+        await db.refresh(user_obj)
+    return user_obj
+
+
 @router.post("/wechat/login", response_model=WechatLoginResponse)
 async def wechat_login(body: WechatLoginRequest):
     code = body.code
+    openid: Optional[str] = None
+    unionid: Optional[str] = None
 
-    if not settings.WX_APPID:
-        openid = f"mock_openid_{code}"
-        user = MOCK_USER.model_copy(update={"openid": openid})
-    else:
+    if settings.WX_APPID:
         import httpx
 
         async with httpx.AsyncClient() as client:
@@ -52,27 +69,12 @@ async def wechat_login(body: WechatLoginRequest):
                 )
             openid = data["openid"]
             unionid = data.get("unionid")
+    else:
+        openid = f"dev_openid_{code}"
 
-        from sqlalchemy import select
-        from app.models.database import AsyncSessionLocal
-        from app.models.user import User
-
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(select(User).where(User.openid == openid))
-            user_obj = result.scalar_one_or_none()
-            if user_obj is None:
-                user_obj = User(openid=openid, unionid=unionid)
-                db.add(user_obj)
-                await db.commit()
-                await db.refresh(user_obj)
-            user = UserBrief(
-                id=str(user_obj.id),
-                openid=user_obj.openid,
-                nickname=user_obj.nickname,
-                avatar_url=user_obj.avatar_url,
-                phone=user_obj.phone,
-                plan_code=user_obj.plan_code,
-            )
+    async with AsyncSessionLocal() as db:
+        user_obj = await _find_or_create_user(db, openid, unionid)
+        user = _user_to_brief(user_obj)
 
     access_token = _create_access_token(user.id)
     return WechatLoginResponse(access_token=access_token, user=user)
@@ -81,7 +83,11 @@ async def wechat_login(body: WechatLoginRequest):
 @router.post("/wechat/bind-phone")
 async def wechat_bind_phone(body: BindPhoneRequest):
     if not settings.WX_APPID:
-        return {"phone": "13800138000", "bound": True}
+        phone = "13800138000"
+        async with AsyncSessionLocal() as db:
+            current_user.phone = phone
+            await db.commit()
+        return {"phone": phone, "bound": True}
 
     import httpx
 
@@ -104,4 +110,10 @@ async def wechat_bind_phone(body: BindPhoneRequest):
         if phone_data.get("errcode", 0) != 0:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to get phone number")
 
-    return {"phone": phone_data["phone_info"]["phoneNumber"], "bound": True}
+    phone = phone_data["phone_info"]["phoneNumber"]
+    if current_user:
+        async with AsyncSessionLocal() as db:
+            current_user.phone = phone
+            await db.commit()
+
+    return {"phone": phone, "bound": True}

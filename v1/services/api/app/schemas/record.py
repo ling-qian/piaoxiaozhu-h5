@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 
 
 class InvoiceRecordCreate(BaseModel):
+    project_id: UUID
+    file_id: Optional[UUID] = None
     direction: str = Field(..., description="in or out")
     merchant_name: Optional[str] = None
     tax_no: Optional[str] = None

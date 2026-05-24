@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 from app.routers import auth, files, records, projects, reports, payments, plans, toolkit, users, manual_income
 
@@ -23,6 +25,16 @@ app.include_router(plans.router)
 app.include_router(toolkit.router)
 app.include_router(users.router)
 app.include_router(manual_income.router)
+
+upload_dir = Path("uploads")
+upload_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/files/static", StaticFiles(directory="uploads"), name="static_uploads")
+
+
+@app.on_event("startup")
+async def startup():
+    from app.seed import seed
+    await seed()
 
 
 @app.get("/health")

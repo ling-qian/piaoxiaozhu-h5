@@ -16,40 +16,6 @@ async def list_plans(db: AsyncSession = Depends(get_db)):
     )
     plans = result.scalars().all()
 
-    if not plans:
-        return {
-            "items": [
-                {
-                    "code": "free",
-                    "name": "免费版",
-                    "quota": 10,
-                    "price_cents": 0,
-                    "features": "每月10张发票,基础报表,基础分类",
-                },
-                {
-                    "code": "basic",
-                    "name": "基础版",
-                    "quota": 500,
-                    "price_cents": 2900,
-                    "features": "每月500张发票,高级报表,智能分类",
-                },
-                {
-                    "code": "pro",
-                    "name": "专业版",
-                    "quota": 3000,
-                    "price_cents": 9900,
-                    "features": "每月3000张发票,高级报表,智能分类,异常检测,导出PDF",
-                },
-                {
-                    "code": "toolkit",
-                    "name": "工具包",
-                    "quota": 0,
-                    "price_cents": 4900,
-                    "features": "税收政策速查,发票操作指南,财税计算工具",
-                },
-            ]
-        }
-
     return {
         "items": [
             {
@@ -73,8 +39,12 @@ async def get_my_quota(
     if remaining < 0:
         remaining = 0
 
+    plan_result = await db.execute(select(Plan).where(Plan.code == current_user.plan_code))
+    plan = plan_result.scalar_one_or_none()
+
     return {
         "plan_code": current_user.plan_code,
+        "plan_name": plan.name if plan else current_user.plan_code,
         "quota_total": current_user.quota_total,
         "quota_used": current_user.quota_used,
         "quota_remaining": remaining,
