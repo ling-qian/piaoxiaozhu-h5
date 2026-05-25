@@ -108,7 +108,7 @@ export default function Index() {
                 </View>
                 <View className='project-cost'>
                   <Text className='cost-label'>成本</Text>
-                  <Text className='cost-value'>¥{project.total_cost.toFixed(2)}</Text>
+                  <Text className='cost-value'>¥{Number(project.total_cost || 0).toFixed(2)}</Text>
                 </View>
               </View>
             ))}

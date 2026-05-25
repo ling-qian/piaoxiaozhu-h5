@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import Taro from '@tarojs/taro';
-import { authApi, userApi, projectApi } from '../services/api';
+import { authApi, userApi, projectApi, plansApi } from '../services/api';
 
 interface UserInfo {
   id: string;
@@ -46,6 +46,7 @@ interface AppState {
   projects: ProjectInfo[];
   currentProject: ProjectInfo | null;
   plans: PlanInfo[];
+  initialized: boolean;
 
   setToken: (token: string) => void;
   fetchUserInfo: () => Promise<void>;
@@ -54,8 +55,9 @@ interface AppState {
   fetchPlans: () => Promise<void>;
   setCurrentProject: (project: ProjectInfo | null) => void;
   login: (code: string) => Promise<void>;
+  autoLogin: () => Promise<void>;
   logout: () => void;
-  checkLogin: () => boolean;
+  isLoggedIn: () => boolean;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -65,6 +67,7 @@ export const useStore = create<AppState>((set, get) => ({
   projects: [],
   currentProject: null,
   plans: [],
+  initialized: false,
 
   setToken: (token: string) => {
     Taro.setStorageSync('token', token);
@@ -74,16 +77,16 @@ export const useStore = create<AppState>((set, get) => ({
   fetchUserInfo: async () => {
     try {
       const data = await userApi.getMe();
-      set({ userInfo: data });
+      set({ userInfo: data as UserInfo });
     } catch {
-      get().logout();
+      // network error, don't logout
     }
   },
 
   fetchQuota: async () => {
     try {
       const data = await userApi.getQuota();
-      set({ quota: data });
+      set({ quota: data as QuotaInfo });
     } catch {
       // ignore
     }
@@ -100,7 +103,7 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchPlans: async () => {
     try {
-      const data = await (await import('../services/api')).plansApi.getList();
+      const data = await plansApi.getList();
       set({ plans: data.items || [] });
     } catch {
       // ignore
@@ -115,13 +118,42 @@ export const useStore = create<AppState>((set, get) => ({
       const accessToken = data.access_token;
       const user = data.user;
       get().setToken(accessToken);
-      set({ userInfo: user });
-      get().fetchQuota();
-      get().fetchProjects();
+      set({ userInfo: user as UserInfo, initialized: true });
+      await Promise.all([get().fetchQuota(), get().fetchProjects()]);
     } catch (error: any) {
       Taro.showToast({ title: '登录失败', icon: 'none' });
       throw error;
     }
+  },
+
+  autoLogin: async () => {
+    const token = Taro.getStorageSync('token');
+    if (token) {
+      get().setToken(token);
+      try {
+        await Promise.all([
+          get().fetchUserInfo(),
+          get().fetchQuota(),
+          get().fetchProjects(),
+        ]);
+      } catch {
+        // if all fail, token might be expired
+        const freshToken = Taro.getStorageSync('token');
+        if (!freshToken) {
+          get().logout();
+        }
+      }
+    } else {
+      try {
+        const loginRes = await Taro.login();
+        if (loginRes.code) {
+          await get().login(loginRes.code);
+        }
+      } catch {
+        // auto login failed, user can manually login later
+      }
+    }
+    set({ initialized: true });
   },
 
   logout: () => {
@@ -129,12 +161,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ token: '', userInfo: null, quota: null, projects: [], currentProject: null });
   },
 
-  checkLogin: () => {
-    const token = Taro.getStorageSync('token');
-    if (!token) {
-      Taro.showToast({ title: '请先登录', icon: 'none' });
-      return false;
-    }
-    return true;
+  isLoggedIn: () => {
+    return !!Taro.getStorageSync('token');
   },
 }));

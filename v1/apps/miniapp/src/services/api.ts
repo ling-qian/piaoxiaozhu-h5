@@ -74,7 +74,7 @@ export const userApi = {
 
 export const plansApi = {
   getList: () =>
-    request({ url: '/api/plans', needAuth: false }),
+    request({ url: '/api/plans' }),
 };
 
 export const fileApi = {
@@ -112,7 +112,7 @@ export const recordApi = {
   create: (data: {
     project_id: string;
     file_id?: string;
-    direction?: string;
+    direction: string;
     merchant_name?: string;
     amount?: number;
     tax_amount?: number;
@@ -185,5 +185,5 @@ export const toolkitApi = {
 
 export const paymentApi = {
   createPrepay: (planCode: string) =>
-    request({ url: '/api/wechat/prepay', method: 'POST', data: { plan_code: planCode } }),
+    request({ url: '/api/payments/wechat/prepay', method: 'POST', data: { plan_code: planCode } }),
 };

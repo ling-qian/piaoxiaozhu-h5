@@ -6,13 +6,7 @@ import './app.scss';
 function App({ children }: PropsWithChildren) {
   Taro.useLaunch(() => {
     const store = useStore.getState();
-    const token = Taro.getStorageSync('token');
-    if (token) {
-      store.setToken(token);
-      store.fetchUserInfo();
-    } else {
-      store.checkLogin();
-    }
+    store.autoLogin();
   });
 
   return children as React.ReactElement;

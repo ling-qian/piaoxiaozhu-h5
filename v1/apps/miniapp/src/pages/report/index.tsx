@@ -25,13 +25,13 @@ interface CategoryCost {
   total_amount: number;
 }
 
-function formatAmount(fen: number): string {
-  const yuan = fen / 100;
-  return yuan.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function formatAmount(val: number): string {
+  const num = Number(val) || 0;
+  return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-function formatPercent(ratio: number): string {
-  return (ratio * 100).toFixed(1) + '%';
+function formatPercent(val: number): string {
+  return (Number(val) || 0).toFixed(1) + '%';
 }
 
 export default function Report() {
@@ -67,24 +67,27 @@ export default function Report() {
     if (!params?.projectId) return;
     try {
       Taro.showLoading({ title: '导出中...' });
-      const res = await reportApi.exportReport(params.projectId, 'csv');
-      Taro.hideLoading();
-      const url = (res as any)?.url || (res as any)?.data?.url;
-      if (url) {
-        Taro.downloadFile({
-          url,
-          success: (downloadRes) => {
-            if (downloadRes.statusCode === 200) {
-              Taro.openDocument({
-                filePath: downloadRes.tempFilePath,
-                showMenu: true,
-              });
-            }
-          },
-        });
-      } else {
-        Taro.showToast({ title: '导出成功', icon: 'success' });
-      }
+      const token = Taro.getStorageSync('token');
+      const exportUrl = `${process.env.TARO_APP_API_URL || 'http://localhost:8000'}/api/projects/${params.projectId}/report/export?fmt=csv`;
+      Taro.downloadFile({
+        url: exportUrl,
+        header: { Authorization: `Bearer ${token}` },
+        success: (downloadRes) => {
+          Taro.hideLoading();
+          if (downloadRes.statusCode === 200) {
+            Taro.openDocument({
+              filePath: downloadRes.tempFilePath,
+              showMenu: true,
+            });
+          } else {
+            Taro.showToast({ title: '导出失败', icon: 'none' });
+          }
+        },
+        fail: () => {
+          Taro.hideLoading();
+          Taro.showToast({ title: '导出失败', icon: 'none' });
+        },
+      });
     } catch {
       Taro.hideLoading();
       Taro.showToast({ title: '导出失败', icon: 'none' });
@@ -98,10 +101,18 @@ export default function Report() {
       Taro.showLoading({ title: '生成中...' });
       const res = await reportApi.shareReport(params.projectId);
       Taro.hideLoading();
-      const token = (res as any)?.share_token || (res as any)?.data?.share_token || (res as any)?.token;
-      if (token) {
+      const shareToken = (res as any)?.share_token;
+      const shareUrl = (res as any)?.share_url;
+      if (shareUrl) {
         Taro.setClipboardData({
-          data: token,
+          data: shareUrl,
+          success: () => {
+            Taro.showToast({ title: '分享链接已复制', icon: 'success' });
+          },
+        });
+      } else if (shareToken) {
+        Taro.setClipboardData({
+          data: shareToken,
           success: () => {
             Taro.showToast({ title: '分享口令已复制', icon: 'success' });
           },

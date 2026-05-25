@@ -50,9 +50,9 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
 
 const PAGE_SIZE = 20;
 
-function formatAmount(fen: number): string {
-  const yuan = fen / 100;
-  return yuan.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function formatAmount(val: number): string {
+  const num = Number(val) || 0;
+  return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function generateMonths(): string[] {
@@ -184,8 +184,8 @@ export default function Project() {
       Taro.showToast({ title: '请填写金额', icon: 'none' });
       return;
     }
-    const amountFen = Math.round(parseFloat(incomeAmount) * 100);
-    if (isNaN(amountFen) || amountFen <= 0) {
+    const amountYuan = parseFloat(incomeAmount);
+    if (isNaN(amountYuan) || amountYuan <= 0) {
       Taro.showToast({ title: '请输入有效金额', icon: 'none' });
       return;
     }
@@ -193,7 +193,7 @@ export default function Project() {
     try {
       await projectApi.addManualIncome(project.id, {
         month: MONTH_OPTIONS[incomeMonth],
-        amount: amountFen,
+        amount: amountYuan,
       });
       Taro.showToast({ title: '添加成功', icon: 'success' });
       setShowIncomeModal(false);

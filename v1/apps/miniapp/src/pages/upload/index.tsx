@@ -13,6 +13,7 @@ interface UploadTask {
   progress: number;
   fileId?: string;
   recordId?: string;
+  recordData?: any;
 }
 
 export default function Upload() {
@@ -39,14 +40,41 @@ export default function Upload() {
       clearInterval(pollingRef.current);
     }
 
+    let attempts = 0;
+    const maxAttempts = 60;
+
     pollingRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > maxAttempts) {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        updateTask(filePath, { step: 'ocr_failed' });
+        Taro.showToast({ title: '识别超时，请重试', icon: 'none' });
+        return;
+      }
+
       try {
         const res = await fileApi.getOcrStatus(fileId);
-        if (res.status === 'done') {
+        const ocrStatus = res.ocr_status;
+
+        if (ocrStatus === 'done') {
           if (pollingRef.current) clearInterval(pollingRef.current);
-          updateTask(filePath, { step: 'ocr_done', recordId: res.record_id });
-          Taro.navigateTo({ url: `/pages/result/index?id=${res.record_id}` });
-        } else if (res.status === 'failed') {
+          const records = res.records || [];
+          if (records.length > 0) {
+            const record = records[0];
+            updateTask(filePath, {
+              step: 'ocr_done',
+              recordId: record.id,
+              recordData: record,
+            });
+            const encodedData = encodeURIComponent(JSON.stringify(record));
+            Taro.navigateTo({
+              url: `/pages/result/index?id=${record.id}&data=${encodedData}`,
+            });
+          } else {
+            updateTask(filePath, { step: 'ocr_done' });
+            Taro.showToast({ title: '识别完成，但未提取到记录', icon: 'none' });
+          }
+        } else if (ocrStatus === 'failed') {
           if (pollingRef.current) clearInterval(pollingRef.current);
           updateTask(filePath, { step: 'ocr_failed' });
           Taro.showToast({ title: '识别失败，请重试', icon: 'none' });
@@ -69,15 +97,19 @@ export default function Upload() {
     setTasks((prev) => [...prev, task]);
 
     try {
-      updateTask(filePath, { progress: 30 });
+      updateTask(filePath, { progress: 20 });
       const uploadRes = await fileApi.upload(filePath, currentProject.id);
-      const fileId = uploadRes.id;
+      const fileId = uploadRes.file_id;
 
-      updateTask(filePath, { progress: 60, fileId });
+      if (!fileId) {
+        throw new Error('上传返回无效');
+      }
+
+      updateTask(filePath, { progress: 50, fileId });
 
       await fileApi.triggerOcr(fileId);
 
-      updateTask(filePath, { step: 'ocr_processing', progress: 80 });
+      updateTask(filePath, { step: 'ocr_processing', progress: 70 });
 
       pollOcrStatus(fileId, filePath);
     } catch (error: any) {
@@ -136,7 +168,7 @@ export default function Upload() {
   const getStepPercent = (task: UploadTask): number => {
     switch (task.step) {
       case 'uploading': return task.progress;
-      case 'ocr_processing': return 80;
+      case 'ocr_processing': return 70;
       case 'ocr_done': return 100;
       case 'ocr_failed': return task.progress;
       default: return 0;
@@ -216,7 +248,12 @@ export default function Upload() {
                 <View
                   className='task-goto'
                   onClick={() => {
-                    Taro.navigateTo({ url: `/pages/result/index?id=${task.recordId}` });
+                    const encodedData = task.recordData
+                      ? encodeURIComponent(JSON.stringify(task.recordData))
+                      : '';
+                    Taro.navigateTo({
+                      url: `/pages/result/index?id=${task.recordId}&data=${encodedData}`,
+                    });
                   }}
                 >
                   <Text className='task-goto-text'>查看</Text>

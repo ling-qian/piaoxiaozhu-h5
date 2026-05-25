@@ -49,14 +49,14 @@ function findCategoryIndex(code: string): number {
   return idx >= 0 ? idx : 0;
 }
 
-function formatAmount(fen: number): string {
-  return (fen / 100).toFixed(2);
+function formatAmount(val: number): string {
+  return (Number(val) || 0).toFixed(2);
 }
 
-function parseYuan(yuan: string): number {
-  const val = parseFloat(yuan);
+function parseAmountInput(input: string): number {
+  const val = parseFloat(input);
   if (isNaN(val)) return 0;
-  return Math.round(val * 100);
+  return Math.round(val * 100) / 100;
 }
 
 export default function Result() {
@@ -191,9 +191,10 @@ export default function Result() {
       const cat = CATEGORIES[manualCategoryIdx];
       await recordApi.create({
         project_id: projectList[selectedProjectIdx].id,
+        direction: 'cost',
         merchant_name: form.merchant_name.trim(),
-        amount: parseYuan(form.amount),
-        tax_amount: parseYuan(form.tax_amount),
+        amount: parseAmountInput(form.amount),
+        tax_amount: parseAmountInput(form.tax_amount),
         invoice_date: form.invoice_date,
         category_code: cat.code,
         category_l1: cat.l1,
@@ -351,7 +352,7 @@ export default function Result() {
             className='field-input'
             type='digit'
             value={formatAmount(record.amount)}
-            onInput={(e) => updateField('amount', parseYuan(e.detail.value))}
+            onInput={(e) => updateField('amount', parseAmountInput(e.detail.value))}
             placeholder='0.00'
           />
         </View>
@@ -362,7 +363,7 @@ export default function Result() {
             className='field-input'
             type='digit'
             value={formatAmount(record.tax_amount)}
-            onInput={(e) => updateField('tax_amount', parseYuan(e.detail.value))}
+            onInput={(e) => updateField('tax_amount', parseAmountInput(e.detail.value))}
             placeholder='0.00'
           />
         </View>
