@@ -3,27 +3,20 @@ import Taro from '@tarojs/taro';
 import { useStore } from '../../store';
 import './index.scss';
 
-interface MenuItem {
-  icon: string;
-  title: string;
-  url?: string;
-  action?: string;
-}
+const PLAN_NAMES: Record<string, string> = {
+  free: '免费版',
+  pro: '专业版',
+  enterprise: '企业版',
+};
 
-const MENU_LIST: MenuItem[] = [
-  { icon: '📋', title: '识别记录', url: '' },
-  { icon: '📁', title: '我的项目', url: '' },
-  { icon: '🏷️', title: '分类管理', url: '' },
-  { icon: '📊', title: '数据统计', url: '' },
-  { icon: '📤', title: '导出数据', url: '' },
-  { icon: '⚙️', title: '设置', url: '' },
-  { icon: '💬', title: '意见反馈', url: '' },
-  { icon: '📖', title: '使用帮助', url: '' },
-  { icon: 'ℹ️', title: '关于票小助', url: '' },
-];
+const DEFAULT_AVATAR = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI9FhqR6no4pKIrgIbEDk0YqIjYzS7JNibb2nZcTiaS6xFupbGBy1QcBcQ2Q';
 
 export default function Mine() {
-  const { userInfo, quota, logout } = useStore();
+  const { userInfo, quota, logout, fetchUserInfo, fetchQuota } = useStore();
+
+  const planName = userInfo?.plan_code
+    ? PLAN_NAMES[userInfo.plan_code] || userInfo.plan_code
+    : '免费版';
 
   const handleLogin = () => {
     Taro.login({
@@ -48,16 +41,46 @@ export default function Mine() {
     });
   };
 
-  const handleMenuClick = (item: MenuItem) => {
-    if (item.url) {
-      Taro.navigateTo({ url: item.url });
-    } else {
-      Taro.showToast({ title: '功能开发中', icon: 'none' });
+  const handleMenuClick = (action: string) => {
+    switch (action) {
+      case 'member':
+        Taro.navigateTo({ url: '/pages/member/index' });
+        break;
+      case 'quota':
+        showQuotaInfo();
+        break;
+      case 'toolkit':
+        Taro.navigateTo({ url: '/pages/toolkit/index' });
+        break;
+      case 'about':
+        showAboutInfo();
+        break;
+      default:
+        break;
     }
   };
 
-  const handleMemberClick = () => {
-    Taro.navigateTo({ url: '/pages/member/index' });
+  const showQuotaInfo = () => {
+    if (!quota) {
+      Taro.showToast({ title: '暂无配额信息', icon: 'none' });
+      return;
+    }
+    const total = quota.quota_total === -1 ? '无限' : String(quota.quota_total);
+    Taro.showModal({
+      title: '使用配额',
+      content: `已使用：${quota.quota_used}张\n总配额：${total}张\n剩余：${quota.quota_remaining}张`,
+      showCancel: false,
+      confirmText: '知道了',
+    });
+  };
+
+  const showAboutInfo = () => {
+    Taro.showModal({
+      title: '关于票小助',
+      content: '票小助 - 智能票据管理助手\n版本：1.0.0\n为您提供便捷的票据识别、分类和管理服务，助力企业高效财税管理。',
+      showCancel: false,
+      confirmText: '知道了',
+    });
   };
 
   return (
@@ -67,12 +90,14 @@ export default function Mine() {
           <View className='user-info'>
             <Image
               className='user-avatar'
-              src={userInfo.avatar || 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI9FhqR6no4pKIrgIbEDk0YqIjYzS7JNibb2nZcTiaS6xFupbGBy1QcBcQ2Q'}
+              src={userInfo.avatar_url || DEFAULT_AVATAR}
               mode='aspectFill'
             />
             <View className='user-detail'>
-              <Text className='user-name'>{userInfo.nickname}</Text>
-              <Text className='user-plan'>{userInfo.plan || '免费版'}</Text>
+              <Text className='user-name'>{userInfo.nickname || '用户'}</Text>
+              <View className='user-plan-badge'>
+                <Text className='plan-badge-text'>{planName}</Text>
+              </View>
             </View>
           </View>
         ) : (
@@ -87,36 +112,45 @@ export default function Mine() {
         )}
       </View>
 
-      {quota && (
-        <View className='quota-bar' onClick={handleMemberClick}>
-          <View className='quota-info'>
-            <Text className='quota-label'>本月剩余次数</Text>
-            <Text className='quota-value'>{quota.remaining} / {quota.total === -1 ? '∞' : quota.total}</Text>
-          </View>
-          <View className='quota-track'>
-            <View
-              className='quota-fill'
-              style={{ width: `${quota.total > 0 ? (quota.remaining / quota.total) * 100 : 0}%` }}
-            />
-          </View>
-          <Text className='quota-upgrade'>升级 ›</Text>
-        </View>
-      )}
-
       <View className='menu-list'>
-        {MENU_LIST.map((item, idx) => (
-          <View
-            key={idx}
-            className='menu-item'
-            onClick={() => handleMenuClick(item)}
-          >
-            <View className='menu-left'>
-              <Text className='menu-icon'>{item.icon}</Text>
-              <Text className='menu-title'>{item.title}</Text>
-            </View>
+        <View className='menu-item' onClick={() => handleMenuClick('member')}>
+          <View className='menu-left'>
+            <Text className='menu-icon'>👑</Text>
+            <Text className='menu-title'>我的方案</Text>
+          </View>
+          <Text className='menu-arrow'>›</Text>
+        </View>
+
+        <View className='menu-item' onClick={() => handleMenuClick('quota')}>
+          <View className='menu-left'>
+            <Text className='menu-icon'>📊</Text>
+            <Text className='menu-title'>使用配额</Text>
+          </View>
+          <View className='menu-right'>
+            {quota && (
+              <Text className='menu-value'>
+                {quota.quota_used}/{quota.quota_total === -1 ? '∞' : quota.quota_total}
+              </Text>
+            )}
             <Text className='menu-arrow'>›</Text>
           </View>
-        ))}
+        </View>
+
+        <View className='menu-item' onClick={() => handleMenuClick('toolkit')}>
+          <View className='menu-left'>
+            <Text className='menu-icon'>🧰</Text>
+            <Text className='menu-title'>工具箱</Text>
+          </View>
+          <Text className='menu-arrow'>›</Text>
+        </View>
+
+        <View className='menu-item' onClick={() => handleMenuClick('about')}>
+          <View className='menu-left'>
+            <Text className='menu-icon'>ℹ️</Text>
+            <Text className='menu-title'>关于票小助</Text>
+          </View>
+          <Text className='menu-arrow'>›</Text>
+        </View>
       </View>
 
       {userInfo && (

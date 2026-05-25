@@ -1,20 +1,62 @@
+@import '@/assets/styles/variables.scss';
+
 .upload-page {
   min-height: 100vh;
   padding: 24px;
-  background: var(--color-bg-page);
+  background: $color-bg-page;
+}
+
+.project-selector {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+}
+
+.selector-label {
+  display: block;
+  font-size: 24px;
+  color: $color-text-hint;
+  margin-bottom: 12px;
+}
+
+.selector-value {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+}
+
+.selector-text {
+  font-size: 30px;
+  color: $color-text-primary;
+  font-weight: 500;
+
+  &.placeholder {
+    color: $color-text-hint;
+    font-weight: 400;
+  }
+}
+
+.selector-arrow {
+  font-size: 32px;
+  color: $color-text-hint;
 }
 
 .upload-area {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-lg);
-  padding: 48px 24px;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 48px 24px 36px;
   text-align: center;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   margin-bottom: 24px;
 }
 
 .upload-icon-wrap {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .upload-icon {
@@ -25,21 +67,21 @@
   display: block;
   font-size: 34px;
   font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: 12px;
+  color: $color-text-primary;
+  margin-bottom: 10px;
 }
 
 .upload-desc {
   display: block;
   font-size: 24px;
-  color: var(--color-text-hint);
+  color: $color-text-hint;
   margin-bottom: 40px;
 }
 
 .upload-actions {
   display: flex;
   gap: 24px;
-  padding: 0 24px;
+  padding: 0 16px;
 }
 
 .action-btn {
@@ -49,18 +91,24 @@
   align-items: center;
   justify-content: center;
   height: 160px;
-  border-radius: var(--radius-md);
+  border-radius: $radius-md;
   border: 2px dashed #ddd;
   background: #fafafa;
+  transition: opacity 0.2s;
 
   &.camera-btn {
-    border-color: var(--color-brand);
-    background: var(--color-brand-bg);
+    border-color: $color-brand;
+    background: $color-brand-bg;
   }
 
   &.album-btn {
-    border-color: var(--color-brand-light);
+    border-color: $color-brand-light;
     background: #FFF8F2;
+  }
+
+  &.disabled {
+    opacity: 0.45;
+    pointer-events: none;
   }
 }
 
@@ -71,72 +119,102 @@
 
 .action-label {
   font-size: 26px;
-  color: var(--color-text-secondary);
+  color: $color-text-secondary;
 }
 
-.progress-section {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-md);
-  padding: 24px;
+.task-list {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 24px 28px;
   margin-bottom: 24px;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
-.progress-text {
+.task-list-title {
   display: block;
-  font-size: 26px;
-  color: var(--color-text-secondary);
-  margin-bottom: 16px;
-}
-
-.project-selector {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-md);
-  padding: 24px;
-  margin-bottom: 24px;
-  box-shadow: var(--shadow-card);
-}
-
-.selector-label {
-  display: block;
-  font-size: 26px;
-  color: var(--color-text-hint);
-  margin-bottom: 12px;
-}
-
-.selector-value {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   font-size: 28px;
-  color: var(--color-text-primary);
-  padding: 16px 0;
-  border-bottom: 1px solid var(--color-border);
+  font-weight: 600;
+  color: $color-text-primary;
+  margin-bottom: 20px;
 }
 
-.selector-arrow {
-  font-size: 36px;
-  color: var(--color-text-hint);
+.task-item {
+  display: flex;
+  align-items: center;
+  padding: 16px 0;
+  border-bottom: 1px solid $color-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.task-thumb {
+  width: 80px;
+  height: 80px;
+  border-radius: $radius-sm;
+  flex-shrink: 0;
+  margin-right: 20px;
+  background: $color-bg-page;
+}
+
+.task-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-status {
+  display: block;
+  font-size: 26px;
+  color: $color-text-primary;
+  margin-bottom: 8px;
+}
+
+.task-done-text {
+  display: block;
+  font-size: 22px;
+  color: $color-success;
+  margin-top: 4px;
+}
+
+.task-fail-text {
+  display: block;
+  font-size: 22px;
+  color: $color-error;
+  margin-top: 4px;
+}
+
+.task-goto {
+  flex-shrink: 0;
+  padding: 10px 24px;
+  background: $color-brand;
+  border-radius: $radius-sm;
+  margin-left: 16px;
+}
+
+.task-goto-text {
+  font-size: 24px;
+  color: #fff;
 }
 
 .upload-tips {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-md);
-  padding: 24px;
-  box-shadow: var(--shadow-card);
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 24px 28px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
 }
 
 .tips-title {
   display: block;
   font-size: 28px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: $color-text-primary;
   margin-bottom: 16px;
 }
 
 .tip-item {
   display: block;
   font-size: 24px;
-  color: var(--color-text-hint);
+  color: $color-text-hint;
   line-height: 2;
 }

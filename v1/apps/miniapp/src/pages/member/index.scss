@@ -1,10 +1,12 @@
+@import '@/assets/styles/variables.scss';
+
 .member-page {
   min-height: 100vh;
-  background: var(--color-bg-page);
+  background: $color-bg-page;
 }
 
 .member-header {
-  background: linear-gradient(135deg, #FF6B35, #FF8F5E);
+  background: linear-gradient(135deg, $color-brand, $color-brand-light);
   padding: 40px 24px 60px;
   text-align: center;
   color: #ffffff;
@@ -23,19 +25,25 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
-.current-plan {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-lg);
-  padding: 24px;
+.current-plan-card {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 28px 24px;
   margin: -32px 24px 24px;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
-.plan-badge {
+.current-plan-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.current-plan-badge {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
 }
 
 .badge-icon {
@@ -45,50 +53,92 @@
 .badge-text {
   font-size: 28px;
   font-weight: 600;
-  color: var(--color-brand);
+  color: $color-brand;
 }
 
-.quota-text {
+.current-plan-label {
+  font-size: 22px;
+  color: #ffffff;
+  background: $color-brand;
+  padding: 4px 16px;
+  border-radius: 20px;
+}
+
+.quota-row {
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.quota-used {
+  font-size: 48px;
+  font-weight: 700;
+  color: $color-brand;
+}
+
+.quota-sep {
+  font-size: 28px;
+  color: $color-text-hint;
+  margin: 0 4px;
+}
+
+.quota-total {
+  font-size: 28px;
+  color: $color-text-secondary;
+}
+
+.quota-label {
   display: block;
-  font-size: 24px;
-  color: var(--color-text-hint);
+  font-size: 22px;
+  color: $color-text-hint;
+  margin-bottom: 16px;
+}
+
+.progress-track {
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, $color-brand, $color-brand-light);
+  border-radius: 4px;
+  transition: width 0.3s ease;
 }
 
 .plan-list {
-  padding: 0 24px;
+  padding: 0 24px 40px;
 }
 
 .plan-card {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-lg);
+  background: $color-bg-card;
+  border-radius: $radius-lg;
   padding: 28px;
   margin-bottom: 20px;
-  box-shadow: var(--shadow-card);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   border: 2px solid transparent;
   position: relative;
   overflow: hidden;
 
-  &.selected {
-    border-color: var(--color-brand);
-  }
-
-  &.recommended {
-    border-color: var(--color-brand);
+  &.current {
+    border-color: $color-brand;
   }
 }
 
-.recommend-tag {
+.current-tag {
   position: absolute;
   top: 0;
   right: 0;
-  background: var(--color-brand);
+  background: $color-brand;
   color: #ffffff;
   font-size: 20px;
   padding: 4px 20px;
-  border-radius: 0 0 0 16px;
+  border-radius: 0 0 0 $radius-md;
 }
 
-.plan-header {
+.plan-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -98,7 +148,7 @@
 .plan-name {
   font-size: 32px;
   font-weight: 700;
-  color: var(--color-text-primary);
+  color: $color-text-primary;
 }
 
 .plan-price-wrap {
@@ -109,21 +159,21 @@
 .plan-price {
   font-size: 40px;
   font-weight: 700;
-  color: var(--color-brand);
+  color: $color-brand;
 }
 
 .plan-period {
   font-size: 22px;
-  color: var(--color-text-hint);
+  color: $color-text-hint;
 }
 
 .plan-quota {
   display: block;
   font-size: 24px;
-  color: var(--color-text-secondary);
+  color: $color-text-secondary;
   margin-bottom: 20px;
   padding-bottom: 20px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid $color-border;
 }
 
 .plan-features {
@@ -139,13 +189,13 @@
 
 .feature-check {
   font-size: 24px;
-  color: var(--color-brand);
+  color: $color-brand;
   font-weight: 700;
 }
 
 .feature-text {
   font-size: 24px;
-  color: var(--color-text-secondary);
+  color: $color-text-secondary;
 }
 
 .plan-btn {
@@ -153,13 +203,13 @@
   height: 80px;
   line-height: 80px;
   font-size: 28px;
-  border-radius: var(--radius-md);
-  background: var(--color-brand);
+  border-radius: $radius-md;
+  background: $color-brand;
   color: #ffffff;
   border: none;
 
   &.current {
-    background: #F5F5F5;
-    color: var(--color-text-hint);
+    background: #f5f5f5;
+    color: $color-text-hint;
   }
 }

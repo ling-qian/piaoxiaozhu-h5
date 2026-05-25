@@ -1,6 +1,6 @@
 import Taro from '@tarojs/taro';
 
-const BASE_URL = 'https://api.piaoxiaozhu.com/v1';
+const BASE_URL = process.env.TARO_APP_API_URL || 'http://localhost:8000';
 
 interface RequestOptions {
   url: string;
@@ -10,17 +10,11 @@ interface RequestOptions {
   needAuth?: boolean;
 }
 
-interface ApiResponse<T = any> {
-  code: number;
-  data: T;
-  message: string;
-}
-
 function getToken(): string {
   return Taro.getStorageSync('token') || '';
 }
 
-async function request<T = any>(options: RequestOptions): Promise<ApiResponse<T>> {
+async function request<T = any>(options: RequestOptions): Promise<T> {
   const { url, method = 'GET', data, header = {}, needAuth = true } = options;
 
   if (needAuth) {
@@ -42,39 +36,56 @@ async function request<T = any>(options: RequestOptions): Promise<ApiResponse<T>
 
     if (res.statusCode === 401) {
       Taro.removeStorageSync('token');
-      Taro.redirectTo({ url: '/pages/mine/index' });
-      throw new Error('登录已过期，请重新登录');
+      Taro.showToast({ title: '登录已过期', icon: 'none' });
+      throw new Error('登录已过期');
     }
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      return res.data as ApiResponse<T>;
+      return res.data as T;
     }
 
-    throw new Error(res.data?.message || '请求失败');
+    throw new Error(res.data?.detail || res.data?.message || '请求失败');
   } catch (error: any) {
-    Taro.showToast({ title: error.message || '网络异常', icon: 'none' });
+    if (error.message !== '登录已过期') {
+      Taro.showToast({ title: error.message || '网络异常', icon: 'none' });
+    }
     throw error;
   }
 }
 
 export const authApi = {
-  wxLogin: (code: string) =>
-    request({ url: '/auth/wx-login', method: 'POST', data: { code }, needAuth: false }),
+  wechatLogin: (code: string) =>
+    request({ url: '/api/auth/wechat/login', method: 'POST', data: { code }, needAuth: false }),
 
-  getProfile: () =>
-    request({ url: '/auth/profile' }),
+  bindPhone: (phoneCode: string) =>
+    request({ url: '/api/auth/wechat/bind-phone', method: 'POST', data: { phone_code: phoneCode } }),
 };
 
-export const invoiceApi = {
-  upload: (filePath: string, projectId?: string) => {
+export const userApi = {
+  getMe: () =>
+    request({ url: '/api/me' }),
+
+  updateMe: (data: { nickname?: string; avatar_url?: string }) =>
+    request({ url: '/api/me', method: 'PATCH', data }),
+
+  getQuota: () =>
+    request({ url: '/api/me/quota' }),
+};
+
+export const plansApi = {
+  getList: () =>
+    request({ url: '/api/plans', needAuth: false }),
+};
+
+export const fileApi = {
+  upload: (filePath: string, projectId: string) => {
     const token = getToken();
     return new Promise((resolve, reject) => {
-      const uploadTask = Taro.uploadFile({
-        url: `${BASE_URL}/invoices/upload`,
+      Taro.uploadFile({
+        url: `${BASE_URL}/api/files/upload?project_id=${projectId}`,
         filePath,
         name: 'file',
         header: { Authorization: `Bearer ${token}` },
-        formData: projectId ? { projectId } : {},
         success: (res) => {
           if (res.statusCode >= 200 && res.statusCode < 300) {
             resolve(JSON.parse(res.data));
@@ -84,75 +95,95 @@ export const invoiceApi = {
         },
         fail: reject,
       });
-      return uploadTask;
     });
   },
 
-  getList: (params?: { projectId?: string; page?: number; pageSize?: number }) =>
-    request({ url: '/invoices', data: params }),
+  triggerOcr: (fileId: string) =>
+    request({ url: '/api/ocr/parse', method: 'POST', data: { file_id: fileId } }),
 
-  getDetail: (id: string) =>
-    request({ url: `/invoices/${id}` }),
+  getOcrStatus: (fileId: string) =>
+    request({ url: `/api/ocr/status/${fileId}` }),
+};
 
-  update: (id: string, data: any) =>
-    request({ url: `/invoices/${id}`, method: 'PUT', data }),
+export const recordApi = {
+  getList: (projectId: string, params?: { direction?: string; category_code?: string; page?: number; size?: number }) =>
+    request({ url: `/api/projects/${projectId}/records`, data: params }),
 
-  delete: (id: string) =>
-    request({ url: `/invoices/${id}`, method: 'DELETE' }),
+  create: (data: {
+    project_id: string;
+    file_id?: string;
+    direction?: string;
+    merchant_name?: string;
+    amount?: number;
+    tax_amount?: number;
+    invoice_date?: string;
+    category_code?: string;
+    category_l1?: string;
+    category_l2?: string;
+    confidence?: number;
+    raw_text?: string;
+    reason?: string;
+  }) =>
+    request({ url: '/api/records', method: 'POST', data }),
+
+  update: (recordId: string, data: {
+    merchant_name?: string;
+    amount?: number;
+    tax_amount?: number;
+    invoice_date?: string;
+    category_code?: string;
+    category_l1?: string;
+    category_l2?: string;
+  }) =>
+    request({ url: `/api/records/${recordId}`, method: 'PATCH', data }),
+
+  delete: (recordId: string) =>
+    request({ url: `/api/records/${recordId}`, method: 'DELETE' }),
 };
 
 export const projectApi = {
-  getList: (params?: { page?: number; pageSize?: number }) =>
-    request({ url: '/projects', data: params }),
+  getList: (params?: { page?: number; size?: number }) =>
+    request({ url: '/api/projects', data: params }),
 
   getDetail: (id: string) =>
-    request({ url: `/projects/${id}` }),
+    request({ url: `/api/projects/${id}` }),
 
-  create: (data: { name: string; description?: string }) =>
-    request({ url: '/projects', method: 'POST', data }),
+  create: (data: { name: string; industry?: string; report_month?: string }) =>
+    request({ url: '/api/projects', method: 'POST', data }),
 
-  update: (id: string, data: any) =>
-    request({ url: `/projects/${id}`, method: 'PUT', data }),
+  update: (id: string, data: { name?: string; industry?: string; report_month?: string; status?: string }) =>
+    request({ url: `/api/projects/${id}`, method: 'PATCH', data }),
 
   delete: (id: string) =>
-    request({ url: `/projects/${id}`, method: 'DELETE' }),
+    request({ url: `/api/projects/${id}`, method: 'DELETE' }),
 
-  getReport: (id: string) =>
-    request({ url: `/projects/${id}/report` }),
+  getStats: (id: string) =>
+    request({ url: `/api/projects/${id}/stats` }),
 
-  addManualIncome: (id: string, data: { amount: number; description: string }) =>
-    request({ url: `/projects/${id}/manual-income`, method: 'POST', data }),
-};
-
-export const userApi = {
-  getQuota: () =>
-    request({ url: '/user/quota' }),
-
-  getPlans: () =>
-    request({ url: '/user/plans', needAuth: false }),
-
-  getCurrentPlan: () =>
-    request({ url: '/user/current-plan' }),
-
-  upgradePlan: (planId: string) =>
-    request({ url: '/user/upgrade', method: 'POST', data: { planId } }),
+  addManualIncome: (id: string, data: { month: string; amount: number }) =>
+    request({ url: `/api/projects/${id}/manual-income`, method: 'POST', data }),
 };
 
 export const reportApi = {
   getProjectReport: (projectId: string) =>
-    request({ url: `/reports/project/${projectId}` }),
+    request({ url: `/api/projects/${projectId}/report` }),
 
-  exportReport: (projectId: string, format: 'pdf' | 'excel') =>
-    request({ url: `/reports/export/${projectId}`, data: { format } }),
+  exportReport: (projectId: string, fmt: 'csv' | 'excel') =>
+    request({ url: `/api/projects/${projectId}/report/export`, data: { fmt } }),
 
-  getCategoryBreakdown: (projectId: string) =>
-    request({ url: `/reports/category-breakdown/${projectId}` }),
+  shareReport: (projectId: string) =>
+    request({ url: `/api/projects/${projectId}/report/share`, method: 'POST' }),
+
+  getSharedReport: (shareToken: string) =>
+    request({ url: `/api/share/${shareToken}`, needAuth: false }),
 };
 
-export const categoryApi = {
-  getList: () =>
-    request({ url: '/categories' }),
+export const toolkitApi = {
+  getContents: () =>
+    request({ url: '/api/toolkit/contents' }),
+};
 
-  create: (data: { name: string; color?: string }) =>
-    request({ url: '/categories', method: 'POST', data }),
+export const paymentApi = {
+  createPrepay: (planCode: string) =>
+    request({ url: '/api/wechat/prepay', method: 'POST', data: { plan_code: planCode } }),
 };

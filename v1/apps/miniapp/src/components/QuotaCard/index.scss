@@ -1,9 +1,11 @@
+@import '@/assets/styles/variables.scss';
+
 .quota-card {
-  background: var(--color-bg-card);
-  border-radius: var(--radius-md);
+  background: $color-bg-card;
+  border-radius: $radius-md;
   padding: 24px;
   margin-bottom: 24px;
-  box-shadow: var(--shadow-card);
+  box-shadow: $shadow-card;
 }
 
 .quota-header {
@@ -15,15 +17,15 @@
 
 .quota-plan {
   font-size: 24px;
-  color: var(--color-brand);
-  background: var(--color-brand-bg);
+  color: $color-brand;
+  background: $color-brand-bg;
   padding: 4px 16px;
   border-radius: 20px;
 }
 
 .quota-upgrade {
   font-size: 24px;
-  color: var(--color-brand);
+  color: $color-brand;
 }
 
 .quota-body {
@@ -35,18 +37,18 @@
 .quota-remaining {
   font-size: 48px;
   font-weight: 700;
-  color: var(--color-brand);
+  color: $color-brand;
 }
 
 .quota-total {
   font-size: 26px;
-  color: var(--color-text-hint);
+  color: $color-text-hint;
 }
 
 .quota-label {
   display: block;
   font-size: 22px;
-  color: var(--color-text-hint);
+  color: $color-text-hint;
   margin-bottom: 16px;
 }
 
@@ -59,18 +61,18 @@
 
 .quota-fill {
   height: 100%;
-  background: var(--color-brand);
+  background: $color-brand;
   border-radius: 4px;
   transition: width 0.3s ease;
 
   &.low {
-    background: var(--color-error);
+    background: $color-error;
   }
 }
 
 .quota-warning {
   display: block;
   font-size: 22px;
-  color: var(--color-error);
+  color: $color-error;
   margin-top: 12px;
 }

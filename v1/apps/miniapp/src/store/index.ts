@@ -4,28 +4,39 @@ import { authApi, userApi, projectApi } from '../services/api';
 
 interface UserInfo {
   id: string;
+  openid: string;
   nickname: string;
-  avatar: string;
-  phone?: string;
-  plan: string;
+  avatar_url: string;
+  phone: string;
+  plan_code: string;
 }
 
 interface QuotaInfo {
-  total: number;
-  used: number;
-  remaining: number;
-  plan: string;
-  expireDate: string;
+  plan_code: string;
+  plan_name: string;
+  quota_total: number;
+  quota_used: number;
+  quota_remaining: number;
 }
 
 interface ProjectInfo {
   id: string;
   name: string;
-  description?: string;
-  recordCount: number;
-  totalIncome: number;
-  totalCost: number;
-  createdAt: string;
+  industry: string;
+  report_month: string;
+  status: string;
+  record_count: number;
+  total_cost: number;
+  total_income: number;
+  created_at: string;
+}
+
+interface PlanInfo {
+  code: string;
+  name: string;
+  quota: number;
+  price_cents: number;
+  features: string[];
 }
 
 interface AppState {
@@ -34,15 +45,17 @@ interface AppState {
   quota: QuotaInfo | null;
   projects: ProjectInfo[];
   currentProject: ProjectInfo | null;
+  plans: PlanInfo[];
 
   setToken: (token: string) => void;
   fetchUserInfo: () => Promise<void>;
   fetchQuota: () => Promise<void>;
   fetchProjects: () => Promise<void>;
+  fetchPlans: () => Promise<void>;
   setCurrentProject: (project: ProjectInfo | null) => void;
   login: (code: string) => Promise<void>;
   logout: () => void;
-  checkLogin: () => void;
+  checkLogin: () => boolean;
 }
 
 export const useStore = create<AppState>((set, get) => ({
@@ -51,6 +64,7 @@ export const useStore = create<AppState>((set, get) => ({
   quota: null,
   projects: [],
   currentProject: null,
+  plans: [],
 
   setToken: (token: string) => {
     Taro.setStorageSync('token', token);
@@ -59,8 +73,8 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchUserInfo: async () => {
     try {
-      const res = await authApi.getProfile();
-      set({ userInfo: res.data });
+      const data = await userApi.getMe();
+      set({ userInfo: data });
     } catch {
       get().logout();
     }
@@ -68,8 +82,8 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchQuota: async () => {
     try {
-      const res = await userApi.getQuota();
-      set({ quota: res.data });
+      const data = await userApi.getQuota();
+      set({ quota: data });
     } catch {
       // ignore
     }
@@ -77,8 +91,17 @@ export const useStore = create<AppState>((set, get) => ({
 
   fetchProjects: async () => {
     try {
-      const res = await projectApi.getList();
-      set({ projects: res.data.list || [] });
+      const data = await projectApi.getList();
+      set({ projects: data.items || [] });
+    } catch {
+      // ignore
+    }
+  },
+
+  fetchPlans: async () => {
+    try {
+      const data = await (await import('../services/api')).plansApi.getList();
+      set({ plans: data.items || [] });
     } catch {
       // ignore
     }
@@ -88,10 +111,11 @@ export const useStore = create<AppState>((set, get) => ({
 
   login: async (code: string) => {
     try {
-      const res = await authApi.wxLogin(code);
-      const { token, userInfo } = res.data;
-      get().setToken(token);
-      set({ userInfo });
+      const data = await authApi.wechatLogin(code);
+      const accessToken = data.access_token;
+      const user = data.user;
+      get().setToken(accessToken);
+      set({ userInfo: user });
       get().fetchQuota();
       get().fetchProjects();
     } catch (error: any) {
@@ -109,6 +133,8 @@ export const useStore = create<AppState>((set, get) => ({
     const token = Taro.getStorageSync('token');
     if (!token) {
       Taro.showToast({ title: '请先登录', icon: 'none' });
+      return false;
     }
+    return true;
   },
 }));

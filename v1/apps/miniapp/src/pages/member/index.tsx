@@ -1,69 +1,76 @@
 import { View, Text, Button } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useState } from 'react';
-import { userApi } from '../../services/api';
+import { useState, useEffect } from 'react';
+import { plansApi, paymentApi } from '../../services/api';
 import { useStore } from '../../store';
 import './index.scss';
 
 interface PlanItem {
-  id: string;
+  code: string;
   name: string;
-  price: number;
   quota: number;
+  price_cents: number;
   features: string[];
-  recommended: boolean;
 }
 
-const PLANS: PlanItem[] = [
-  {
-    id: 'free',
-    name: '免费版',
-    price: 0,
-    quota: 10,
-    features: ['每月10次识别', '基础票据类型', '单项目支持', '手动录入'],
-    recommended: false,
-  },
-  {
-    id: 'pro',
-    name: '专业版',
-    price: 29.9,
-    quota: 200,
-    features: ['每月200次识别', '全票据类型', '无限项目', '批量上传', '数据导出', '分类统计'],
-    recommended: true,
-  },
-  {
-    id: 'enterprise',
-    name: '企业版',
-    price: 99,
-    quota: -1,
-    features: ['无限次识别', '全票据类型', '无限项目', '批量上传', '数据导出', '分类统计', '团队协作', '专属客服', 'API接口'],
-    recommended: false,
-  },
-];
-
 export default function Member() {
-  const { quota, userInfo } = useStore();
-  const [upgrading, setUpgrading] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState('pro');
+  const { quota, userInfo, fetchQuota } = useStore();
+  const [plans, setPlans] = useState<PlanItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const handleUpgrade = async (planId: string) => {
-    if (planId === 'free') {
-      Taro.showToast({ title: '当前已是免费版', icon: 'none' });
-      return;
-    }
-    setUpgrading(true);
+  useEffect(() => {
+    fetchQuota();
+    loadPlans();
+  }, []);
+
+  const loadPlans = async () => {
     try {
-      await userApi.upgradePlan(planId);
-      Taro.showToast({ title: '升级成功', icon: 'success' });
-      useStore.getState().fetchQuota();
+      const data = await plansApi.getList();
+      setPlans(data.items || []);
     } catch {
-      Taro.showToast({ title: '升级失败', icon: 'none' });
-    } finally {
-      setUpgrading(false);
+      Taro.showToast({ title: '获取方案列表失败', icon: 'none' });
     }
   };
 
-  const currentPlan = userInfo?.plan || 'free';
+  const currentPlanCode = quota?.plan_code || userInfo?.plan_code || 'free';
+
+  const handleUpgrade = async (plan: PlanItem) => {
+    if (plan.code === currentPlanCode) return;
+    if (plan.price_cents === 0) {
+      Taro.showToast({ title: '当前已是免费方案', icon: 'none' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const prepay = await paymentApi.createPrepay(plan.code);
+      await Taro.requestPayment({
+        timeStamp: prepay.timeStamp,
+        nonceStr: prepay.nonceStr,
+        package: prepay.package,
+        signType: prepay.signType || 'MD5',
+        paySign: prepay.paySign,
+      });
+      Taro.showToast({ title: '支付成功', icon: 'success' });
+      fetchQuota();
+    } catch (err: any) {
+      if (err.errMsg?.includes('cancel')) {
+        Taro.showToast({ title: '已取消支付', icon: 'none' });
+      } else {
+        Taro.showToast({ title: '支付失败，请重试', icon: 'none' });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatPrice = (priceCents: number) => {
+    return (priceCents / 100).toFixed(priceCents % 100 === 0 ? 0 : 2);
+  };
+
+  const quotaUsed = quota?.quota_used ?? 0;
+  const quotaTotal = quota?.quota_total ?? 0;
+  const progress = quotaTotal > 0 ? Math.min((quotaUsed / quotaTotal) * 100, 100) : 0;
 
   return (
     <View className='member-page'>
@@ -72,57 +79,61 @@ export default function Member() {
         <Text className='header-sub'>解锁更多功能，提升工作效率</Text>
       </View>
 
-      <View className='current-plan'>
-        <View className='plan-badge'>
-          <Text className='badge-icon'>👑</Text>
-          <Text className='badge-text'>当前方案：{PLANS.find((p) => p.id === currentPlan)?.name || '免费版'}</Text>
+      {quota && (
+        <View className='current-plan-card'>
+          <View className='current-plan-top'>
+            <View className='current-plan-badge'>
+              <Text className='badge-icon'>👑</Text>
+              <Text className='badge-text'>{quota.plan_name || '免费版'}</Text>
+            </View>
+            <Text className='current-plan-label'>当前方案</Text>
+          </View>
+          <View className='quota-row'>
+            <Text className='quota-used'>{quotaUsed}</Text>
+            <Text className='quota-sep'>/</Text>
+            <Text className='quota-total'>{quotaTotal === -1 ? '无限' : quotaTotal}张</Text>
+          </View>
+          <Text className='quota-label'>本月已使用 / 总配额</Text>
+          <View className='progress-track'>
+            <View className='progress-fill' style={{ width: `${progress}%` }} />
+          </View>
         </View>
-        {quota && (
-          <Text className='quota-text'>
-            剩余识别次数：{quota.remaining} / {quota.total === -1 ? '无限' : quota.total}
-          </Text>
-        )}
-      </View>
+      )}
 
       <View className='plan-list'>
-        {PLANS.map((plan) => (
-          <View
-            key={plan.id}
-            className={`plan-card ${selectedPlan === plan.id ? 'selected' : ''} ${plan.recommended ? 'recommended' : ''}`}
-            onClick={() => setSelectedPlan(plan.id)}
-          >
-            {plan.recommended && <View className='recommend-tag'>推荐</View>}
-            <View className='plan-header'>
-              <Text className='plan-name'>{plan.name}</Text>
-              <View className='plan-price-wrap'>
-                <Text className='plan-price'>¥{plan.price}</Text>
-                <Text className='plan-period'>/月</Text>
-              </View>
-            </View>
-            <Text className='plan-quota'>
-              {plan.quota === -1 ? '无限次识别' : `每月${plan.quota}次识别`}
-            </Text>
-            <View className='plan-features'>
-              {plan.features.map((feature, idx) => (
-                <View key={idx} className='feature-item'>
-                  <Text className='feature-check'>✓</Text>
-                  <Text className='feature-text'>{feature}</Text>
+        {plans.map((plan) => {
+          const isCurrent = plan.code === currentPlanCode;
+          return (
+            <View key={plan.code} className={`plan-card ${isCurrent ? 'current' : ''}`}>
+              {isCurrent && <View className='current-tag'>当前方案</View>}
+              <View className='plan-top'>
+                <Text className='plan-name'>{plan.name}</Text>
+                <View className='plan-price-wrap'>
+                  <Text className='plan-price'>¥{formatPrice(plan.price_cents)}</Text>
+                  <Text className='plan-period'>/月</Text>
                 </View>
-              ))}
+              </View>
+              <Text className='plan-quota'>
+                {plan.quota === -1 ? '无限张/月' : `${plan.quota}张/月`}
+              </Text>
+              <View className='plan-features'>
+                {plan.features.map((feature, idx) => (
+                  <View key={idx} className='feature-item'>
+                    <Text className='feature-check'>✓</Text>
+                    <Text className='feature-text'>{feature}</Text>
+                  </View>
+                ))}
+              </View>
+              <Button
+                className={`plan-btn ${isCurrent ? 'current' : ''}`}
+                disabled={isCurrent || loading}
+                onClick={() => handleUpgrade(plan)}
+              >
+                {isCurrent ? '当前方案' : plan.price_cents === 0 ? '免费开始' : '升级'}
+              </Button>
             </View>
-            <Button
-              className={`plan-btn ${currentPlan === plan.id ? 'current' : ''}`}
-              disabled={currentPlan === plan.id}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleUpgrade(plan.id);
-              }}
-              loading={upgrading && selectedPlan === plan.id}
-            >
-              {currentPlan === plan.id ? '当前方案' : '立即升级'}
-            </Button>
-          </View>
-        ))}
+          );
+        })}
       </View>
     </View>
   );
