@@ -38,20 +38,37 @@ class PaddleOCRService:
 
         import cv2
         import numpy as np
+        import tempfile
+        import os
 
         np_array = np.frombuffer(image_bytes, dtype=np.uint8)
         img = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
         if img is None:
             return OCRResult(raw_text="", fields={}, confidence=0.0)
 
-        result = self._ocr.ocr(img)
+        tmp_path = None
+        try:
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+                tmp_path = f.name
+                cv2.imwrite(tmp_path, img)
 
-        if not result or not result[0]:
+            if hasattr(self._ocr, "predict"):
+                result = list(self._ocr.predict(tmp_path))
+            else:
+                result = self._ocr.ocr(tmp_path)
+        finally:
+            if tmp_path and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+
+        if not result:
             return OCRResult(raw_text="", fields={}, confidence=0.0)
 
         page = result[0]
 
-        if isinstance(page, dict) and "rec_texts" in page:
+        if hasattr(page, "rec_texts"):
+            texts = list(page.rec_texts) if page.rec_texts else []
+            scores = list(page.rec_scores) if page.rec_scores else []
+        elif isinstance(page, dict) and "rec_texts" in page:
             texts = page.get("rec_texts", [])
             scores = page.get("rec_scores", [])
         elif isinstance(page, (list, tuple)):

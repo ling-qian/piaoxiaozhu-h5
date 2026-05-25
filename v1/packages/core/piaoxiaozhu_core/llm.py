@@ -70,7 +70,18 @@ class LLMClassifier:
         try:
             data = response.json()
             content = data["choices"][0]["message"]["content"]
-            parsed = json.loads(content)
+
+            json_str = content.strip()
+            import re
+            code_block = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", json_str, re.DOTALL)
+            if code_block:
+                json_str = code_block.group(1)
+            else:
+                obj_match = re.search(r"\{[^{}]*\"category_code\"[^{}]*\}", json_str)
+                if obj_match:
+                    json_str = obj_match.group(0)
+
+            parsed = json.loads(json_str)
             code = parsed.get("category_code", "other")
             reason = parsed.get("reason", "LLM 分类")
             if code not in categories:

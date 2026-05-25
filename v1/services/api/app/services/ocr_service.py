@@ -1,21 +1,53 @@
 from __future__ import annotations
 
 import logging
-import re
+import os
+import threading
 from typing import Optional
 
 from piaoxiaozhu_core.ocr import PaddleOCRService, OCRResult
 from piaoxiaozhu_core.categorize import categorize_expense, CategorizeResult
+from piaoxiaozhu_core.field_extractor import extract_fields
 from piaoxiaozhu_core.llm import LLMClassifier
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
+_ocr_instance: Optional[PaddleOCRService] = None
+_ocr_lock = threading.Lock()
+
+
+def _get_ocr_service() -> PaddleOCRService:
+    global _ocr_instance
+    if _ocr_instance is not None:
+        return _ocr_instance
+
+    with _ocr_lock:
+        if _ocr_instance is not None:
+            return _ocr_instance
+
+        original_home = os.environ.get("HOME", "")
+        if not os.access(os.path.expanduser("~"), os.W_OK):
+            os.environ["HOME"] = "/tmp"
+
+        try:
+            svc = PaddleOCRService()
+            svc.initialize()
+            _ocr_instance = svc
+            logger.info("PaddleOCR initialized successfully (singleton)")
+        except Exception as e:
+            logger.error("PaddleOCR initialization failed: %s", e)
+            raise
+        finally:
+            if original_home:
+                os.environ["HOME"] = original_home
+
+        return _ocr_instance
+
 
 class OCRPipeline:
     def __init__(self):
-        self.ocr = PaddleOCRService()
         self.llm = LLMClassifier(
             base_url=settings.LLM_BASE_URL,
             api_key=settings.LLM_API_KEY,
@@ -25,7 +57,7 @@ class OCRPipeline:
     async def process(self, image_bytes: bytes) -> dict:
         ocr_result = self._recognize(image_bytes)
         fields = self._extract_fields(ocr_result)
-        cat_result = self._categorize(fields)
+        cat_result = self._categorize(fields, ocr_result.raw_text)
 
         if cat_result.confidence < 0.7 and settings.LLM_API_KEY:
             llm_result = self._llm_classify(fields.get("merchant_name"), ocr_result.raw_text)
@@ -43,26 +75,12 @@ class OCRPipeline:
         }
 
     def _recognize(self, image_bytes: bytes) -> OCRResult:
-        import os
-        original_home = os.environ.get("HOME", "")
-        if not os.access(os.path.expanduser("~"), os.W_OK):
-            os.environ["HOME"] = "/tmp"
         try:
-            self.ocr.initialize()
+            svc = _get_ocr_service()
+            return svc.recognize(image_bytes)
         except Exception as e:
-            logger.warning("PaddleOCR initialize failed: %s", e)
-            if original_home:
-                os.environ["HOME"] = original_home
+            logger.error("OCR recognize failed: %s", e)
             return OCRResult(raw_text="", fields={}, confidence=0.0)
-
-        try:
-            return self.ocr.recognize(image_bytes)
-        except Exception as e:
-            logger.warning("PaddleOCR recognize failed: %s", e)
-            return OCRResult(raw_text="", fields={}, confidence=0.0)
-        finally:
-            if original_home:
-                os.environ["HOME"] = original_home
 
     def _extract_fields(self, ocr_result: OCRResult) -> dict:
         fields: dict = {}
@@ -71,50 +89,26 @@ class OCRPipeline:
         if not raw:
             return fields
 
-        merchant_match = re.search(
-            r"(?:销售方|收款单位|商户|名称)[：:\s]*([^\n,，]{2,50})", raw
-        )
-        if merchant_match:
-            fields["merchant_name"] = merchant_match.group(1).strip()
+        core_result = extract_fields(raw)
 
-        amount_patterns = [
-            r"(?:金额|合计|总金额|价税合计)[：:\s]*[¥￥]?\s*([\d,]+\.?\d*)",
-            r"[¥￥]\s*([\d,]+\.?\d*)",
-        ]
-        for pattern in amount_patterns:
-            amount_match = re.search(pattern, raw)
-            if amount_match:
-                try:
-                    fields["amount"] = float(amount_match.group(1).replace(",", ""))
-                except ValueError:
-                    pass
-                break
+        if core_result.merchant_name:
+            fields["merchant_name"] = core_result.merchant_name
 
-        tax_match = re.search(r"(?:税额|税金)[：:\s]*[¥￥]?\s*([\d,]+\.?\d*)", raw)
-        if tax_match:
-            try:
-                fields["tax_amount"] = float(tax_match.group(1).replace(",", ""))
-            except ValueError:
-                pass
+        if core_result.total_amount is not None:
+            fields["amount"] = core_result.total_amount / 100.0
 
-        date_patterns = [
-            r"(\d{4})\s*年\s*(\d{1,2})\s*月\s*(\d{1,2})\s*日",
-            r"(\d{4})-(\d{1,2})-(\d{1,2})",
-            r"(\d{4})/(\d{1,2})/(\d{1,2})",
-        ]
-        for pattern in date_patterns:
-            date_match = re.search(pattern, raw)
-            if date_match:
-                y, m, d = date_match.group(1), date_match.group(2), date_match.group(3)
-                fields["invoice_date"] = f"{y}-{int(m):02d}-{int(d):02d}"
-                break
+        if core_result.tax_amount is not None:
+            fields["tax_amount"] = core_result.tax_amount / 100.0
+
+        if core_result.invoice_date:
+            fields["invoice_date"] = core_result.invoice_date
 
         return fields
 
-    def _categorize(self, fields: dict) -> CategorizeResult:
+    def _categorize(self, fields: dict, raw_text: str = "") -> CategorizeResult:
         return categorize_expense(
             merchant=fields.get("merchant_name"),
-            text=fields.get("raw_text"),
+            text=raw_text,
             name=fields.get("merchant_name"),
         )
 
@@ -133,5 +127,6 @@ class OCRPipeline:
                 "other",
             ]
             return self.llm.classify(merchant, raw_text, categories)
-        except Exception:
+        except Exception as e:
+            logger.warning("LLM classify failed: %s", e)
             return None

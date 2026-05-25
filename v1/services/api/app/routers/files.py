@@ -1,4 +1,5 @@
 import os
+import logging
 import uuid
 from pathlib import Path
 
@@ -13,8 +14,54 @@ from app.models.user import User
 
 router = APIRouter(prefix="/api", tags=["files"])
 
-UPLOAD_DIR = Path("uploads")
+logger = logging.getLogger(__name__)
+
+UPLOAD_DIR = Path(settings.UPLOAD_DIR)
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _is_oss_configured() -> bool:
+    return bool(settings.OSS_ACCESS_KEY_ID and settings.OSS_BUCKET_NAME)
+
+
+def _upload_to_oss(file_key: str, content: bytes) -> str:
+    import oss2
+
+    auth = oss2.Auth(settings.OSS_ACCESS_KEY_ID, settings.OSS_ACCESS_KEY_SECRET)
+    bucket = oss2.Bucket(auth, settings.OSS_ENDPOINT, settings.OSS_BUCKET_NAME)
+    bucket.put_object(file_key, content)
+    return f"https://{settings.OSS_BUCKET_NAME}.{settings.OSS_ENDPOINT}/{file_key}"
+
+
+def _get_oss_signed_url(file_key: str, expires: int = 3600) -> str:
+    import oss2
+
+    auth = oss2.Auth(settings.OSS_ACCESS_KEY_ID, settings.OSS_ACCESS_KEY_SECRET)
+    bucket = oss2.Bucket(auth, settings.OSS_ENDPOINT, settings.OSS_BUCKET_NAME)
+    return bucket.sign_url("GET", file_key, expires)
+
+
+def _download_from_oss(file_key: str) -> bytes:
+    import oss2
+
+    auth = oss2.Auth(settings.OSS_ACCESS_KEY_ID, settings.OSS_ACCESS_KEY_SECRET)
+    bucket = oss2.Bucket(auth, settings.OSS_ENDPOINT, settings.OSS_BUCKET_NAME)
+    result = bucket.get_object(file_key)
+    return result.read()
+
+
+def _read_file_content(file_key: str) -> bytes:
+    local_path = UPLOAD_DIR / file_key.replace("uploads/", "")
+    if local_path.exists():
+        return local_path.read_bytes()
+
+    if _is_oss_configured():
+        try:
+            return _download_from_oss(file_key)
+        except Exception as e:
+            logger.error("Failed to download from OSS: %s", e)
+
+    raise FileNotFoundError(f"File not found: {file_key}")
 
 
 @router.post("/files/upload", status_code=status.HTTP_201_CREATED)
@@ -38,13 +85,12 @@ async def upload_file(
 
     file_key = f"uploads/{current_user.id}/{project_id}/{local_filename}"
 
-    if settings.OSS_ACCESS_KEY_ID:
-        import oss2
-
-        auth = oss2.Auth(settings.OSS_ACCESS_KEY_ID, settings.OSS_ACCESS_KEY_SECRET)
-        bucket = oss2.Bucket(auth, settings.OSS_ENDPOINT, settings.OSS_BUCKET_NAME)
-        bucket.put_object(file_key, content)
-        file_url = f"https://{settings.OSS_BUCKET_NAME}.{settings.OSS_ENDPOINT}/{file_key}"
+    if _is_oss_configured():
+        try:
+            file_url = _upload_to_oss(file_key, content)
+        except Exception as e:
+            logger.warning("OSS upload failed, using local: %s", e)
+            file_url = f"/files/static/{file_key}"
     else:
         file_url = f"/files/static/{file_key}"
 
@@ -111,9 +157,8 @@ async def trigger_ocr_parse(
         from app.services.ocr_service import OCRPipeline
 
         pipeline = OCRPipeline()
-        local_path = UPLOAD_DIR / invoice_file.file_key.replace("uploads/", "")
-        if local_path.exists():
-            image_bytes = local_path.read_bytes()
+        try:
+            image_bytes = _read_file_content(invoice_file.file_key)
             ocr_result = await pipeline.process(image_bytes)
             cat_result = ocr_result.get("categorize")
 
@@ -137,6 +182,14 @@ async def trigger_ocr_parse(
             invoice_file.ocr_status = "done"
             invoice_file.parse_status = "done"
             await db.commit()
+        except FileNotFoundError:
+            invoice_file.ocr_status = "failed"
+            await db.commit()
+            logger.error("File content not found for OCR: %s", invoice_file.file_key)
+        except Exception as e:
+            invoice_file.ocr_status = "failed"
+            await db.commit()
+            logger.error("OCR processing failed: %s", e)
 
         task_id = "sync"
 
@@ -193,3 +246,29 @@ async def get_ocr_status(
             for r in records
         ],
     }
+
+
+@router.get("/files/signed-url/{file_id}")
+async def get_signed_url(
+    file_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(InvoiceFile).where(
+            InvoiceFile.id == file_id,
+            InvoiceFile.user_id == current_user.id,
+        )
+    )
+    invoice_file = result.scalar_one_or_none()
+    if invoice_file is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    if _is_oss_configured():
+        try:
+            signed_url = _get_oss_signed_url(invoice_file.file_key)
+            return {"url": signed_url}
+        except Exception as e:
+            logger.warning("Failed to generate signed URL: %s", e)
+
+    return {"url": invoice_file.file_url}

@@ -1,13 +1,13 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from jose import jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.database import AsyncSessionLocal
+from app.deps import get_current_user, get_db
 from app.models.user import User
 from app.schemas.auth import WechatLoginRequest, WechatLoginResponse, UserBrief, BindPhoneRequest
 
@@ -42,35 +42,42 @@ async def _find_or_create_user(db: AsyncSession, openid: str, unionid: Optional[
     return user_obj
 
 
+async def _wechat_code2session(code: str) -> dict:
+    import httpx
+
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        resp = await client.get(
+            "https://api.weixin.qq.com/sns/jscode2session",
+            params={
+                "appid": settings.WX_APPID,
+                "secret": settings.WX_SECRET,
+                "js_code": code,
+                "grant_type": "authorization_code",
+            },
+        )
+        data = resp.json()
+        if "errcode" in data and data["errcode"] != 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"WeChat API error: {data.get('errmsg', 'unknown')} (errcode={data.get('errcode')})",
+            )
+        return data
+
+
 @router.post("/wechat/login", response_model=WechatLoginResponse)
 async def wechat_login(body: WechatLoginRequest):
     code = body.code
     openid: Optional[str] = None
     unionid: Optional[str] = None
 
-    if settings.WX_APPID:
-        import httpx
-
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                "https://api.weixin.qq.com/sns/jscode2session",
-                params={
-                    "appid": settings.WX_APPID,
-                    "secret": settings.WX_SECRET,
-                    "js_code": code,
-                    "grant_type": "authorization_code",
-                },
-            )
-            data = resp.json()
-            if "errcode" in data and data["errcode"] != 0:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"WeChat API error: {data.get('errmsg', 'unknown')}",
-                )
-            openid = data["openid"]
-            unionid = data.get("unionid")
+    if settings.WX_APPID and settings.WX_SECRET:
+        data = await _wechat_code2session(code)
+        openid = data["openid"]
+        unionid = data.get("unionid")
     else:
         openid = f"dev_openid_{code}"
+
+    from app.models.database import AsyncSessionLocal
 
     async with AsyncSessionLocal() as db:
         user_obj = await _find_or_create_user(db, openid, unionid)
@@ -81,25 +88,35 @@ async def wechat_login(body: WechatLoginRequest):
 
 
 @router.post("/wechat/bind-phone")
-async def wechat_bind_phone(body: BindPhoneRequest):
+async def wechat_bind_phone(
+    body: BindPhoneRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     if not settings.WX_APPID:
         phone = "13800138000"
-        async with AsyncSessionLocal() as db:
-            current_user.phone = phone
-            await db.commit()
+        current_user.phone = phone
+        await db.commit()
         return {"phone": phone, "bound": True}
 
     import httpx
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         resp = await client.get(
             "https://api.weixin.qq.com/cgi-bin/token",
-            params={"grant_type": "client_credential", "appid": settings.WX_APPID, "secret": settings.WX_SECRET},
+            params={
+                "grant_type": "client_credential",
+                "appid": settings.WX_APPID,
+                "secret": settings.WX_SECRET,
+            },
         )
         token_data = resp.json()
         access_token = token_data.get("access_token")
         if not access_token:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to get WeChat access token")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Failed to get WeChat access token",
+            )
 
         phone_resp = await client.post(
             "https://api.weixin.qq.com/wxa/business/getuserphonenumber",
@@ -108,12 +125,13 @@ async def wechat_bind_phone(body: BindPhoneRequest):
         )
         phone_data = phone_resp.json()
         if phone_data.get("errcode", 0) != 0:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to get phone number")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Failed to get phone number: {phone_data.get('errmsg', 'unknown')}",
+            )
 
     phone = phone_data["phone_info"]["phoneNumber"]
-    if current_user:
-        async with AsyncSessionLocal() as db:
-            current_user.phone = phone
-            await db.commit()
+    current_user.phone = phone
+    await db.commit()
 
     return {"phone": phone, "bound": True}
