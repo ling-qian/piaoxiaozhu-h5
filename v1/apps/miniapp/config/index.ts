@@ -17,7 +17,11 @@ export default defineConfig(async (merge) => {
     sourceRoot: 'src',
     outputRoot: 'dist',
     plugins: ['@tarojs/plugin-platform-weapp'],
-    defineConstants: {},
+    defineConstants: {
+      'process.env.TARO_APP_API_URL': JSON.stringify(
+        process.env.TARO_APP_API_URL || 'http://localhost:8000'
+      ),
+    },
     copy: { patterns: [], options: {} },
     framework: 'react',
     compiler: {
