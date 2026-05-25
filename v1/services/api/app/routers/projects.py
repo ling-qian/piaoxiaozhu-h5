@@ -203,7 +203,7 @@ async def get_project_stats(
 
     cost_by_category = {}
     for cat_l1, amount in category_result.all():
-        cost_by_category[cat_l1 or "未分类"] = float(amount)
+        cost_by_category[cat_l1 or "未分类"] = float(amount or 0)
 
     return {
         "project_id": project_id,

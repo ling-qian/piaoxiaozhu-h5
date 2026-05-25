@@ -23,37 +23,52 @@ class PaddleOCRService:
     def initialize(self) -> None:
         from paddleocr import PaddleOCR
 
-        self._ocr = PaddleOCR(
-            use_angle_cls=True,
-            lang=self._lang,
-            use_gpu=self._use_gpu,
-            show_log=False,
-        )
+        kwargs: dict = {
+            "use_textline_orientation": True,
+            "lang": self._lang,
+        }
+        try:
+            self._ocr = PaddleOCR(**kwargs)
+        except TypeError:
+            self._ocr = PaddleOCR(lang=self._lang)
 
     def recognize(self, image_bytes: bytes) -> OCRResult:
         if self._ocr is None:
-            raise RuntimeError("PaddleOCRService 未初始化，请先调用 initialize()")
+            raise RuntimeError("PaddleOCRService not initialized, call initialize() first")
 
+        import cv2
         import numpy as np
 
         np_array = np.frombuffer(image_bytes, dtype=np.uint8)
-        result = self._ocr.ocr(np_array, cls=True)
+        img = cv2.imdecode(np_array, cv2.IMREAD_COLOR)
+        if img is None:
+            return OCRResult(raw_text="", fields={}, confidence=0.0)
+
+        result = self._ocr.ocr(img)
 
         if not result or not result[0]:
             return OCRResult(raw_text="", fields={}, confidence=0.0)
 
-        texts: list[str] = []
-        confidences: list[float] = []
-        fields: dict[str, str] = {}
+        page = result[0]
 
-        for line in result[0]:
-            box, (text, confidence) = line
-            texts.append(text)
-            confidences.append(confidence)
+        if isinstance(page, dict) and "rec_texts" in page:
+            texts = page.get("rec_texts", [])
+            scores = page.get("rec_scores", [])
+        elif isinstance(page, (list, tuple)):
+            texts = []
+            scores = []
+            for line in page:
+                if isinstance(line, (list, tuple)) and len(line) >= 2:
+                    box, info = line
+                    if isinstance(info, (list, tuple)) and len(info) >= 2:
+                        texts.append(str(info[0]))
+                        scores.append(float(info[1]))
+        else:
+            return OCRResult(raw_text="", fields={}, confidence=0.0)
 
         raw_text = "\n".join(texts)
-        avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-        fields["raw_text"] = raw_text
+        avg_confidence = sum(scores) / len(scores) if scores else 0.0
+        fields: dict[str, str] = {"raw_text": raw_text}
 
         extracted = extract_fields(raw_text)
 

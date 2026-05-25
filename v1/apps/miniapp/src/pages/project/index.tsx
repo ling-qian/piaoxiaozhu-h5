@@ -55,6 +55,18 @@ function formatAmount(val: number): string {
   return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function normalizeCostByCategory(data: any): CostCategory[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    return Object.entries(data).map(([name, amount]) => ({
+      category_code: name,
+      category_l2: name,
+      total_amount: Number(amount) || 0,
+    }));
+  }
+  return [];
+}
+
 function generateMonths(): string[] {
   const months: string[] = [];
   const now = new Date();
@@ -106,8 +118,15 @@ export default function Project() {
 
   const loadStats = async (id: string) => {
     try {
-      const res = await projectApi.getStats(id);
-      setStats(res as unknown as ProjectStats);
+      const res = await projectApi.getStats(id) as any;
+      setStats({
+        total_records: res.total_records || 0,
+        total_cost: Number(res.total_cost) || 0,
+        total_income: Number(res.total_income) || 0,
+        gross_profit: Number(res.gross_profit) || 0,
+        gross_margin: Number(res.gross_margin) || 0,
+        cost_by_category: normalizeCostByCategory(res.cost_by_category),
+      });
     } catch {
       // ignore
     }
@@ -271,7 +290,7 @@ export default function Project() {
             </View>
             <View className='stat-card stat-card--margin'>
               <Text className='stat-label'>毛利率</Text>
-              <Text className='stat-value stat-value--margin'>{stats.gross_margin.toFixed(1)}%</Text>
+              <Text className='stat-value stat-value--margin'>{(stats.gross_margin || 0).toFixed(1)}%</Text>
             </View>
           </View>
         </View>

@@ -12,5 +12,5 @@ httpx>=0.27
 redis>=5.0
 celery>=5.3
 oss2>=2.18
-wechatpay-python>=0.4
+wechatpay>=1.1
 piaoxiaozhu-core

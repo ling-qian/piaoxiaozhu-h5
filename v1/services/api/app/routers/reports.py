@@ -100,15 +100,15 @@ async def get_report(
     report = build_restaurant_poc_report(report_input)
 
     detail = {
-        "total_income": report.total_income,
-        "total_cost": report.total_cost,
-        "gross_profit": report.gross_profit,
-        "gross_margin": report.gross_margin,
+        "total_income": report.total_income / 100,
+        "total_cost": report.total_cost / 100,
+        "gross_profit": report.gross_profit / 100,
+        "gross_margin": round(report.gross_margin * 100, 2),
         "cost_by_category": [
             {
                 "category_code": c.category_code,
                 "name": c.name,
-                "amount": c.amount,
+                "amount": c.amount / 100,
             }
             for c in report.cost_by_category
         ],

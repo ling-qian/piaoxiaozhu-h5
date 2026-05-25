@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from typing import Optional
 
@@ -8,6 +9,8 @@ from piaoxiaozhu_core.categorize import categorize_expense, CategorizeResult
 from piaoxiaozhu_core.llm import LLMClassifier
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class OCRPipeline:
@@ -40,15 +43,26 @@ class OCRPipeline:
         }
 
     def _recognize(self, image_bytes: bytes) -> OCRResult:
+        import os
+        original_home = os.environ.get("HOME", "")
+        if not os.access(os.path.expanduser("~"), os.W_OK):
+            os.environ["HOME"] = "/tmp"
         try:
             self.ocr.initialize()
-        except Exception:
+        except Exception as e:
+            logger.warning("PaddleOCR initialize failed: %s", e)
+            if original_home:
+                os.environ["HOME"] = original_home
             return OCRResult(raw_text="", fields={}, confidence=0.0)
 
         try:
             return self.ocr.recognize(image_bytes)
-        except Exception:
+        except Exception as e:
+            logger.warning("PaddleOCR recognize failed: %s", e)
             return OCRResult(raw_text="", fields={}, confidence=0.0)
+        finally:
+            if original_home:
+                os.environ["HOME"] = original_home
 
     def _extract_fields(self, ocr_result: OCRResult) -> dict:
         fields: dict = {}

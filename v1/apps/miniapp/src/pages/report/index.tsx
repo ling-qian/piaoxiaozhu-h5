@@ -34,6 +34,18 @@ function formatPercent(val: number): string {
   return (Number(val) || 0).toFixed(1) + '%';
 }
 
+function normalizeCostByCategory(data: any): CategoryCost[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === 'object') {
+    return Object.entries(data).map(([name, amount]) => ({
+      category_code: name,
+      category_l2: name,
+      total_amount: Number(amount) || 0,
+    }));
+  }
+  return [];
+}
+
 export default function Report() {
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -54,7 +66,16 @@ export default function Report() {
         projectApi.getStats(projectId),
       ]);
       setProject(projectRes as unknown as ProjectInfo);
-      setStats(statsRes as unknown as StatsData);
+      const rawStats = statsRes as any;
+      const normalizedStats: StatsData = {
+        total_records: rawStats.total_records || 0,
+        total_cost: Number(rawStats.total_cost) || 0,
+        total_income: Number(rawStats.total_income) || 0,
+        gross_profit: Number(rawStats.gross_profit) || 0,
+        gross_margin: Number(rawStats.gross_margin) || 0,
+        cost_by_category: normalizeCostByCategory(rawStats.cost_by_category),
+      };
+      setStats(normalizedStats);
     } catch {
       Taro.showToast({ title: '加载报表失败', icon: 'none' });
     } finally {

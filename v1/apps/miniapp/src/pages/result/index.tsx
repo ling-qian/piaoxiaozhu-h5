@@ -7,12 +7,14 @@ import CategoryTag from '../../components/CategoryTag';
 import './index.scss';
 
 const CATEGORIES = [
-  { code: 'c01', name: '中式正餐', l1: '餐饮', l2: '中式正餐' },
-  { code: 'c02', name: '火锅烧烤', l1: '餐饮', l2: '火锅烧烤' },
-  { code: 'c03', name: '快餐简餐', l1: '餐饮', l2: '快餐简餐' },
-  { code: 'c04', name: '烘焙甜品', l1: '餐饮', l2: '烘焙甜品' },
-  { code: 'c05', name: '饮品小食', l1: '餐饮', l2: '饮品小食' },
-  { code: 'c06', name: '团餐食堂', l1: '餐饮', l2: '团餐食堂' },
+  { code: 'food_material', name: '食材', l1: '食材', l2: '食材' },
+  { code: 'rent', name: '房租', l1: '房租', l2: '房租' },
+  { code: 'salary', name: '工资', l1: '工资', l2: '工资' },
+  { code: 'utilities', name: '水电', l1: '水电', l2: '水电' },
+  { code: 'platform_fee', name: '平台佣金', l1: '平台佣金', l2: '平台佣金' },
+  { code: 'advertising', name: '广告', l1: '广告', l2: '广告' },
+  { code: 'office', name: '办公', l1: '办公', l2: '办公' },
+  { code: 'other', name: '其他', l1: '其他', l2: '其他' },
 ];
 
 interface RecordData {
@@ -191,7 +193,7 @@ export default function Result() {
       const cat = CATEGORIES[manualCategoryIdx];
       await recordApi.create({
         project_id: projectList[selectedProjectIdx].id,
-        direction: 'cost',
+        direction: 'out',
         merchant_name: form.merchant_name.trim(),
         amount: parseAmountInput(form.amount),
         tax_amount: parseAmountInput(form.tax_amount),
