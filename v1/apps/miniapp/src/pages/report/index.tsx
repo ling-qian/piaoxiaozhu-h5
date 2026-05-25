@@ -1,7 +1,8 @@
-import { View, Text } from '@tarojs/components';
+import { View, Text, Picker } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { projectApi, reportApi } from '../../services/api';
+import { useStore } from '../../store';
 import CategoryTag from '../../components/CategoryTag';
 import './index.scss';
 
@@ -25,6 +26,13 @@ interface CategoryCost {
   total_amount: number;
 }
 
+const CATEGORY_COLORS: Record<string, string> = {
+  '食材': '#FF6B35', '房租': '#722ED1', '工资': '#1890FF', '水电': '#597EF7',
+  '平台佣金': '#FA541C', '广告': '#EB2F96', '办公': '#52C41A', '其他': '#8C8C8C',
+  'food_material': '#FF6B35', 'rent': '#722ED1', 'salary': '#1890FF', 'utilities': '#597EF7',
+  'platform_fee': '#FA541C', 'advertising': '#EB2F96', 'office': '#52C41A', 'other': '#8C8C8C',
+};
+
 function formatAmount(val: number): string {
   const num = Number(val) || 0;
   return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -46,24 +54,46 @@ function normalizeCostByCategory(data: any): CategoryCost[] {
   return [];
 }
 
+function generateMonths(): string[] {
+  const months: string[] = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    months.push(`${y}-${m}`);
+  }
+  return months;
+}
+
+function getMonthLabel(month: string): string {
+  const [y, m] = month.split('-');
+  return `${y}年${parseInt(m)}月`;
+}
+
 export default function Report() {
+  const { projects, currentProject } = useStore();
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const months = useMemo(() => generateMonths(), []);
+  const [monthIdx, setMonthIdx] = useState(0);
+
+  const projectId = Taro.getCurrentInstance().router?.params?.projectId || currentProject?.id || '';
+
   Taro.useDidShow(() => {
-    const params = Taro.getCurrentInstance().router?.params;
-    if (params?.projectId) {
-      loadData(params.projectId);
+    if (projectId) {
+      loadData(projectId);
     }
   });
 
-  const loadData = async (projectId: string) => {
+  const loadData = async (pid: string) => {
     setLoading(true);
     try {
       const [projectRes, statsRes] = await Promise.all([
-        projectApi.getDetail(projectId),
-        projectApi.getStats(projectId),
+        projectApi.getDetail(pid),
+        projectApi.getStats(pid),
       ]);
       setProject(projectRes as unknown as ProjectInfo);
       const rawStats = statsRes as any;
@@ -83,13 +113,17 @@ export default function Report() {
     }
   };
 
+  const handleMonthChange = (e: any) => {
+    const idx = Number(e.detail.value);
+    setMonthIdx(idx);
+  };
+
   const handleExportCsv = async () => {
-    const params = Taro.getCurrentInstance().router?.params;
-    if (!params?.projectId) return;
+    if (!projectId) return;
     try {
       Taro.showLoading({ title: '导出中...' });
       const token = Taro.getStorageSync('token');
-      const exportUrl = `${process.env.TARO_APP_API_URL || 'http://localhost:8000'}/api/projects/${params.projectId}/report/export?fmt=csv`;
+      const exportUrl = `${process.env.TARO_APP_API_URL || 'http://localhost:8000'}/api/projects/${projectId}/report/export?fmt=csv`;
       Taro.downloadFile({
         url: exportUrl,
         header: { Authorization: `Bearer ${token}` },
@@ -116,11 +150,10 @@ export default function Report() {
   };
 
   const handleShare = async () => {
-    const params = Taro.getCurrentInstance().router?.params;
-    if (!params?.projectId) return;
+    if (!projectId) return;
     try {
       Taro.showLoading({ title: '生成中...' });
-      const res = await reportApi.shareReport(params.projectId);
+      const res = await reportApi.shareReport(projectId);
       Taro.hideLoading();
       const shareToken = (res as any)?.share_token;
       const shareUrl = (res as any)?.share_url;
@@ -167,12 +200,23 @@ export default function Report() {
   const maxCategoryAmount = stats.cost_by_category?.length
     ? Math.max(...stats.cost_by_category.map((c) => c.total_amount))
     : 0;
+  const totalCost = stats.total_cost || 1;
 
   return (
     <View className='report-page'>
       <View className='project-header'>
-        <Text className='project-name'>{project?.name || '项目报表'}</Text>
-        <Text className='project-records'>共 {stats.total_records} 条记录</Text>
+        <View className='header-top'>
+          <View className='header-info'>
+            <Text className='project-name'>{project?.name || '项目报表'}</Text>
+            <Text className='project-records'>共 {stats.total_records} 条记录</Text>
+          </View>
+          <Picker mode='selector' range={months.map(getMonthLabel)} value={monthIdx} onChange={handleMonthChange}>
+            <View className='month-selector'>
+              <Text className='month-text'>{getMonthLabel(months[monthIdx])}</Text>
+              <Text className='month-arrow'>▾</Text>
+            </View>
+          </Picker>
+        </View>
       </View>
 
       <View className='profit-card'>
@@ -209,18 +253,25 @@ export default function Report() {
               const barWidth = maxCategoryAmount > 0
                 ? (cat.total_amount / maxCategoryAmount) * 100
                 : 0;
+              const pct = totalCost > 0
+                ? ((cat.total_amount / totalCost) * 100).toFixed(1)
+                : '0.0';
+              const barColor = CATEGORY_COLORS[cat.category_l2] || CATEGORY_COLORS[cat.category_code] || '#8C8C8C';
               return (
                 <View key={cat.category_code || idx} className='bar-item'>
                   <View className='bar-label'>
-                    <CategoryTag name={cat.category_l2} />
+                    <CategoryTag name={cat.category_l2} code={cat.category_code} />
                   </View>
                   <View className='bar-track'>
                     <View
                       className='bar-fill'
-                      style={{ width: `${barWidth}%` }}
+                      style={{ width: `${barWidth}%`, background: `linear-gradient(90deg, ${barColor}60, ${barColor})` }}
                     />
                   </View>
-                  <Text className='bar-amount'>¥{formatAmount(cat.total_amount)}</Text>
+                  <View className='bar-right'>
+                    <Text className='bar-amount'>¥{formatAmount(cat.total_amount)}</Text>
+                    <Text className='bar-pct' style={{ color: barColor }}>{pct}%</Text>
+                  </View>
                 </View>
               );
             })}

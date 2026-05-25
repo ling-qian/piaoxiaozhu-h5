@@ -1,5 +1,7 @@
-import { View, Text, Image } from '@tarojs/components';
+import { View, Text } from '@tarojs/components';
 import Taro, { useDidShow } from '@tarojs/taro';
+import { useState } from 'react';
+import { projectApi } from '../../services/api';
 import { useStore } from '../../store';
 import './index.scss';
 
@@ -10,6 +12,7 @@ export default function Index() {
   const fetchUserInfo = useStore((s) => s.fetchUserInfo);
   const fetchQuota = useStore((s) => s.fetchQuota);
   const fetchProjects = useStore((s) => s.fetchProjects);
+  const [creating, setCreating] = useState(false);
 
   useDidShow(() => {
     fetchUserInfo();
@@ -22,12 +25,37 @@ export default function Index() {
   const quotaPercent = quotaTotal > 0 ? Math.min((quotaUsed / quotaTotal) * 100, 100) : 0;
   const isLow = quotaTotal > 0 && (quotaUsed / quotaTotal) >= 80;
 
-  const handleUpload = () => {
-    Taro.navigateTo({ url: '/pages/upload/index' });
+  const ensureProject = async (): Promise<string | null> => {
+    if (projects.length > 0) return projects[0].id;
+    if (creating) return null;
+    setCreating(true);
+    try {
+      const res = await projectApi.create({
+        name: '我的餐饮项目',
+        industry: '餐饮',
+      });
+      await fetchProjects();
+      return (res as any).id;
+    } catch {
+      Taro.showToast({ title: '创建项目失败', icon: 'none' });
+      return null;
+    } finally {
+      setCreating(false);
+    }
   };
 
-  const handleManual = () => {
-    Taro.navigateTo({ url: '/pages/result/index?mode=manual' });
+  const handleUpload = async () => {
+    const projectId = await ensureProject();
+    if (projectId) {
+      Taro.navigateTo({ url: `/pages/upload/index?projectId=${projectId}` });
+    }
+  };
+
+  const handleManual = async () => {
+    const projectId = await ensureProject();
+    if (projectId) {
+      Taro.navigateTo({ url: `/pages/result/index?mode=manual&projectId=${projectId}` });
+    }
   };
 
   const handleProjectClick = (id: string) => {
@@ -38,6 +66,26 @@ export default function Index() {
     Taro.navigateTo({ url: '/pages/member/index' });
   };
 
+  const handleCreateProject = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const res = await projectApi.create({
+        name: '新项目',
+        industry: '餐饮',
+      });
+      await fetchProjects();
+      const projectId = (res as any).id;
+      if (projectId) {
+        Taro.navigateTo({ url: `/pages/project/index?id=${projectId}` });
+      }
+    } catch {
+      Taro.showToast({ title: '创建失败', icon: 'none' });
+    } finally {
+      setCreating(false);
+    }
+  };
+
   return (
     <View className='index-page'>
       <View className='index-header'>
@@ -45,11 +93,6 @@ export default function Index() {
           <Text className='greeting-text'>你好，{userInfo?.nickname || '用户'}</Text>
           <Text className='greeting-sub'>今天需要识别票据吗？</Text>
         </View>
-        <Image
-          className='avatar'
-          src={userInfo?.avatar_url || 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI9FhqR6no4pKIrgIbEDk0YqIjYzS7JNibb2nZcTiaS6xFupbGBy1QcBcQ2Q'}
-          mode='aspectFill'
-        />
       </View>
 
       <View className='quota-card' onClick={handleMemberClick}>
@@ -87,6 +130,7 @@ export default function Index() {
       <View className='section'>
         <View className='section-header'>
           <Text className='section-title'>最近项目</Text>
+          <Text className='create-link' onClick={handleCreateProject}>+ 新建</Text>
         </View>
 
         {projects.length > 0 ? (
@@ -103,7 +147,7 @@ export default function Index() {
                     {project.industry ? (
                       <Text className='project-tag'>{project.industry}</Text>
                     ) : null}
-                    <Text className='project-meta'>{project.record_count} 条记录</Text>
+                    <Text className='project-meta'>{project.record_count || 0} 条记录</Text>
                   </View>
                 </View>
                 <View className='project-cost'>
@@ -116,7 +160,7 @@ export default function Index() {
         ) : (
           <View className='empty-state'>
             <Text className='empty-icon'>📋</Text>
-            <Text className='empty-text'>暂无项目，快去创建一个吧</Text>
+            <Text className='empty-text'>暂无项目，点击上方按钮开始</Text>
           </View>
         )}
       </View>

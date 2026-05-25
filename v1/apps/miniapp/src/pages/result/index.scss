@@ -63,6 +63,13 @@
   transition: width 0.3s ease;
 }
 
+.confidence-hint {
+  display: block;
+  font-size: 22px;
+  margin-top: 12px;
+  font-weight: 500;
+}
+
 .result-card {
   background: $color-bg-card;
   border-radius: $radius-lg;
@@ -83,6 +90,22 @@
   font-size: 32px;
   font-weight: 600;
   color: $color-text-primary;
+}
+
+.re-recognize-btn {
+  padding: 8px 20px;
+  border-radius: 20px;
+  background: $color-brand-bg;
+}
+
+.re-recognize-text {
+  font-size: 24px;
+  color: $color-brand;
+  font-weight: 500;
+
+  &.disabled {
+    color: $color-text-hint;
+  }
 }
 
 .field-item {

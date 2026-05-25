@@ -14,9 +14,19 @@ const DEFAULT_AVATAR = 'https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI9FhqR6no4p
 export default function Mine() {
   const { userInfo, quota, logout, fetchUserInfo, fetchQuota } = useStore();
 
+  Taro.useDidShow(() => {
+    if (userInfo) {
+      fetchQuota();
+    }
+  });
+
   const planName = userInfo?.plan_code
     ? PLAN_NAMES[userInfo.plan_code] || userInfo.plan_code
     : '免费版';
+
+  const quotaUsed = quota?.quota_used ?? 0;
+  const quotaTotal = quota?.quota_total ?? 0;
+  const quotaPercent = quotaTotal > 0 ? Math.min((quotaUsed / quotaTotal) * 100, 100) : 0;
 
   const handleLogin = () => {
     Taro.login({
@@ -52,6 +62,9 @@ export default function Mine() {
       case 'toolkit':
         Taro.navigateTo({ url: '/pages/toolkit/index' });
         break;
+      case 'feedback':
+        handleFeedback();
+        break;
       case 'about':
         showAboutInfo();
         break;
@@ -71,6 +84,15 @@ export default function Mine() {
       content: `已使用：${quota.quota_used}张\n总配额：${total}张\n剩余：${quota.quota_remaining}张`,
       showCancel: false,
       confirmText: '知道了',
+    });
+  };
+
+  const handleFeedback = () => {
+    Taro.setClipboardData({
+      data: 'https://github.com/ling-qian/piaoxiaozhu/issues',
+      success: () => {
+        Taro.showToast({ title: '反馈链接已复制', icon: 'success' });
+      },
     });
   };
 
@@ -105,12 +127,39 @@ export default function Mine() {
             <View className='login-avatar'>
               <Text className='login-icon'>👤</Text>
             </View>
-            <Button className='login-btn' onClick={handleLogin}>
-              点击登录
-            </Button>
+            <View className='login-info'>
+              <Button className='login-btn' onClick={handleLogin}>
+                微信一键登录
+              </Button>
+              <Text className='login-hint'>登录后可使用票据识别和项目管理功能</Text>
+            </View>
           </View>
         )}
       </View>
+
+      {userInfo && quota && (
+        <View className='quota-card'>
+          <View className='quota-header'>
+            <Text className='quota-title'>本月配额</Text>
+            <Text className='quota-upgrade' onClick={() => Taro.navigateTo({ url: '/pages/member/index' })}>
+              升级 ›
+            </Text>
+          </View>
+          <View className='quota-body'>
+            <Text className='quota-used'>{quotaUsed}</Text>
+            <Text className='quota-total'> / {quotaTotal === -1 ? '∞' : quotaTotal} 次</Text>
+          </View>
+          <View className='quota-track'>
+            <View
+              className={`quota-fill ${quotaPercent >= 80 ? 'low' : ''}`}
+              style={{ width: `${quotaPercent}%` }}
+            />
+          </View>
+          {quotaPercent >= 80 && (
+            <Text className='quota-warning'>识别次数即将用尽</Text>
+          )}
+        </View>
+      )}
 
       <View className='menu-list'>
         <View className='menu-item' onClick={() => handleMenuClick('member')}>
@@ -118,7 +167,10 @@ export default function Mine() {
             <Text className='menu-icon'>👑</Text>
             <Text className='menu-title'>我的方案</Text>
           </View>
-          <Text className='menu-arrow'>›</Text>
+          <View className='menu-right'>
+            {userInfo && <Text className='menu-badge'>{planName}</Text>}
+            <Text className='menu-arrow'>›</Text>
+          </View>
         </View>
 
         <View className='menu-item' onClick={() => handleMenuClick('quota')}>
@@ -140,6 +192,14 @@ export default function Mine() {
           <View className='menu-left'>
             <Text className='menu-icon'>🧰</Text>
             <Text className='menu-title'>工具箱</Text>
+          </View>
+          <Text className='menu-arrow'>›</Text>
+        </View>
+
+        <View className='menu-item' onClick={() => handleMenuClick('feedback')}>
+          <View className='menu-left'>
+            <Text className='menu-icon'>💬</Text>
+            <Text className='menu-title'>意见反馈</Text>
           </View>
           <Text className='menu-arrow'>›</Text>
         </View>

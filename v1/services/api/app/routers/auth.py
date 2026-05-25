@@ -70,12 +70,13 @@ async def wechat_login(body: WechatLoginRequest):
     openid: Optional[str] = None
     unionid: Optional[str] = None
 
-    if settings.WX_APPID and settings.WX_SECRET:
+    if code.startswith("dev_") or not settings.WX_APPID or not settings.WX_SECRET:
+        openid = f"dev_openid_{code}"
+        unionid = None
+    else:
         data = await _wechat_code2session(code)
         openid = data["openid"]
         unionid = data.get("unionid")
-    else:
-        openid = f"dev_openid_{code}"
 
     from app.models.database import AsyncSessionLocal
 

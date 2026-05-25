@@ -1,7 +1,7 @@
 import { View, Text, Button, Input, Picker } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useState, useMemo } from 'react';
-import { recordApi, projectApi } from '../../services/api';
+import { recordApi, projectApi, fileApi } from '../../services/api';
 import { useStore } from '../../store';
 import CategoryTag from '../../components/CategoryTag';
 import './index.scss';
@@ -27,6 +27,7 @@ interface RecordData {
   category_l1: string;
   category_l2: string;
   confidence: number;
+  file_id?: string;
 }
 
 interface ProjectItem {
@@ -44,6 +45,12 @@ function getConfidenceText(confidence: number): string {
   if (confidence >= 0.9) return '高';
   if (confidence >= 0.7) return '中';
   return '低';
+}
+
+function getConfidenceHint(confidence: number): string {
+  if (confidence >= 0.9) return '识别结果较准确，可直接保存';
+  if (confidence >= 0.7) return '建议核对后再保存';
+  return '识别结果可能不准确，请仔细核对';
 }
 
 function findCategoryIndex(code: string): number {
@@ -64,6 +71,7 @@ function parseAmountInput(input: string): number {
 export default function Result() {
   const params = Taro.getCurrentInstance().router?.params || {};
   const isManual = params.mode === 'manual';
+  const urlProjectId = params.projectId || '';
 
   const initialRecord = useMemo<RecordData | null>(() => {
     if (isManual || !params.data) return null;
@@ -80,6 +88,7 @@ export default function Result() {
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reRecognizing, setReRecognizing] = useState(false);
 
   const { projects, fetchProjects } = useStore();
   const [projectList, setProjectList] = useState<ProjectItem[]>(projects || []);
@@ -98,7 +107,10 @@ export default function Result() {
       fetchProjects().then(() => {
         const store = useStore.getState();
         setProjectList(store.projects);
-        if (store.currentProject) {
+        if (urlProjectId) {
+          const idx = store.projects.findIndex((p) => p.id === urlProjectId);
+          if (idx >= 0) setSelectedProjectIdx(idx);
+        } else if (store.currentProject) {
           const idx = store.projects.findIndex((p) => p.id === store.currentProject!.id);
           if (idx >= 0) setSelectedProjectIdx(idx);
         }
@@ -138,6 +150,7 @@ export default function Result() {
         category_l2: record.category_l2,
       });
       Taro.showToast({ title: '保存成功', icon: 'success' });
+      setTimeout(() => Taro.navigateBack(), 800);
     } catch {
       Taro.showToast({ title: '保存失败', icon: 'none' });
     } finally {
@@ -166,6 +179,54 @@ export default function Result() {
     }
   };
 
+  const handleReRecognize = async () => {
+    if (!record?.file_id) {
+      Taro.showToast({ title: '无原始文件，无法重新识别', icon: 'none' });
+      return;
+    }
+    setReRecognizing(true);
+    try {
+      await fileApi.triggerOcr(record.file_id);
+      Taro.showToast({ title: '已重新提交识别', icon: 'success' });
+      let attempts = 0;
+      const poll = async () => {
+        if (attempts > 30) {
+          Taro.showToast({ title: '识别超时', icon: 'none' });
+          setReRecognizing(false);
+          return;
+        }
+        attempts++;
+        try {
+          const res = await fileApi.getOcrStatus(record.file_id!);
+          if (res.ocr_status === 'done') {
+            const records = res.records || [];
+            if (records.length > 0) {
+              const newRecord = records[0];
+              setRecord(newRecord);
+              setCategoryIdx(findCategoryIndex(newRecord.category_code || 'other'));
+              Taro.showToast({ title: '重新识别完成', icon: 'success' });
+            } else {
+              Taro.showToast({ title: '未提取到信息', icon: 'none' });
+            }
+            setReRecognizing(false);
+          } else if (res.ocr_status === 'failed') {
+            Taro.showToast({ title: '识别失败', icon: 'none' });
+            setReRecognizing(false);
+          } else {
+            setTimeout(poll, 2000);
+          }
+        } catch {
+          Taro.showToast({ title: '查询识别状态失败', icon: 'none' });
+          setReRecognizing(false);
+        }
+      };
+      setTimeout(poll, 2000);
+    } catch {
+      Taro.showToast({ title: '提交失败', icon: 'none' });
+      setReRecognizing(false);
+    }
+  };
+
   const handleManualCategoryChange = (e: any) => {
     setManualCategoryIdx(Number(e.detail.value));
   };
@@ -185,6 +246,10 @@ export default function Result() {
     }
     if (!form.merchant_name.trim()) {
       Taro.showToast({ title: '请输入商户名称', icon: 'none' });
+      return;
+    }
+    if (!form.amount || parseAmountInput(form.amount) <= 0) {
+      Taro.showToast({ title: '请输入金额', icon: 'none' });
       return;
     }
 
@@ -312,13 +377,14 @@ export default function Result() {
   }
 
   const confidencePct = (record.confidence * 100).toFixed(0);
+  const confColor = getConfidenceColor(record.confidence);
 
   return (
     <View className='result-page'>
       <View className='confidence-bar'>
         <View className='confidence-info'>
           <Text className='confidence-label'>识别置信度</Text>
-          <Text className='confidence-value' style={{ color: getConfidenceColor(record.confidence) }}>
+          <Text className='confidence-value' style={{ color: confColor }}>
             {getConfidenceText(record.confidence)}（{confidencePct}%）
           </Text>
         </View>
@@ -327,15 +393,25 @@ export default function Result() {
             className='confidence-fill'
             style={{
               width: `${confidencePct}%`,
-              backgroundColor: getConfidenceColor(record.confidence),
+              backgroundColor: confColor,
             }}
           />
         </View>
+        <Text className='confidence-hint' style={{ color: confColor }}>
+          {getConfidenceHint(record.confidence)}
+        </Text>
       </View>
 
       <View className='result-card'>
         <View className='card-header'>
           <Text className='card-title'>票据信息</Text>
+          {record.file_id && (
+            <View className='re-recognize-btn' onClick={reRecognizing ? undefined : handleReRecognize}>
+              <Text className={`re-recognize-text ${reRecognizing ? 'disabled' : ''}`}>
+                {reRecognizing ? '识别中...' : '重新识别'}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View className='field-item'>
@@ -391,7 +467,7 @@ export default function Result() {
             onChange={handleCategoryChange}
           >
             <View className='field-picker-value'>
-              <CategoryTag name={CATEGORIES[categoryIdx].name} />
+              <CategoryTag name={CATEGORIES[categoryIdx].name} code={CATEGORIES[categoryIdx].code} />
               <Text className='picker-arrow'>▸</Text>
             </View>
           </Picker>

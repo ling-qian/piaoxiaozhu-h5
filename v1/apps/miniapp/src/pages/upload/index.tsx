@@ -23,6 +23,11 @@ export default function Upload() {
 
   Taro.useDidShow(() => {
     fetchProjects();
+    const params = Taro.getCurrentInstance().router?.params;
+    if (params?.projectId && projects.length > 0) {
+      const found = projects.find((p) => p.id === params.projectId);
+      if (found) setCurrentProject(found);
+    }
   });
 
   const selectedProjectIndex = currentProject
@@ -36,9 +41,7 @@ export default function Upload() {
   }, []);
 
   const pollOcrStatus = useCallback((fileId: string, filePath: string) => {
-    if (pollingRef.current) {
-      clearInterval(pollingRef.current);
-    }
+    if (pollingRef.current) clearInterval(pollingRef.current);
 
     let attempts = 0;
     const maxAttempts = 60;
@@ -87,8 +90,17 @@ export default function Upload() {
     }, 2000);
   }, [updateTask]);
 
+  const getProjectId = (): string | null => {
+    if (currentProject) return currentProject.id;
+    const params = Taro.getCurrentInstance().router?.params;
+    if (params?.projectId) return params.projectId;
+    if (projects.length > 0) return projects[0].id;
+    return null;
+  };
+
   const processFile = useCallback(async (filePath: string) => {
-    if (!currentProject) {
+    const projectId = getProjectId();
+    if (!projectId) {
       Taro.showToast({ title: '请先选择项目', icon: 'none' });
       return;
     }
@@ -98,28 +110,23 @@ export default function Upload() {
 
     try {
       updateTask(filePath, { progress: 20 });
-      const uploadRes = await fileApi.upload(filePath, currentProject.id);
+      const uploadRes = await fileApi.upload(filePath, projectId);
       const fileId = uploadRes.file_id;
 
-      if (!fileId) {
-        throw new Error('上传返回无效');
-      }
+      if (!fileId) throw new Error('上传返回无效');
 
       updateTask(filePath, { progress: 50, fileId });
-
       await fileApi.triggerOcr(fileId);
-
       updateTask(filePath, { step: 'ocr_processing', progress: 70 });
-
       pollOcrStatus(fileId, filePath);
     } catch (error: any) {
       updateTask(filePath, { step: 'ocr_failed' });
       Taro.showToast({ title: error.message || '上传失败', icon: 'none' });
     }
-  }, [currentProject, updateTask, pollOcrStatus]);
+  }, [currentProject, projects, updateTask, pollOcrStatus]);
 
   const handleCamera = () => {
-    if (!currentProject) {
+    if (!getProjectId()) {
       Taro.showToast({ title: '请先选择项目', icon: 'none' });
       return;
     }
@@ -127,14 +134,12 @@ export default function Upload() {
       count: 1,
       sizeType: ['compressed'],
       sourceType: ['camera'],
-      success: (res) => {
-        processFile(res.tempFilePaths[0]);
-      },
+      success: (res) => processFile(res.tempFilePaths[0]),
     });
   };
 
   const handleAlbum = () => {
-    if (!currentProject) {
+    if (!getProjectId()) {
       Taro.showToast({ title: '请先选择项目', icon: 'none' });
       return;
     }
@@ -142,23 +147,19 @@ export default function Upload() {
       count: 9,
       sizeType: ['compressed'],
       sourceType: ['album'],
-      success: (res) => {
-        res.tempFilePaths.forEach((path) => processFile(path));
-      },
+      success: (res) => res.tempFilePaths.forEach((path) => processFile(path)),
     });
   };
 
   const handleProjectChange = (e) => {
     const idx = Number(e.detail.value);
-    if (idx >= 0 && idx < projects.length) {
-      setCurrentProject(projects[idx]);
-    }
+    if (idx >= 0 && idx < projects.length) setCurrentProject(projects[idx]);
   };
 
   const getStepText = (step: UploadStep): string => {
     switch (step) {
       case 'uploading': return '上传中...';
-      case 'ocr_processing': return '识别中...';
+      case 'ocr_processing': return 'AI 识别中...';
       case 'ocr_done': return '识别完成';
       case 'ocr_failed': return '识别失败';
       default: return '';

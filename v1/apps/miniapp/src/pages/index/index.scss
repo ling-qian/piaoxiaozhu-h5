@@ -177,6 +177,12 @@
   color: $color-text-primary;
 }
 
+.create-link {
+  font-size: 26px;
+  color: $color-brand;
+  font-weight: 500;
+}
+
 .project-list {
   .project-card {
     display: flex;

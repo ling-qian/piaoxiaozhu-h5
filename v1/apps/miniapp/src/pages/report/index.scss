@@ -22,6 +22,16 @@
   margin-bottom: 24px;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.header-info {
+  flex: 1;
+}
+
 .project-name {
   display: block;
   font-size: 36px;
@@ -33,6 +43,27 @@
 .project-records {
   font-size: 24px;
   color: $color-text-hint;
+}
+
+.month-selector {
+  display: flex;
+  align-items: center;
+  background: $color-bg-card;
+  border-radius: 20px;
+  padding: 8px 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.month-text {
+  font-size: 24px;
+  color: $color-brand;
+  font-weight: 500;
+}
+
+.month-arrow {
+  font-size: 20px;
+  color: $color-brand;
+  margin-left: 4px;
 }
 
 .profit-card {
@@ -180,18 +211,26 @@
 .bar-fill {
   height: 100%;
   border-radius: 14px;
-  background: linear-gradient(90deg, $color-brand-light, $color-brand);
   transition: width 0.4s ease;
   min-width: 8px;
 }
 
+.bar-right {
+  width: 160px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
 .bar-amount {
-  width: 140px;
+  display: block;
   font-size: 24px;
   color: $color-text-secondary;
-  text-align: right;
-  flex-shrink: 0;
   font-weight: 500;
+}
+
+.bar-pct {
+  font-size: 20px;
+  font-weight: 600;
 }
 
 .action-bar {
