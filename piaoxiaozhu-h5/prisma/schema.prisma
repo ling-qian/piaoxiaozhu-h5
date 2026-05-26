@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  avatarUrl    String?
+  planCode     String   @default("free")
+  quotaTotal   Int      @default(10)
+  quotaUsed    Int      @default(0)
+  projects     Project[]
+  records      Record[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  industry  String   @default("restaurant")
+  records   Record[]
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("projects")
+}
+
+model Record {
+  id                String   @id @default(cuid())
+  projectId         String
+  userId            String
+  direction         String   @default("out")
+  merchantName      String?
+  amount            Float
+  taxAmount         Float?
+  invoiceDate       String?
+  invoiceType       String?
+  categoryCode      String   @default("other")
+  categoryL1        String   @default("其他")
+  categoryL2        String?
+  confidence        Float    @default(0.5)
+  reason            String?
+  isManualCorrected Boolean  @default(false)
+  rawText           String?
+  imageUrl          String?
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("records")
+}
+
+model Plan {
+  id         String   @id @default(cuid())
+  code       String   @unique
+  name       String
+  price      Float
+  quotaLimit Int
+  duration   Int
+  features   String
+  createdAt  DateTime @default(now())
+
+  @@map("plans")
+}
