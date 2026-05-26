@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
+import uuid
 
 from app.deps import get_current_user, get_db
 from app.models.invoice import InvoiceRecord
@@ -9,6 +10,13 @@ from app.models.user import User
 from app.schemas.record import InvoiceRecordCreate, InvoiceRecordUpdate, InvoiceRecordResponse
 
 router = APIRouter(prefix="/api", tags=["records"])
+
+
+def _validate_uuid(value: str, name: str = "resource"):
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{name} not found")
 
 
 @router.get("/projects/{project_id}/records")
@@ -107,6 +115,7 @@ async def get_record(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _validate_uuid(record_id, "Record")
     result = await db.execute(
         select(InvoiceRecord).where(InvoiceRecord.id == record_id, InvoiceRecord.user_id == current_user.id)
     )
@@ -143,6 +152,7 @@ async def update_record(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _validate_uuid(record_id, "Record")
     result = await db.execute(
         select(InvoiceRecord).where(InvoiceRecord.id == record_id, InvoiceRecord.user_id == current_user.id)
     )
@@ -172,6 +182,7 @@ async def delete_record(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _validate_uuid(record_id, "Record")
     result = await db.execute(
         select(InvoiceRecord).where(InvoiceRecord.id == record_id, InvoiceRecord.user_id == current_user.id)
     )

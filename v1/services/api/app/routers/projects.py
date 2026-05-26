@@ -1,4 +1,5 @@
 from typing import Optional
+import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, func
@@ -8,6 +9,13 @@ from app.deps import get_current_user, get_db
 from app.models.invoice import InvoiceRecord
 from app.models.project import Project
 from app.models.user import User
+
+
+def _validate_uuid(value: str, name: str = "resource"):
+    try:
+        uuid.UUID(value)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"{name} not found")
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectListResponse
 
 router = APIRouter(prefix="/api", tags=["projects"])
@@ -27,7 +35,7 @@ async def _build_project_response(project: Project, db: AsyncSession) -> Project
             InvoiceRecord.direction == "out",
         )
     )
-    total_cost = float(cost_result.scalar() or 0)
+    total_cost = round(float(cost_result.scalar() or 0), 2)
 
     income_result = await db.execute(
         select(func.coalesce(func.sum(InvoiceRecord.amount), 0)).where(
@@ -35,7 +43,7 @@ async def _build_project_response(project: Project, db: AsyncSession) -> Project
             InvoiceRecord.direction == "income",
         )
     )
-    total_income = float(income_result.scalar() or 0)
+    total_income = round(float(income_result.scalar() or 0), 2)
 
     return ProjectResponse(
         id=project.id,
@@ -107,6 +115,7 @@ async def get_project(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _validate_uuid(project_id, "Project")
     result = await db.execute(
         select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
@@ -123,6 +132,7 @@ async def update_project(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _validate_uuid(project_id, "Project")
     result = await db.execute(
         select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
@@ -146,6 +156,7 @@ async def delete_project(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _validate_uuid(project_id, "Project")
     result = await db.execute(
         select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
@@ -163,6 +174,7 @@ async def get_project_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _validate_uuid(project_id, "Project")
     result = await db.execute(
         select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
@@ -196,10 +208,10 @@ async def get_project_stats(
         .group_by(InvoiceRecord.category_l1)
     )
 
-    total_cost = float(cost_result.scalar() or 0)
-    total_income = float(income_result.scalar() or 0)
-    gross_profit = total_income - total_cost
-    gross_margin = (gross_profit / total_income * 100) if total_income > 0 else 0.0
+    total_cost = round(float(cost_result.scalar() or 0), 2)
+    total_income = round(float(income_result.scalar() or 0), 2)
+    gross_profit = round(total_income - total_cost, 2)
+    gross_margin = round((gross_profit / total_income * 100), 2) if total_income > 0 else 0.0
 
     _CATEGORY_CODE_MAP = {
         "食材": "food_material", "房租": "rent", "工资": "salary", "水电": "utilities",

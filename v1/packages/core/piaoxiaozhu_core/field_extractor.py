@@ -41,6 +41,8 @@ _DATE_PREFIX_PATTERNS: list[re.Pattern[str]] = [
 ]
 
 _INVOICE_TYPE_MAP: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"增值税.*?电子.*?专用"), "vat_special_electronic"),
+    (re.compile(r"增值税.*?电子.*?普通"), "vat_normal_electronic"),
     (re.compile(r"电子发票[\s\S]*?增值税专用"), "vat_special_electronic"),
     (re.compile(r"电子发票[\s\S]*?增值税普通"), "vat_normal_electronic"),
     (re.compile(r"增值税专用发票"), "vat_special"),
