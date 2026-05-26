@@ -9,6 +9,13 @@ export default auth((req) => {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/api/")) {
+    if (!req.auth) {
+      return NextResponse.json({ error: "未登录" }, { status: 401 });
+    }
+    return NextResponse.next();
+  }
+
   if (!req.auth) {
     const loginUrl = new URL("/auth/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);

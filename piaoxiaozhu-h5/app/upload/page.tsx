@@ -2,7 +2,9 @@
 
 import { useState, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { recognizeImage } from "@/lib/ocr";
+import { createRecordFromOcr } from "@/lib/actions/record-actions";
 import PageHeader from "@/components/page-header";
 import OcrProgress from "@/components/ocr-progress";
 
@@ -31,6 +33,12 @@ function UploadContent() {
 
   async function handleRecognize() {
     if (!file) return;
+
+    if (!projectId) {
+      alert("请先选择项目");
+      return;
+    }
+
     setRecognizing(true);
     setStatus("正在识别...");
     setProgress(0);
@@ -39,14 +47,15 @@ function UploadContent() {
       const result = await recognizeImage(file, (p) => {
         setProgress(p);
         if (p < 100) setStatus(`正在识别... ${p}%`);
-        else setStatus("识别完成");
+        else setStatus("识别完成，正在保存...");
       });
 
-      router.push(
-        `/result?project=${projectId}&rawText=${encodeURIComponent(result.rawText)}&confidence=${result.confidence}`
-      );
-    } catch {
-      alert("识别失败，请重试");
+      const record = await createRecordFromOcr(projectId, result.rawText, file);
+
+      router.push(`/result?project=${projectId}&recordId=${record.id}`);
+    } catch (err: any) {
+      alert(err.message || "识别失败，请重试");
+      setStatus("识别失败");
     } finally {
       setRecognizing(false);
     }
@@ -63,11 +72,15 @@ function UploadContent() {
       <div className="px-4 -mt-4 space-y-4">
         <div className="bg-white rounded-md p-4 shadow-card">
           {preview ? (
-            <img
-              src={preview}
-              alt="预览"
-              className="w-full h-64 object-contain rounded-md bg-gray-50"
-            />
+            <div className="relative w-full h-64 rounded-md bg-gray-50">
+              <Image
+                src={preview}
+                alt="预览"
+                fill
+                className="object-contain rounded-md"
+                unoptimized
+              />
+            </div>
           ) : (
             <div
               onClick={handleCamera}

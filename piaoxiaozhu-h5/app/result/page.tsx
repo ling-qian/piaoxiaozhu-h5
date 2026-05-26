@@ -2,20 +2,32 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { extractFields } from "@/lib/extract-fields";
-import { categorize } from "@/lib/categorize";
 import { CATEGORIES, CATEGORY_MAP } from "@/lib/constants";
 import { formatAmount, getConfidenceColor, getConfidenceHint } from "@/lib/utils";
-import { createRecordFromOcr, createManualRecord } from "@/lib/actions/record-actions";
+import { getRecord, updateRecord, createManualRecord } from "@/lib/actions/record-actions";
 import PageHeader from "@/components/page-header";
-import CategoryTag from "@/components/category-tag";
+
+interface RecordData {
+  id: string;
+  direction: string;
+  merchantName: string | null;
+  amount: number;
+  taxAmount: number | null;
+  invoiceDate: string | null;
+  invoiceType: string | null;
+  categoryCode: string;
+  categoryL1: string;
+  categoryL2: string | null;
+  confidence: number;
+  rawText: string | null;
+  imageUrl: string | null;
+}
 
 function ResultContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get("project") || "";
-  const rawText = searchParams.get("rawText") || "";
-  const ocrConfidence = parseFloat(searchParams.get("confidence") || "0.5");
+  const recordId = searchParams.get("recordId") || "";
   const isManual = searchParams.get("manual") === "1";
 
   const [direction, setDirection] = useState<"out" | "income">("out");
@@ -24,20 +36,26 @@ function ResultContent() {
   const [taxAmount, setTaxAmount] = useState("");
   const [invoiceDate, setInvoiceDate] = useState("");
   const [categoryCode, setCategoryCode] = useState("other");
+  const [confidence, setConfidence] = useState(1.0);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(!isManual && !!recordId);
 
   useEffect(() => {
-    if (!isManual && rawText) {
-      const fields = extractFields(rawText);
-      const cat = categorize(fields.merchantName, rawText);
-
-      if (fields.merchantName) setMerchantName(fields.merchantName);
-      if (fields.totalAmount) setAmount(fields.totalAmount.toString());
-      if (fields.taxAmount) setTaxAmount(fields.taxAmount.toString());
-      if (fields.invoiceDate) setInvoiceDate(fields.invoiceDate);
-      setCategoryCode(cat.categoryCode);
+    if (!isManual && recordId) {
+      getRecord(recordId).then((record: RecordData | null) => {
+        if (record) {
+          setDirection(record.direction as "out" | "income");
+          setMerchantName(record.merchantName || "");
+          setAmount(record.amount.toString());
+          setTaxAmount(record.taxAmount?.toString() || "");
+          setInvoiceDate(record.invoiceDate || "");
+          setCategoryCode(record.categoryCode);
+          setConfidence(record.confidence);
+        }
+        setLoading(false);
+      });
     }
-  }, [rawText, isManual]);
+  }, [recordId, isManual]);
 
   const cat = CATEGORY_MAP[categoryCode];
 
@@ -64,8 +82,17 @@ function ResultContent() {
           categoryL1: cat?.l1 || "其他",
           categoryL2: cat?.l2,
         });
-      } else {
-        await createRecordFromOcr(projectId, decodeURIComponent(rawText), null);
+      } else if (recordId) {
+        await updateRecord(recordId, {
+          direction,
+          merchantName: merchantName || undefined,
+          amount: parseFloat(amount),
+          taxAmount: taxAmount ? parseFloat(taxAmount) : undefined,
+          invoiceDate: invoiceDate || undefined,
+          categoryCode,
+          categoryL1: cat?.l1 || "其他",
+          categoryL2: cat?.l2,
+        });
       }
       router.push(`/project/${projectId}`);
     } catch (err: any) {
@@ -73,6 +100,14 @@ function ResultContent() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-[#999999]">加载中...</p>
+      </div>
+    );
   }
 
   return (
@@ -84,19 +119,19 @@ function ResultContent() {
       />
 
       <div className="px-4 -mt-4 space-y-4">
-        {!isManual && rawText && (
+        {!isManual && recordId && (
           <div className="bg-white rounded-md p-4 shadow-card">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-[#666666]">识别置信度</span>
               <span
                 className="text-sm font-medium"
-                style={{ color: getConfidenceColor(ocrConfidence) }}
+                style={{ color: getConfidenceColor(confidence) }}
               >
-                {Math.round(ocrConfidence * 100)}%
+                {Math.round(confidence * 100)}%
               </span>
             </div>
             <p className="text-xs text-[#999999]">
-              {getConfidenceHint(ocrConfidence)}
+              {getConfidenceHint(confidence)}
             </p>
           </div>
         )}
