@@ -9,5 +9,7 @@ export default async function MinePage() {
 
   const user = await getUserInfo();
 
+  if (!user) redirect("/auth/login");
+
   return <MineClient user={user} />;
 }

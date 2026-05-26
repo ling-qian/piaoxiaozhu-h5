@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CATEGORIES, CATEGORY_MAP } from "@/lib/constants";
 import { formatAmount, getConfidenceColor, getConfidenceHint } from "@/lib/utils";
 import { getRecord, updateRecord, createManualRecord } from "@/lib/actions/record-actions";
+import { useToast } from "@/components/toast";
+import { PageSpinner } from "@/components/spinner";
 import PageHeader from "@/components/page-header";
 
 interface RecordData {
@@ -29,6 +31,7 @@ function ResultContent() {
   const projectId = searchParams.get("project") || "";
   const recordId = searchParams.get("recordId") || "";
   const isManual = searchParams.get("manual") === "1";
+  const { showToast } = useToast();
 
   const [direction, setDirection] = useState<"out" | "income">("out");
   const [merchantName, setMerchantName] = useState("");
@@ -61,11 +64,11 @@ function ResultContent() {
 
   async function handleSave() {
     if (!projectId) {
-      alert("请先选择项目");
+      showToast("请先选择项目", "error");
       return;
     }
     if (!amount || parseFloat(amount) <= 0) {
-      alert("请输入金额");
+      showToast("请输入有效金额", "error");
       return;
     }
 
@@ -94,20 +97,17 @@ function ResultContent() {
           categoryL2: cat?.l2,
         });
       }
+      showToast("保存成功", "success");
       router.push(`/project/${projectId}`);
     } catch (err: any) {
-      alert(err.message || "保存失败");
+      showToast(err.message || "保存失败", "error");
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-[#999999]">加载中...</p>
-      </div>
-    );
+    return <PageSpinner text="加载记录" />;
   }
 
   return (
@@ -120,7 +120,7 @@ function ResultContent() {
 
       <div className="px-4 -mt-4 space-y-4">
         {!isManual && recordId && (
-          <div className="bg-white rounded-md p-4 shadow-card">
+          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-[#666666]">识别置信度</span>
               <span
@@ -130,17 +130,26 @@ function ResultContent() {
                 {Math.round(confidence * 100)}%
               </span>
             </div>
-            <p className="text-xs text-[#999999]">
+            <div className="w-full h-1.5 bg-[#EEEEEE] rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${confidence * 100}%`,
+                  backgroundColor: getConfidenceColor(confidence),
+                }}
+              />
+            </div>
+            <p className="text-xs text-[#999999] mt-1.5">
               {getConfidenceHint(confidence)}
             </p>
           </div>
         )}
 
-        <div className="bg-white rounded-md p-4 shadow-card space-y-4">
+        <div className="bg-white rounded-md p-4 shadow-card space-y-4 animate-fade-in-up stagger-1">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setDirection("out")}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 btn-press ${
                 direction === "out"
                   ? "bg-error/10 text-error border border-error/30"
                   : "bg-gray-50 text-[#999999] border border-transparent"
@@ -150,7 +159,7 @@ function ResultContent() {
             </button>
             <button
               onClick={() => setDirection("income")}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 btn-press ${
                 direction === "income"
                   ? "bg-success/10 text-success border border-success/30"
                   : "bg-gray-50 text-[#999999] border border-transparent"
@@ -216,9 +225,9 @@ function ResultContent() {
                 <button
                   key={cat.code}
                   onClick={() => setCategoryCode(cat.code)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 btn-press ${
                     categoryCode === cat.code
-                      ? "text-white"
+                      ? "text-white scale-105"
                       : "bg-gray-100 text-[#666666]"
                   }`}
                   style={
@@ -237,7 +246,7 @@ function ResultContent() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="w-full bg-brand text-white py-3 rounded-xl font-medium disabled:opacity-50"
+          className="w-full bg-brand text-white py-3 rounded-xl font-medium disabled:opacity-50 btn-press animate-fade-in-up stagger-2"
         >
           {saving ? "保存中..." : "保存"}
         </button>
@@ -248,7 +257,7 @@ function ResultContent() {
 
 export default function ResultPage() {
   return (
-    <Suspense fallback={<div className="p-4 text-center text-[#999999]">加载中...</div>}>
+    <Suspense fallback={<PageSpinner text="加载中" />}>
       <ResultContent />
     </Suspense>
   );

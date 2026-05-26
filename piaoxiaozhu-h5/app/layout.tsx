@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
+import { ToastProvider } from "@/components/toast";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,6 +14,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   themeColor: "#FF6B35",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -24,9 +26,11 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body>
         <SessionProvider>
-          <div className="mx-auto max-w-mobile min-h-screen bg-page relative">
-            {children}
-          </div>
+          <ToastProvider>
+            <div className="mx-auto max-w-mobile min-h-screen bg-page relative">
+              {children}
+            </div>
+          </ToastProvider>
         </SessionProvider>
       </body>
     </html>

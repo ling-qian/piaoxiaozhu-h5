@@ -1,93 +1,87 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useToast } from "@/components/toast";
 import PageHeader from "@/components/page-header";
 
-const PLANS = [
+const plans = [
   {
-    code: "free",
     name: "免费版",
-    price: 0,
-    quotaLimit: 10,
-    features: "每月10次识别\n基础分类\nCSV导出",
+    price: "0",
+    features: ["每月10次OCR识别", "1个项目", "基础报表"],
+    color: "#999999",
+    current: true,
   },
   {
-    code: "pro",
     name: "专业版",
-    price: 29.9,
-    quotaLimit: 200,
-    features: "每月200次识别\n5层分类引擎\nExcel/CSV导出\nLLM智能分类",
+    price: "29",
+    features: ["每月100次OCR识别", "5个项目", "高级报表", "数据导出"],
+    color: "#FF6B35",
+    current: false,
   },
   {
-    code: "enterprise",
     name: "企业版",
-    price: 99,
-    quotaLimit: -1,
-    features: "无限次识别\n全部功能\n优先客服\nAPI接口",
+    price: "99",
+    features: ["无限OCR识别", "无限项目", "全部功能", "优先支持"],
+    color: "#722ED1",
+    current: false,
   },
 ];
 
 export default function MemberPage() {
-  const router = useRouter();
+  const { showToast } = useToast();
 
   return (
     <div className="pb-20">
-      <PageHeader title="会员套餐" showBack onBack={() => router.back()} />
+      <PageHeader title="会员套餐" showBack onBack={() => history.back()} />
 
-      <div className="px-4 -mt-4 space-y-4">
-        {PLANS.map((plan) => (
+      <div className="px-4 -mt-4 space-y-3">
+        {plans.map((plan, i) => (
           <div
-            key={plan.code}
-            className={`bg-white rounded-md p-4 shadow-card ${
-              plan.code === "pro" ? "ring-2 ring-brand" : ""
-            }`}
+            key={plan.name}
+            className={`bg-white rounded-md p-5 shadow-card animate-fade-in-up stagger-${i + 1}`}
           >
-            {plan.code === "pro" && (
-              <span className="inline-block bg-brand text-white text-xs px-2 py-0.5 rounded-full mb-2">
-                推荐
-              </span>
-            )}
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-semibold text-[#333333]">
-                {plan.name}
-              </h3>
-              <div>
-                <span className="text-2xl font-bold text-brand">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full"
+                  style={{ backgroundColor: plan.color }}
+                />
+                <span className="font-semibold text-[#333333]">{plan.name}</span>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-bold" style={{ color: plan.color }}>
                   ¥{plan.price}
                 </span>
                 <span className="text-xs text-[#999999]">/月</span>
               </div>
             </div>
-            <p className="text-xs text-[#999999] mb-3">
-              {plan.quotaLimit === -1
-                ? "无限次识别"
-                : `每月${plan.quotaLimit}次识别`}
-            </p>
-            <div className="space-y-1">
-              {plan.features.split("\n").map((f, i) => (
-                <p key={i} className="text-sm text-[#666666] flex items-center gap-1">
-                  <span className="text-success">✓</span> {f}
-                </p>
+
+            <ul className="space-y-1.5 mb-4">
+              {plan.features.map((f) => (
+                <li key={f} className="text-sm text-[#666666] flex items-center gap-2">
+                  <span className="text-success text-xs">✓</span>
+                  {f}
+                </li>
               ))}
-            </div>
+            </ul>
+
             <button
-              className={`w-full mt-3 py-2 rounded-xl text-sm font-medium ${
-                plan.code === "free"
+              onClick={() =>
+                plan.current
+                  ? showToast("当前套餐", "info")
+                  : showToast("即将开放购买", "info")
+              }
+              className={`w-full py-2.5 rounded-xl text-sm font-medium btn-press transition-all duration-200 ${
+                plan.current
                   ? "bg-gray-100 text-[#999999]"
-                  : "bg-brand text-white"
+                  : "text-white"
               }`}
-              disabled={plan.code === "free"}
+              style={!plan.current ? { backgroundColor: plan.color } : undefined}
             >
-              {plan.code === "free" ? "当前套餐" : "立即开通"}
+              {plan.current ? "当前套餐" : "立即购买"}
             </button>
           </div>
         ))}
-
-        <div className="bg-brand-bg rounded-md p-4">
-          <p className="text-xs text-[#666666]">
-            💡 会员购买功能暂未开通，当前所有用户可免费使用基础功能。
-          </p>
-        </div>
       </div>
     </div>
   );

@@ -47,7 +47,7 @@ export default function ReportClient({
       />
 
       <div className="px-4 -mt-4 space-y-4">
-        <div className="flex gap-2">
+        <div className="flex gap-2 animate-fade-in-up stagger-1">
           <StatCard label="总收入" value={`¥${formatAmount(report.totalIncome)}`} color="#52C41A" />
           <StatCard label="总支出" value={`¥${formatAmount(report.totalExpense)}`} color="#FF4D4F" />
           <StatCard
@@ -57,7 +57,7 @@ export default function ReportClient({
           />
         </div>
 
-        <div className="bg-white rounded-md p-4 shadow-card">
+        <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-2">
           <div className="flex items-center justify-between">
             <span className="text-sm text-[#666666]">毛利率</span>
             <span
@@ -69,7 +69,7 @@ export default function ReportClient({
           </div>
         </div>
 
-        <div className="bg-white rounded-md p-4 shadow-card">
+        <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-3">
           <label className="block text-sm text-[#666666] mb-2">月份筛选</label>
           <select
             value={month}
@@ -85,10 +85,12 @@ export default function ReportClient({
           </select>
         </div>
 
-        <CostChart data={report.categoryBreakdown} />
+        <div className="animate-fade-in-up stagger-4">
+          <CostChart data={report.categoryBreakdown} />
+        </div>
 
         {report.monthlyData.length > 0 && (
-          <div className="bg-white rounded-md p-4 shadow-card">
+          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-5">
             <h3 className="text-sm font-medium text-[#333333] mb-3">月度趋势</h3>
             <div className="space-y-2">
               {report.monthlyData.map((d) => (

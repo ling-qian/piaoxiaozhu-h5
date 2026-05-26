@@ -1,90 +1,77 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useToast } from "@/components/toast";
 import PageHeader from "@/components/page-header";
 import TabBar from "@/components/tab-bar";
 
-interface User {
-  id: string;
-  email: string;
+interface UserInfo {
   name: string | null;
-  avatarUrl: string | null;
-  planCode: string;
-  quotaTotal: number;
-  quotaUsed: number;
-  createdAt: Date;
+  email: string | null;
 }
 
-export default function MineClient({ user }: { user: User | null }) {
+export default function MineClient({ user }: { user: UserInfo }) {
   const router = useRouter();
+  const { showToast } = useToast();
+  const [loggingOut, setLoggingOut] = useState(false);
 
-  const quotaPercent = user
-    ? Math.round((user.quotaUsed / user.quotaTotal) * 100)
-    : 0;
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await signOut({ callbackUrl: "/auth/login" });
+    } catch {
+      showToast("退出失败", "error");
+      setLoggingOut(false);
+    }
+  }
 
   return (
     <div className="pb-16">
       <PageHeader title="我的" />
 
       <div className="px-4 -mt-4 space-y-4">
-        <div className="bg-white rounded-md p-4 shadow-card">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-brand/10 rounded-full flex items-center justify-center text-2xl">
-              👤
-            </div>
-            <div>
-              <p className="font-medium text-[#333333]">
-                {user?.name || "用户"}
-              </p>
-              <p className="text-xs text-[#999999]">{user?.email}</p>
-            </div>
+        <div className="bg-white rounded-md p-5 shadow-card flex items-center gap-4 animate-fade-in-up">
+          <div className="w-14 h-14 rounded-full bg-brand/10 flex items-center justify-center text-brand text-xl font-bold shrink-0">
+            {(user.name || user.email || "U")[0].toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-[#333333] truncate">
+              {user.name || "未设置昵称"}
+            </p>
+            <p className="text-sm text-[#999999] truncate">{user.email}</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-md p-4 shadow-card">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-[#666666]">本月配额</span>
-            <span className="text-sm text-brand">
-              {user?.quotaUsed || 0}/{user?.quotaTotal || 10}
-            </span>
-          </div>
-          <div className="w-full h-2 bg-[#EEEEEE] rounded-full overflow-hidden">
-            <div
-              className="h-full bg-brand rounded-full transition-all"
-              style={{ width: `${quotaPercent}%` }}
-            />
-          </div>
+        <div className="bg-white rounded-md shadow-card overflow-hidden animate-fade-in-up stagger-1">
           <button
             onClick={() => router.push("/member")}
-            className="text-xs text-brand mt-2"
+            className="w-full px-4 py-3.5 flex items-center justify-between border-b border-[#EEEEEE] card-press"
           >
-            升级套餐 →
-          </button>
-        </div>
-
-        <div className="bg-white rounded-md shadow-card divide-y divide-[#EEEEEE]">
-          <button
-            onClick={() => router.push("/member")}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm"
-          >
-            <span>会员套餐</span>
-            <span className="text-[#999999]">→</span>
+            <span className="text-sm">会员套餐</span>
+            <span className="text-xs text-[#999999]">免费版 →</span>
           </button>
           <button
-            onClick={() => router.push("/toolkit")}
-            className="w-full flex items-center justify-between px-4 py-3 text-sm"
+            className="w-full px-4 py-3.5 flex items-center justify-between border-b border-[#EEEEEE] card-press"
           >
-            <span>工具箱</span>
-            <span className="text-[#999999]">→</span>
+            <span className="text-sm">使用统计</span>
+            <span className="text-xs text-[#999999]">0/10 次</span>
+          </button>
+          <button
+            className="w-full px-4 py-3.5 flex items-center justify-between card-press"
+          >
+            <span className="text-sm">关于票小助</span>
+            <span className="text-xs text-[#999999]">v1.0.0</span>
           </button>
         </div>
 
         <button
-          onClick={() => signOut({ callbackUrl: "/auth/login" })}
-          className="w-full bg-white text-error py-3 rounded-md shadow-card text-sm font-medium"
+          onClick={handleLogout}
+          disabled={loggingOut}
+          className="w-full bg-white text-error py-3 rounded-xl text-sm font-medium shadow-card disabled:opacity-50 btn-press animate-fade-in-up stagger-2"
         >
-          退出登录
+          {loggingOut ? "退出中..." : "退出登录"}
         </button>
       </div>
 

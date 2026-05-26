@@ -56,48 +56,50 @@ export default function ProjectDetailClient({
           />
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 animate-fade-in-up stagger-2">
           <button
             onClick={() => router.push(`/upload?project=${projectId}`)}
-            className="flex-1 bg-brand text-white py-2.5 rounded-xl text-sm font-medium"
+            className="flex-1 bg-brand text-white py-2.5 rounded-xl text-sm font-medium btn-press"
           >
             📷 拍照上传
           </button>
           <button
             onClick={() => router.push(`/result?project=${projectId}&manual=1`)}
-            className="flex-1 bg-white text-brand border border-brand py-2.5 rounded-xl text-sm font-medium"
+            className="flex-1 bg-white text-brand border border-brand py-2.5 rounded-xl text-sm font-medium btn-press"
           >
             ✏️ 手动录入
           </button>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between animate-fade-in-up stagger-3">
           <h3 className="text-sm font-semibold text-[#333333]">
             记录 ({stats.recordCount})
           </h3>
           <button
             onClick={() => router.push(`/report/${projectId}`)}
-            className="text-xs text-brand"
+            className="text-xs text-brand btn-press"
           >
             查看报表 →
           </button>
         </div>
 
         {records.length === 0 ? (
-          <div className="bg-white rounded-md p-8 shadow-card text-center">
+          <div className="bg-white rounded-md p-8 shadow-card text-center animate-fade-in-up">
             <p className="text-4xl mb-3">📝</p>
             <p className="text-sm text-[#999999]">暂无记录，开始上传票据吧</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {records.map((r) => (
-              <RecordCard key={r.id} {...r} />
+            {records.map((r, i) => (
+              <div key={r.id} className={`stagger-${Math.min(i + 1, 6)}`}>
+                <RecordCard {...r} />
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      <TabBar />
+      <TabBar projectId={projectId} />
     </div>
   );
 }

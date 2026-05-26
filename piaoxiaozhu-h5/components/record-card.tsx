@@ -23,7 +23,7 @@ export default function RecordCard({
 }: RecordCardProps) {
   return (
     <div
-      className="bg-white rounded-md p-3 shadow-card flex items-center justify-between cursor-pointer active:bg-gray-50"
+      className="bg-white rounded-md p-3 shadow-card flex items-center justify-between cursor-pointer card-press animate-fade-in-up"
       onClick={onClick}
     >
       <div className="flex-1 min-w-0">
