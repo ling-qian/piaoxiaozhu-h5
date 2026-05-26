@@ -1,6 +1,6 @@
 import { View, Text, Button, Input, Picker } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { recordApi, projectApi, fileApi } from '../../services/api';
 import { useStore } from '../../store';
 import CategoryTag from '../../components/CategoryTag';
@@ -86,21 +86,8 @@ export default function Result() {
   const [categoryIdx, setCategoryIdx] = useState<number>(
     initialRecord ? findCategoryIndex(initialRecord.category_code) : 0,
   );
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [reRecognizing, setReRecognizing] = useState(false);
-
-  const { projects, fetchProjects } = useStore();
-  const [projectList, setProjectList] = useState<ProjectItem[]>(projects || []);
-  const [selectedProjectIdx, setSelectedProjectIdx] = useState(0);
-  const [form, setForm] = useState({
-    merchant_name: '',
-    amount: '',
-    tax_amount: '',
-    invoice_date: '',
-  });
-  const [manualCategoryIdx, setManualCategoryIdx] = useState(0);
-  const [submitting, setSubmitting] = useState(false);
+  const [loadingRecord, setLoadingRecord] = useState(false);
+  const loadedByIdRef = useRef(false);
 
   Taro.useDidShow(() => {
     if (isManual) {
@@ -115,8 +102,37 @@ export default function Result() {
           if (idx >= 0) setSelectedProjectIdx(idx);
         }
       });
+    } else if (!initialRecord && params.id && !loadedByIdRef.current) {
+      loadedByIdRef.current = true;
+      setLoadingRecord(true);
+      recordApi.getDetail(params.id).then((res: any) => {
+        const r = res as RecordData;
+        setRecord(r);
+        setCategoryIdx(findCategoryIndex(r.category_code || 'other'));
+      }).catch(() => {
+        Taro.showToast({ title: '加载记录失败', icon: 'none' });
+      }).finally(() => {
+        setLoadingRecord(false);
+      });
     }
   });
+
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [reRecognizing, setReRecognizing] = useState(false);
+
+  const { projects, fetchProjects } = useStore();
+  const [projectList, setProjectList] = useState<ProjectItem[]>(projects || []);
+  const [selectedProjectIdx, setSelectedProjectIdx] = useState(0);
+  const [form, setForm] = useState({
+    merchant_name: '',
+    amount: '',
+    tax_amount: '',
+    invoice_date: '',
+  });
+  const [manualCategoryIdx, setManualCategoryIdx] = useState(0);
+  const [manualDirection, setManualDirection] = useState<'out' | 'income'>('out');
+  const [submitting, setSubmitting] = useState(false);
 
   const updateField = (field: keyof RecordData, value: any) => {
     if (!record) return;
@@ -258,7 +274,7 @@ export default function Result() {
       const cat = CATEGORIES[manualCategoryIdx];
       await recordApi.create({
         project_id: projectList[selectedProjectIdx].id,
-        direction: 'out',
+        direction: manualDirection,
         merchant_name: form.merchant_name.trim(),
         amount: parseAmountInput(form.amount),
         tax_amount: parseAmountInput(form.tax_amount),
@@ -279,7 +295,9 @@ export default function Result() {
   if (isManual) {
     return (
       <View className='result-page'>
-        <View className='section-title'>手动录入</View>
+        <View className='page-header'>
+          <Text className='page-header-title'>手动录入</Text>
+        </View>
 
         <View className='result-card'>
           <View className='field-item'>
@@ -297,6 +315,24 @@ export default function Result() {
                 <Text className='picker-arrow'>▸</Text>
               </View>
             </Picker>
+          </View>
+
+          <View className='field-item'>
+            <Text className='field-label'>类型</Text>
+            <View className='direction-switch'>
+              <View
+                className={`direction-option ${manualDirection === 'out' ? 'active' : ''}`}
+                onClick={() => setManualDirection('out')}
+              >
+                <Text className='direction-option-text'>支出</Text>
+              </View>
+              <View
+                className={`direction-option ${manualDirection === 'income' ? 'active' : ''}`}
+                onClick={() => setManualDirection('income')}
+              >
+                <Text className='direction-option-text'>收入</Text>
+              </View>
+            </View>
           </View>
 
           <View className='field-item'>
@@ -371,7 +407,7 @@ export default function Result() {
   if (!record) {
     return (
       <View className='result-page loading'>
-        <Text className='loading-text'>加载中...</Text>
+        <Text className='loading-text'>{loadingRecord ? '加载中...' : '未找到记录'}</Text>
       </View>
     );
   }
@@ -381,6 +417,10 @@ export default function Result() {
 
   return (
     <View className='result-page'>
+      <View className='page-header'>
+        <Text className='page-header-title'>识别结果</Text>
+      </View>
+
       <View className='confidence-bar'>
         <View className='confidence-info'>
           <Text className='confidence-label'>识别置信度</Text>

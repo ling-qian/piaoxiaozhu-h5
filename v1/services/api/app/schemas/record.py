@@ -40,7 +40,7 @@ class InvoiceRecordUpdate(BaseModel):
 class InvoiceRecordResponse(BaseModel):
     id: UUID
     project_id: UUID
-    file_id: UUID
+    file_id: Optional[UUID] = None
     user_id: UUID
     direction: str
     merchant_name: Optional[str] = None

@@ -106,6 +106,9 @@ export const fileApi = {
 };
 
 export const recordApi = {
+  getDetail: (recordId: string) =>
+    request({ url: `/api/records/${recordId}` }),
+
   getList: (projectId: string, params?: { direction?: string; category_code?: string; page?: number; size?: number }) =>
     request({ url: `/api/projects/${projectId}/records`, data: params }),
 
@@ -165,8 +168,8 @@ export const projectApi = {
 };
 
 export const reportApi = {
-  getProjectReport: (projectId: string) =>
-    request({ url: `/api/projects/${projectId}/report` }),
+  getProjectReport: (projectId: string, month?: string) =>
+    request({ url: `/api/projects/${projectId}/report`, data: month ? { month } : undefined }),
 
   exportReport: (projectId: string, fmt: 'csv' | 'excel') =>
     request({ url: `/api/projects/${projectId}/report/export`, data: { fmt } }),

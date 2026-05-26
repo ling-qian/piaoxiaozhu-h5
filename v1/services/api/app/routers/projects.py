@@ -201,9 +201,20 @@ async def get_project_stats(
     gross_profit = total_income - total_cost
     gross_margin = (gross_profit / total_income * 100) if total_income > 0 else 0.0
 
-    cost_by_category = {}
+    _CATEGORY_CODE_MAP = {
+        "食材": "food_material", "房租": "rent", "工资": "salary", "水电": "utilities",
+        "平台佣金": "platform_fee", "广告": "advertising", "办公": "office", "其他": "other",
+    }
+
+    cost_by_category = []
     for cat_l1, amount in category_result.all():
-        cost_by_category[cat_l1 or "未分类"] = float(amount or 0)
+        cat_name = cat_l1 or "未分类"
+        cat_code = _CATEGORY_CODE_MAP.get(cat_name, cat_name)
+        cost_by_category.append({
+            "category_code": cat_code,
+            "category_l2": cat_name,
+            "total_amount": float(amount or 0),
+        })
 
     return {
         "project_id": project_id,

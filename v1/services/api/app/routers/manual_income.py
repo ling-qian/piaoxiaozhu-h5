@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_user, get_db
-from app.models.invoice import InvoiceFile, InvoiceRecord
+from app.models.invoice import InvoiceRecord
 from app.models.project import Project
 from app.models.user import User
 
@@ -63,28 +63,9 @@ async def create_manual_income(
             "action": "updated",
         }
 
-    dummy_file_result = await db.execute(
-        select(InvoiceFile).where(InvoiceFile.project_id == project_id).limit(1)
-    )
-    dummy_file = dummy_file_result.scalar_one_or_none()
-    file_id = dummy_file.id if dummy_file else uuid.uuid4()
-
-    if dummy_file is None:
-        placeholder_file = InvoiceFile(
-            id=file_id,
-            project_id=project_id,
-            user_id=current_user.id,
-            file_url="",
-            file_key="manual-income-placeholder",
-            source="manual",
-            ocr_status="skipped",
-            parse_status="skipped",
-        )
-        db.add(placeholder_file)
-
     record = InvoiceRecord(
         project_id=project_id,
-        file_id=file_id,
+        file_id=None,
         user_id=current_user.id,
         direction="income",
         merchant_name="手工录入",

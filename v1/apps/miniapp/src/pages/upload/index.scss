@@ -186,15 +186,20 @@
 
 .task-goto {
   flex-shrink: 0;
-  padding: 10px 24px;
+  padding: 16px 32px;
   background: $color-brand;
-  border-radius: $radius-sm;
+  border-radius: $radius-md;
   margin-left: 16px;
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .task-goto-text {
-  font-size: 24px;
+  font-size: 26px;
   color: #fff;
+  font-weight: 500;
 }
 
 .upload-tips {

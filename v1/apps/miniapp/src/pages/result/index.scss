@@ -18,6 +18,50 @@
   color: $color-text-hint;
 }
 
+.page-header {
+  background: linear-gradient(135deg, $color-brand, $color-brand-light);
+  margin: -24px -24px 24px;
+  padding: 48px 32px 36px;
+  border-radius: 0 0 $radius-lg $radius-lg;
+}
+
+.page-header-title {
+  font-size: 40px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.direction-switch {
+  display: flex;
+  background: #F5F5F5;
+  border-radius: $radius-md;
+  overflow: hidden;
+  height: 72px;
+}
+
+.direction-option {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.direction-option.active {
+  background: $color-brand;
+  border-radius: $radius-md;
+}
+
+.direction-option-text {
+  font-size: 28px;
+  color: $color-text-secondary;
+}
+
+.direction-option.active .direction-option-text {
+  color: #ffffff;
+  font-weight: 600;
+}
+
 .section-title {
   font-size: 34px;
   font-weight: 600;

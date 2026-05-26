@@ -22,14 +22,15 @@ router = APIRouter(prefix="/api", tags=["reports"])
 
 
 async def _get_project_records(
-    project_id: str, user_id, db: AsyncSession
+    project_id: str, user_id, db: AsyncSession, month: Optional[str] = None
 ) -> list:
-    result = await db.execute(
-        select(InvoiceRecord).where(
-            InvoiceRecord.project_id == project_id,
-            InvoiceRecord.user_id == user_id,
-        )
+    q = select(InvoiceRecord).where(
+        InvoiceRecord.project_id == project_id,
+        InvoiceRecord.user_id == user_id,
     )
+    if month:
+        q = q.where(InvoiceRecord.invoice_date.startswith(month))
+    result = await db.execute(q)
     return result.scalars().all()
 
 
@@ -90,32 +91,38 @@ async def _verify_project_owner(
 @router.get("/projects/{project_id}/report", response_model=ReportResponse)
 async def get_report(
     project_id: str,
+    month: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await _verify_project_owner(project_id, current_user.id, db)
 
-    records = await _get_project_records(project_id, current_user.id, db)
+    records = await _get_project_records(project_id, current_user.id, db, month=month)
     report_input = _records_to_report_input(records)
     report = build_restaurant_poc_report(report_input)
+
+    cost_by_category = [
+        {
+            "category_code": c.category_code,
+            "category_l2": c.name,
+            "name": c.name,
+            "total_amount": c.amount / 100,
+        }
+        for c in report.cost_by_category
+    ]
 
     detail = {
         "total_income": report.total_income / 100,
         "total_cost": report.total_cost / 100,
         "gross_profit": report.gross_profit / 100,
         "gross_margin": round(report.gross_margin * 100, 2),
-        "cost_by_category": [
-            {
-                "category_code": c.category_code,
-                "name": c.name,
-                "amount": c.amount / 100,
-            }
-            for c in report.cost_by_category
-        ],
+        "cost_by_category": cost_by_category,
+        "total_records": len(records),
     }
 
     summary = (
-        f"本月总收入 ¥{format_cents(report.total_income)}，"
+        f"{'月份' + month if month else '全部'}："
+        f"总收入 ¥{format_cents(report.total_income)}，"
         f"总成本 ¥{format_cents(report.total_cost)}，"
         f"毛利润 ¥{format_cents(report.gross_profit)}，"
         f"毛利率 {format_percent(report.gross_margin)}。"
@@ -126,11 +133,25 @@ async def get_report(
         .where(
             ReportSnapshot.project_id == project_id,
             ReportSnapshot.user_id == current_user.id,
+            ReportSnapshot.summary == summary,
         )
         .order_by(ReportSnapshot.version.desc())
     )
     latest = existing.scalars().first()
-    next_version = (latest.version + 1) if latest else 1
+
+    if latest:
+        return latest
+
+    version_result = await db.execute(
+        select(ReportSnapshot)
+        .where(
+            ReportSnapshot.project_id == project_id,
+            ReportSnapshot.user_id == current_user.id,
+        )
+        .order_by(ReportSnapshot.version.desc())
+    )
+    latest_any = version_result.scalars().first()
+    next_version = (latest_any.version + 1) if latest_any else 1
 
     snapshot = ReportSnapshot(
         project_id=project_id,

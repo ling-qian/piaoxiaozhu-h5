@@ -1,6 +1,6 @@
 import { View, Text, Image, Picker, Progress } from '@tarojs/components';
 import Taro from '@tarojs/taro';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { fileApi } from '../../services/api';
 import { useStore } from '../../store';
 import './index.scss';
@@ -19,13 +19,21 @@ interface UploadTask {
 export default function Upload() {
   const { projects, currentProject, fetchProjects, setCurrentProject } = useStore();
   const [tasks, setTasks] = useState<UploadTask[]>([]);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingMapRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
 
-  Taro.useDidShow(() => {
-    fetchProjects();
+  useEffect(() => {
+    return () => {
+      pollingMapRef.current.forEach((timer) => clearInterval(timer));
+      pollingMapRef.current.clear();
+    };
+  }, []);
+
+  Taro.useDidShow(async () => {
+    await fetchProjects();
     const params = Taro.getCurrentInstance().router?.params;
-    if (params?.projectId && projects.length > 0) {
-      const found = projects.find((p) => p.id === params.projectId);
+    if (params?.projectId) {
+      const store = useStore.getState();
+      const found = store.projects.find((p) => p.id === params.projectId);
       if (found) setCurrentProject(found);
     }
   });
@@ -41,15 +49,17 @@ export default function Upload() {
   }, []);
 
   const pollOcrStatus = useCallback((fileId: string, filePath: string) => {
-    if (pollingRef.current) clearInterval(pollingRef.current);
+    const existing = pollingMapRef.current.get(fileId);
+    if (existing) clearInterval(existing);
 
     let attempts = 0;
     const maxAttempts = 60;
 
-    pollingRef.current = setInterval(async () => {
+    const timer = setInterval(async () => {
       attempts++;
       if (attempts > maxAttempts) {
-        if (pollingRef.current) clearInterval(pollingRef.current);
+        clearInterval(timer);
+        pollingMapRef.current.delete(fileId);
         updateTask(filePath, { step: 'ocr_failed' });
         Taro.showToast({ title: '识别超时，请重试', icon: 'none' });
         return;
@@ -60,7 +70,8 @@ export default function Upload() {
         const ocrStatus = res.ocr_status;
 
         if (ocrStatus === 'done') {
-          if (pollingRef.current) clearInterval(pollingRef.current);
+          clearInterval(timer);
+          pollingMapRef.current.delete(fileId);
           const records = res.records || [];
           if (records.length > 0) {
             const record = records[0];
@@ -78,16 +89,20 @@ export default function Upload() {
             Taro.showToast({ title: '识别完成，但未提取到记录', icon: 'none' });
           }
         } else if (ocrStatus === 'failed') {
-          if (pollingRef.current) clearInterval(pollingRef.current);
+          clearInterval(timer);
+          pollingMapRef.current.delete(fileId);
           updateTask(filePath, { step: 'ocr_failed' });
           Taro.showToast({ title: '识别失败，请重试', icon: 'none' });
         }
       } catch {
-        if (pollingRef.current) clearInterval(pollingRef.current);
+        clearInterval(timer);
+        pollingMapRef.current.delete(fileId);
         updateTask(filePath, { step: 'ocr_failed' });
         Taro.showToast({ title: '识别异常，请重试', icon: 'none' });
       }
     }, 2000);
+
+    pollingMapRef.current.set(fileId, timer);
   }, [updateTask]);
 
   const getProjectId = (): string | null => {

@@ -84,26 +84,34 @@ export default function Report() {
 
   Taro.useDidShow(() => {
     if (projectId) {
-      loadData(projectId);
+      loadData(projectId, months[monthIdx]);
     }
   });
 
-  const loadData = async (pid: string) => {
+  const loadData = async (pid: string, month?: string) => {
     setLoading(true);
     try {
-      const [projectRes, statsRes] = await Promise.all([
+      const [projectRes, reportRes] = await Promise.all([
         projectApi.getDetail(pid),
-        projectApi.getStats(pid),
+        reportApi.getProjectReport(pid, month),
       ]);
       setProject(projectRes as unknown as ProjectInfo);
-      const rawStats = statsRes as any;
+      const raw = reportRes as any;
+      let detail: any = {};
+      if (raw.detail_json) {
+        try {
+          detail = typeof raw.detail_json === 'string' ? JSON.parse(raw.detail_json) : raw.detail_json;
+        } catch {
+          detail = {};
+        }
+      }
       const normalizedStats: StatsData = {
-        total_records: rawStats.total_records || 0,
-        total_cost: Number(rawStats.total_cost) || 0,
-        total_income: Number(rawStats.total_income) || 0,
-        gross_profit: Number(rawStats.gross_profit) || 0,
-        gross_margin: Number(rawStats.gross_margin) || 0,
-        cost_by_category: normalizeCostByCategory(rawStats.cost_by_category),
+        total_records: detail.total_records || 0,
+        total_cost: Number(detail.total_cost) || 0,
+        total_income: Number(detail.total_income) || 0,
+        gross_profit: Number(detail.gross_profit) || 0,
+        gross_margin: Number(detail.gross_margin) || 0,
+        cost_by_category: normalizeCostByCategory(detail.cost_by_category),
       };
       setStats(normalizedStats);
     } catch {
@@ -116,6 +124,9 @@ export default function Report() {
   const handleMonthChange = (e: any) => {
     const idx = Number(e.detail.value);
     setMonthIdx(idx);
+    if (projectId) {
+      loadData(projectId, months[idx]);
+    }
   };
 
   const handleExportCsv = async () => {

@@ -306,8 +306,15 @@
 .record-amount {
   font-size: 32px;
   font-weight: 700;
-  color: $color-text-primary;
   flex-shrink: 0;
+}
+
+.record-amount--income {
+  color: $color-success;
+}
+
+.record-amount--cost {
+  color: $color-error;
 }
 
 .loading-more,

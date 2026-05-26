@@ -32,10 +32,7 @@ async def list_records(
         query = query.where(InvoiceRecord.category_code == category_code)
 
     count_result = await db.execute(
-        select(func.count()).select_from(InvoiceRecord).where(
-            InvoiceRecord.project_id == project_id,
-            InvoiceRecord.user_id == current_user.id,
-        )
+        select(func.count()).select_from(query.subquery())
     )
     total = count_result.scalar() or 0
 
@@ -49,7 +46,7 @@ async def list_records(
             {
                 "id": str(r.id),
                 "project_id": str(r.project_id),
-                "file_id": str(r.file_id),
+                "file_id": str(r.file_id) if r.file_id else None,
                 "user_id": str(r.user_id),
                 "direction": r.direction,
                 "merchant_name": r.merchant_name,
@@ -102,6 +99,41 @@ async def create_record(
     await db.commit()
     await db.refresh(record)
     return {"id": str(record.id), "action": "created"}
+
+
+@router.get("/records/{record_id}")
+async def get_record(
+    record_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(InvoiceRecord).where(InvoiceRecord.id == record_id, InvoiceRecord.user_id == current_user.id)
+    )
+    record = result.scalar_one_or_none()
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Record not found")
+    return {
+        "id": str(record.id),
+        "project_id": str(record.project_id),
+        "file_id": str(record.file_id) if record.file_id else None,
+        "user_id": str(record.user_id),
+        "direction": record.direction,
+        "merchant_name": record.merchant_name,
+        "tax_no": record.tax_no,
+        "amount": float(record.amount) if record.amount is not None else None,
+        "tax_amount": float(record.tax_amount) if record.tax_amount is not None else None,
+        "invoice_date": record.invoice_date,
+        "category_code": record.category_code,
+        "category_l1": record.category_l1,
+        "category_l2": record.category_l2,
+        "confidence": float(record.confidence) if record.confidence is not None else None,
+        "raw_text": record.raw_text,
+        "reason": record.reason,
+        "is_manual_corrected": record.is_manual_corrected,
+        "created_at": record.created_at.isoformat() if record.created_at else None,
+        "updated_at": record.updated_at.isoformat() if record.updated_at else None,
+    }
 
 
 @router.patch("/records/{record_id}")

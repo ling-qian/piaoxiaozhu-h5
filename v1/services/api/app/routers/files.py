@@ -233,6 +233,7 @@ async def get_ocr_status(
         "records": [
             {
                 "id": str(r.id),
+                "file_id": str(r.file_id) if r.file_id else None,
                 "direction": r.direction,
                 "merchant_name": r.merchant_name,
                 "amount": float(r.amount) if r.amount is not None else None,

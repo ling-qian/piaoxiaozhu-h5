@@ -232,7 +232,9 @@ export default function Project() {
   };
 
   const handleUpload = () => {
-    Taro.navigateTo({ url: '/pages/upload/index' });
+    if (project) {
+      Taro.navigateTo({ url: `/pages/upload/index?projectId=${project.id}` });
+    }
   };
 
   const maxCategoryAmount = stats?.cost_by_category?.length
@@ -357,7 +359,9 @@ export default function Project() {
                     <Text className='record-date'>{record.invoice_date || ''}</Text>
                   </View>
                 </View>
-                <Text className='record-amount'>¥{formatAmount(record.amount)}</Text>
+                <Text className={`record-amount ${record.direction === 'income' ? 'record-amount--income' : 'record-amount--cost'}`}>
+                  {record.direction === 'income' ? '+' : '-'}¥{formatAmount(record.amount)}
+                </Text>
               </View>
             ))}
             {loadingMore && (
