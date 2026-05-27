@@ -1,3 +1,5 @@
+import { cleanOcrText } from "./ocr";
+
 export interface ExtractedFields {
   merchantName: string | null;
   totalAmount: number | null;
@@ -187,39 +189,6 @@ function extractType(text: string): string | null {
   return null;
 }
 
-function cleanOcrNoise(text: string): string {
-  let cleaned = text;
-
-  cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF]/g, "");
-
-  const ocrCharFixes: [RegExp, string][] = [
-    [/又/g, "¥"],
-    [/玛/g, "¥"],
-    [/￥/g, "¥"],
-    [/0O(?=\d)/g, "00"],
-    [/(?<=\d)O(?=\d)/g, "0"],
-    [/(?<=\d)l(?=\d)/g, "1"],
-    [/(?<=\d)I(?=\d)/g, "1"],
-  ];
-  for (const [pattern, replacement] of ocrCharFixes) {
-    cleaned = cleaned.replace(pattern, replacement);
-  }
-
-  const lines = cleaned.split("\n");
-  const merged: string[] = [];
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed) {
-      merged.push("");
-      continue;
-    }
-    const deSpaced = trimmed.replace(/(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g, "");
-    merged.push(deSpaced);
-  }
-
-  return merged.join("\n");
-}
-
 export function extractFields(rawText: string): ExtractedFields {
   if (!rawText) {
     return {
@@ -231,7 +200,7 @@ export function extractFields(rawText: string): ExtractedFields {
     };
   }
 
-  const text = cleanOcrNoise(rawText);
+  const text = cleanOcrText(rawText);
 
   return {
     merchantName: extractMerchant(text),

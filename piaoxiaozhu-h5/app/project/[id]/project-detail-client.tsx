@@ -10,6 +10,7 @@ import { formatAmount } from "@/lib/utils";
 import { deleteRecord, getRecords } from "@/lib/actions/record-actions";
 import { deleteProject } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
+import { RecordItem } from "@/types/record";
 
 interface Stats {
   projectName: string;
@@ -19,15 +20,7 @@ interface Stats {
   grossProfit: number;
 }
 
-interface Record {
-  id: string;
-  direction: string;
-  merchantName: string | null;
-  amount: number;
-  categoryCode: string;
-  categoryL1: string;
-  invoiceDate: string | null;
-}
+type Record = RecordItem;
 
 export default function ProjectDetailClient({
   projectId,
@@ -184,8 +177,8 @@ export default function ProjectDetailClient({
                   onTouchEnd={handleTouchEnd}
                 >
                   <div
-                    className="flex transition-transform duration-200 ease-out"
-                    style={{ transform: isOpen ? "translateX(-72px)" : "translateX(0)" }}
+                    className="flex transition-transform duration-200 ease-out sm:translate-x-[-72px]"
+                    style={{ transform: isOpen ? "translateX(-72px)" : undefined }}
                   >
                     <div
                       className="flex-1 min-w-0"
@@ -203,15 +196,6 @@ export default function ProjectDetailClient({
                     >
                       {deletingId === r.id ? "..." : "删除"}
                     </button>
-                  </div>
-                  <div
-                    className="absolute inset-y-0 right-0 w-[72px] hidden sm:flex items-center justify-center bg-[#FF4D4F] text-white text-xs cursor-pointer"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteRecord(r.id);
-                    }}
-                  >
-                    {deletingId === r.id ? "..." : "删除"}
                   </div>
                 </div>
               );

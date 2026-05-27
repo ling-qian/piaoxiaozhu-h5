@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getProjects } from "@/lib/actions/project-actions";
 import ReportClient from "./report-client";
+import { PageSpinner } from "@/components/spinner";
 
 export default async function ReportPage() {
   const session = await auth();
@@ -12,5 +14,9 @@ export default async function ReportPage() {
 
   const defaultProjectId = projects[0].id;
 
-  return <ReportClient projectId={defaultProjectId} projects={projects} />;
+  return (
+    <Suspense fallback={<PageSpinner />}>
+      <ReportClient projectId={defaultProjectId} projects={projects} />
+    </Suspense>
+  );
 }

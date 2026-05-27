@@ -10,17 +10,11 @@ import CostChart from "@/components/cost-chart";
 import { PageSpinner } from "@/components/spinner";
 import { formatAmount } from "@/lib/utils";
 import { useExportCsv } from "@/lib/hooks/use-export-csv";
+import { RecordForReport as Record } from "@/types/record";
 
 interface Project {
   id: string;
   name: string;
-}
-
-interface Record {
-  direction: string;
-  amount: number;
-  categoryCode: string;
-  invoiceDate: string | null;
 }
 
 export default function ReportClient({

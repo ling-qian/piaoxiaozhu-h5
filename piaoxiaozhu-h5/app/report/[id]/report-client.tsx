@@ -8,13 +8,7 @@ import StatCard from "@/components/stat-card";
 import CostChart from "@/components/cost-chart";
 import { formatAmount } from "@/lib/utils";
 import { useExportCsv } from "@/lib/hooks/use-export-csv";
-
-interface Record {
-  direction: string;
-  amount: number;
-  categoryCode: string;
-  invoiceDate: string | null;
-}
+import { RecordForReport as Record } from "@/types/record";
 
 export default function ReportClient({
   projectId,

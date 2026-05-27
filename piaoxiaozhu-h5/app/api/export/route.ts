@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { getRecordsForReport } from "@/lib/actions/record-actions";
 import { generateReport } from "@/lib/report";
 import { NextRequest, NextResponse } from "next/server";
@@ -25,6 +26,13 @@ export async function GET(req: NextRequest) {
 
   if (format !== "csv" && format !== "json") {
     return NextResponse.json({ error: "不支持的导出格式" }, { status: 400 });
+  }
+
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId: session.user.id },
+  });
+  if (!project) {
+    return NextResponse.json({ error: "项目不存在或无权访问" }, { status: 403 });
   }
 
   try {

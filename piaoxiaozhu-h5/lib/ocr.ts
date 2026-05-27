@@ -35,9 +35,40 @@ function preprocessImage(file: File | Blob): Promise<Blob> {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
+      const grayValues: number[] = [];
       for (let i = 0; i < data.length; i += 4) {
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        const threshold = 128;
+        grayValues.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
+      }
+
+      const histogram = new Array(256).fill(0);
+      for (const g of grayValues) histogram[Math.min(255, Math.round(g))]++;
+      const total = grayValues.length;
+
+      let sum = 0;
+      for (let i = 0; i < 256; i++) sum += i * histogram[i];
+
+      let sumB = 0;
+      let wB = 0;
+      let maxVariance = 0;
+      let threshold = 128;
+
+      for (let t = 0; t < 256; t++) {
+        wB += histogram[t];
+        if (wB === 0) continue;
+        const wF = total - wB;
+        if (wF === 0) break;
+        sumB += t * histogram[t];
+        const mB = sumB / wB;
+        const mF = (sum - sumB) / wF;
+        const variance = wB * wF * (mB - mF) * (mB - mF);
+        if (variance > maxVariance) {
+          maxVariance = variance;
+          threshold = t;
+        }
+      }
+
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = grayValues[i / 4];
         const val = gray > threshold ? 255 : 0;
         data[i] = val;
         data[i + 1] = val;
@@ -61,7 +92,7 @@ function preprocessImage(file: File | Blob): Promise<Blob> {
   });
 }
 
-function cleanOcrText(text: string): string {
+export function cleanOcrText(text: string): string {
   let cleaned = text;
 
   cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF]/g, "");

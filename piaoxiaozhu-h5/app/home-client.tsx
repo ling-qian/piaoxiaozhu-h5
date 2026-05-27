@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { createProject } from "@/lib/actions/project-actions";
+import { createProject, deleteProject } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
 import PageHeader from "@/components/page-header";
 import TabBar from "@/components/tab-bar";
@@ -29,6 +29,37 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
   const [newName, setNewName] = useState("");
   const [newIndustry, setNewIndustry] = useState("restaurant");
   const [creating, setCreating] = useState(false);
+  const [projectList, setProjectList] = useState(projects);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleLongPressStart = useCallback((id: string) => {
+    longPressTimer.current = setTimeout(() => {
+      setConfirmDeleteId(id);
+    }, 500);
+  }, []);
+
+  const handleLongPressEnd = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  async function handleDeleteProject(id: string) {
+    setDeletingId(id);
+    try {
+      await deleteProject(id);
+      setProjectList((prev) => prev.filter((p) => p.id !== id));
+      setConfirmDeleteId(null);
+      showToast("项目已删除", "success");
+    } catch {
+      showToast("删除失败", "error");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   async function handleCreate() {
     if (!newName.trim()) return;
@@ -62,18 +93,27 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
           </button>
         </div>
 
-        {projects.length === 0 ? (
+        {projectList.length === 0 ? (
           <div className="bg-white rounded-md p-8 shadow-card text-center animate-fade-in-up">
             <p className="text-4xl mb-3">📋</p>
             <p className="text-sm text-[#999999]">暂无项目，点击上方新建</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {projects.map((p, i) => (
+            {projectList.map((p, i) => (
               <div
                 key={p.id}
                 className={`bg-white rounded-md p-4 shadow-card cursor-pointer card-press animate-fade-in-up stagger-${Math.min(i + 1, 6)}`}
-                onClick={() => router.push(`/project/${p.id}`)}
+                onClick={() => {
+                  if (!confirmDeleteId) router.push(`/project/${p.id}`);
+                }}
+                onTouchStart={() => handleLongPressStart(p.id)}
+                onTouchEnd={handleLongPressEnd}
+                onTouchCancel={handleLongPressEnd}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setConfirmDeleteId(p.id);
+                }}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-[#333333]">{p.name}</span>
@@ -141,6 +181,30 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
                 className="flex-1 bg-brand text-white py-2.5 rounded-xl text-sm disabled:opacity-50 btn-press"
               >
                 {creating ? "创建中..." : "确定"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteId && (
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-center justify-center animate-fade-in" onClick={() => setConfirmDeleteId(null)}>
+          <div className="bg-white rounded-2xl p-6 w-[280px] animate-scale-in" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-semibold text-center mb-2">删除项目</h3>
+            <p className="text-sm text-[#999999] text-center mb-5">确定删除该项目及其所有记录？此操作不可撤销。</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmDeleteId(null)}
+                className="flex-1 border border-[#EEEEEE] py-2.5 rounded-xl text-sm btn-press"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleDeleteProject(confirmDeleteId)}
+                disabled={deletingId === confirmDeleteId}
+                className="flex-1 bg-[#FF4D4F] text-white py-2.5 rounded-xl text-sm disabled:opacity-50 btn-press"
+              >
+                {deletingId === confirmDeleteId ? "删除中..." : "删除"}
               </button>
             </div>
           </div>
