@@ -2,8 +2,9 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { NextRequest } from "next/server";
 
-export const { handlers, signIn, signOut, auth } = NextAuth({
+const nextAuthResult = NextAuth({
   providers: [
     Credentials({
       credentials: {
@@ -52,4 +53,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
 });
 
-export const { GET, POST } = handlers;
+export const handlers = nextAuthResult.handlers;
+export const auth = nextAuthResult.auth;
+export const signIn = nextAuthResult.signIn;
+export const signOut = nextAuthResult.signOut;
+
+type NextAuthRouteHandler = (
+  request: NextRequest,
+  context: { params: Promise<{ nextauth: string[] }> }
+) => Promise<Response>;
+
+export const GET = nextAuthResult.handlers.GET as unknown as NextAuthRouteHandler;
+export const POST = nextAuthResult.handlers.POST as unknown as NextAuthRouteHandler;
