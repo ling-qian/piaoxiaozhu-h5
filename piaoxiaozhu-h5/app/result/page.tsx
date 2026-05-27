@@ -5,9 +5,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CATEGORIES, CATEGORY_MAP } from "@/lib/constants";
 import { formatAmount, getConfidenceColor, getConfidenceHint } from "@/lib/utils";
 import { getRecord, updateRecord, createManualRecord } from "@/lib/actions/record-actions";
+import { getProjects } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
 import { PageSpinner } from "@/components/spinner";
 import PageHeader from "@/components/page-header";
+
+interface ProjectOption {
+  id: string;
+  name: string;
+}
 
 interface RecordData {
   id: string;
@@ -33,6 +39,9 @@ function ResultContent() {
   const isManual = searchParams.get("manual") === "1";
   const { showToast } = useToast();
 
+  const [activeProjectId, setActiveProjectId] = useState(projectId);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
+
   const [direction, setDirection] = useState<"out" | "income">("out");
   const [merchantName, setMerchantName] = useState("");
   const [amount, setAmount] = useState("");
@@ -42,6 +51,17 @@ function ResultContent() {
   const [confidence, setConfidence] = useState(1.0);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!isManual && !!recordId);
+
+  useEffect(() => {
+    if (!projectId) {
+      getProjects().then((list) => {
+        setProjects(list.map((p) => ({ id: p.id, name: p.name })));
+        if (list.length > 0 && !activeProjectId) {
+          setActiveProjectId(list[0].id);
+        }
+      });
+    }
+  }, [projectId, activeProjectId]);
 
   useEffect(() => {
     if (!isManual && recordId) {
@@ -63,7 +83,7 @@ function ResultContent() {
   const cat = CATEGORY_MAP[categoryCode];
 
   async function handleSave() {
-    if (!projectId) {
+    if (!activeProjectId) {
       showToast("请先选择项目", "error");
       return;
     }
@@ -75,7 +95,7 @@ function ResultContent() {
     setSaving(true);
     try {
       if (isManual) {
-        await createManualRecord(projectId, {
+        await createManualRecord(activeProjectId, {
           direction,
           merchantName,
           amount: parseFloat(amount),
@@ -98,9 +118,10 @@ function ResultContent() {
         });
       }
       showToast("保存成功", "success");
-      router.push(`/project/${projectId}`);
-    } catch (err: any) {
-      showToast(err.message || "保存失败", "error");
+      router.push(`/project/${activeProjectId}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "保存失败";
+      showToast(message, "error");
     } finally {
       setSaving(false);
     }
@@ -119,6 +140,35 @@ function ResultContent() {
       />
 
       <div className="px-4 -mt-4 space-y-4">
+        {!projectId && projects.length > 0 && (
+          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
+            <label className="block text-sm text-[#666666] mb-1">选择项目</label>
+            <select
+              value={activeProjectId}
+              onChange={(e) => setActiveProjectId(e.target.value)}
+              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm bg-white text-[#333333] focus:border-brand focus:outline-none"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {!projectId && projects.length === 0 && (
+          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up text-center">
+            <p className="text-sm text-[#999999]">暂无项目，请先创建项目</p>
+            <button
+              onClick={() => router.push("/")}
+              className="text-sm text-brand mt-2 btn-press"
+            >
+              去创建 →
+            </button>
+          </div>
+        )}
+
         {!isManual && recordId && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
             <div className="flex items-center justify-between mb-2">

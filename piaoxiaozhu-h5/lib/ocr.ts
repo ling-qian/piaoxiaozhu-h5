@@ -5,20 +5,127 @@ export interface OcrResult {
   confidence: number;
 }
 
+function preprocessImage(file: File | Blob): Promise<Blob> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+
+      const maxDim = 2048;
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        const scale = maxDim / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+
+      const scale = Math.min(2, 1200 / Math.min(width, height));
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        const threshold = 128;
+        const val = gray > threshold ? 255 : 0;
+        data[i] = val;
+        data[i + 1] = val;
+        data[i + 2] = val;
+      }
+      ctx.putImageData(imageData, 0, 0);
+
+      canvas.toBlob(
+        (blob) => resolve(blob || file),
+        "image/png",
+        1.0
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      resolve(file);
+    };
+
+    img.src = url;
+  });
+}
+
+function cleanOcrText(text: string): string {
+  let cleaned = text;
+
+  cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF]/g, "");
+
+  const ocrCharFixes: [RegExp, string][] = [
+    [/又/g, "¥"],
+    [/￥/g, "¥"],
+    [/玛/g, "¥"],
+    [/0O(?=\d)/g, "00"],
+    [/(?<=\d)O(?=\d)/g, "0"],
+    [/(?<=\d)l(?=\d)/g, "1"],
+    [/(?<=\d)I(?=\d)/g, "1"],
+  ];
+
+  for (const [pattern, replacement] of ocrCharFixes) {
+    cleaned = cleaned.replace(pattern, replacement);
+  }
+
+  const lines = cleaned.split("\n");
+  const merged: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      merged.push("");
+      continue;
+    }
+    const deSpaced = trimmed.replace(/(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g, "");
+    merged.push(deSpaced);
+  }
+
+  return merged.join("\n");
+}
+
+interface TesseractLoggerInfo {
+  status: string;
+  progress: number;
+}
+
 export async function recognizeImage(
   imageFile: File | Blob,
   onProgress?: (progress: number) => void
 ): Promise<OcrResult> {
-  const result = await Tesseract.recognize(imageFile, "chi_sim+eng", {
-    logger: (info) => {
+  const processed = await preprocessImage(imageFile);
+
+  const config: Record<string, unknown> = {
+    logger: (info: TesseractLoggerInfo) => {
       if (info.status === "recognizing text" && onProgress) {
         onProgress(Math.round(info.progress * 100));
       }
     },
-  });
+    tessedit_pageseg_mode: "6",
+    preserve_interword_spaces: "1",
+  };
+
+  const result = await Tesseract.recognize(
+    processed,
+    "chi_sim+eng",
+    config as Partial<Tesseract.WorkerOptions>
+  );
+
+  const rawText = cleanOcrText(result.data.text);
 
   return {
-    rawText: result.data.text,
+    rawText,
     confidence: result.data.confidence / 100,
   };
 }

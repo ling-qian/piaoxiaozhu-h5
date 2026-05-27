@@ -30,8 +30,9 @@ export default function RegisterPage() {
       await registerUser(email, password, name || email);
       showToast("注册成功，请登录", "success");
       router.push("/auth/login");
-    } catch (err: any) {
-      showToast(err.message || "注册失败", "error");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "注册失败";
+      showToast(message, "error");
     } finally {
       setLoading(false);
     }

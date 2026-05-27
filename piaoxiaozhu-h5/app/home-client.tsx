@@ -7,6 +7,13 @@ import { useToast } from "@/components/toast";
 import PageHeader from "@/components/page-header";
 import TabBar from "@/components/tab-bar";
 
+const INDUSTRIES = [
+  { value: "restaurant", label: "餐饮" },
+  { value: "retail", label: "零售" },
+  { value: "service", label: "服务业" },
+  { value: "other", label: "其他" },
+];
+
 interface Project {
   id: string;
   name: string;
@@ -20,15 +27,17 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
   const { showToast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newIndustry, setNewIndustry] = useState("restaurant");
   const [creating, setCreating] = useState(false);
 
   async function handleCreate() {
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const project = await createProject(newName.trim());
+      const project = await createProject(newName.trim(), newIndustry);
       setShowCreate(false);
       setNewName("");
+      setNewIndustry("restaurant");
       showToast("项目创建成功", "success");
       router.push(`/project/${project.id}`);
     } catch {
@@ -73,7 +82,7 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
                   </span>
                 </div>
                 <p className="text-xs text-[#999999] mt-1">
-                  {new Date(p.createdAt).toLocaleDateString("zh-CN")}
+                  {INDUSTRIES.find((ind) => ind.value === p.industry)?.label || p.industry} · {new Date(p.createdAt).toLocaleDateString("zh-CN")}
                 </p>
               </div>
             ))}
@@ -82,7 +91,7 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-end sm:items-center justify-center animate-fade-in">
+        <div className="fixed inset-0 bg-black/40 z-[60] flex items-end sm:items-center justify-center animate-fade-in">
           <div
             className="bg-white rounded-t-2xl sm:rounded-2xl p-6 w-full max-w-mobile animate-slide-up"
             onClick={(e) => e.stopPropagation()}
@@ -93,15 +102,34 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none mb-4"
+              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none mb-3"
               placeholder="项目名称"
               autoFocus
             />
+            <div className="mb-4">
+              <label className="block text-xs text-[#999999] mb-2">行业类型</label>
+              <div className="flex gap-2 flex-wrap">
+                {INDUSTRIES.map((ind) => (
+                  <button
+                    key={ind.value}
+                    onClick={() => setNewIndustry(ind.value)}
+                    className={`px-4 py-2 rounded-xl text-sm btn-press ${
+                      newIndustry === ind.value
+                        ? "bg-brand text-white"
+                        : "bg-[#F5F5F5] text-[#666666]"
+                    }`}
+                  >
+                    {ind.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => {
                   setShowCreate(false);
                   setNewName("");
+                  setNewIndustry("restaurant");
                 }}
                 className="flex-1 border border-[#EEEEEE] py-2.5 rounded-xl text-sm btn-press"
               >

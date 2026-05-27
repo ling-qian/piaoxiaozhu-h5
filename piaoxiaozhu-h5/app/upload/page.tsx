@@ -1,20 +1,29 @@
 "use client";
 
-import { useState, useRef, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { recognizeImage } from "@/lib/ocr";
 import { createRecordFromOcr } from "@/lib/actions/record-actions";
+import { checkQuota } from "@/lib/actions/user-actions";
+import { getProjects } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
 import PageHeader from "@/components/page-header";
 import OcrProgress from "@/components/ocr-progress";
 
+interface ProjectOption {
+  id: string;
+  name: string;
+}
+
 function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const projectId = searchParams.get("project") || "";
+  const urlProjectId = searchParams.get("project") || "";
   const { showToast } = useToast();
 
+  const [projectId, setProjectId] = useState(urlProjectId);
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
@@ -22,6 +31,17 @@ function UploadContent() {
   const [recognizing, setRecognizing] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!urlProjectId) {
+      getProjects().then((list) => {
+        setProjects(list.map((p) => ({ id: p.id, name: p.name })));
+        if (list.length > 0 && !projectId) {
+          setProjectId(list[0].id);
+        }
+      });
+    }
+  }, [urlProjectId, projectId]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -41,6 +61,18 @@ function UploadContent() {
       return;
     }
 
+    try {
+      const quota = await checkQuota();
+      if (!quota.available) {
+        showToast("识别次数已用完，请升级套餐", "error");
+        return;
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "配额检查失败";
+      showToast(message, "error");
+      return;
+    }
+
     setRecognizing(true);
     setStatus("正在识别...");
     setProgress(0);
@@ -56,8 +88,9 @@ function UploadContent() {
 
       showToast("识别成功", "success");
       router.push(`/result?project=${projectId}&recordId=${record.id}`);
-    } catch (err: any) {
-      showToast(err.message || "识别失败，请重试", "error");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "识别失败，请重试";
+      showToast(message, "error");
       setStatus("识别失败");
     } finally {
       setRecognizing(false);
@@ -73,7 +106,36 @@ function UploadContent() {
       <PageHeader title="票据上传" showBack onBack={() => router.back()} />
 
       <div className="px-4 -mt-4 space-y-4">
-        <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
+        {!urlProjectId && projects.length > 0 && (
+          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
+            <label className="text-sm text-[#666666] mb-1.5 block">选择项目</label>
+            <select
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm bg-white text-[#333333] focus:border-brand focus:outline-none"
+            >
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {!urlProjectId && projects.length === 0 && (
+          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up text-center">
+            <p className="text-sm text-[#999999]">暂无项目，请先创建项目</p>
+            <button
+              onClick={() => router.push("/")}
+              className="text-sm text-brand mt-2 btn-press"
+            >
+              去创建 →
+            </button>
+          </div>
+        )}
+
+        <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-1">
           {preview ? (
             <div className="relative w-full h-64 rounded-md bg-gray-50">
               <Image
@@ -104,6 +166,7 @@ function UploadContent() {
             accept="image/*"
             capture="environment"
             onChange={handleFileChange}
+            className="hidden"
           />
 
           {preview && (
@@ -136,7 +199,7 @@ function UploadContent() {
           ) : (
             <button
               onClick={handleRecognize}
-              disabled={recognizing}
+              disabled={recognizing || !projectId}
               className="flex-1 bg-brand text-white py-3 rounded-xl font-medium disabled:opacity-50 btn-press"
             >
               {recognizing ? "识别中..." : "开始识别"}

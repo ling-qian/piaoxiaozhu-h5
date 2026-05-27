@@ -14,7 +14,7 @@ export default async function ProjectDetailPage({
   if (!session?.user) redirect("/auth/login");
 
   const stats = await getProjectStats(id);
-  const { items: records } = await getRecords(id);
+  const { items: records, nextCursor } = await getRecords(id);
 
-  return <ProjectDetailClient projectId={id} stats={stats} initialRecords={records} />;
+  return <ProjectDetailClient projectId={id} stats={stats} initialRecords={records} initialNextCursor={nextCursor} />;
 }

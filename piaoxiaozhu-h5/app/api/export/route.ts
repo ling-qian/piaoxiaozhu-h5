@@ -18,6 +18,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "缺少项目ID" }, { status: 400 });
   }
 
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(projectId)) {
+    return NextResponse.json({ error: "项目ID格式无效" }, { status: 400 });
+  }
+
+  if (format !== "csv" && format !== "json") {
+    return NextResponse.json({ error: "不支持的导出格式" }, { status: 400 });
+  }
+
   try {
     const records = await getRecordsForReport(projectId);
     const report = generateReport(
@@ -47,7 +56,8 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(report);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : "导出失败";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

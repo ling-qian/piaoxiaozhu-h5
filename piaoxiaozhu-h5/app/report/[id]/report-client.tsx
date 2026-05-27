@@ -7,6 +7,7 @@ import PageHeader from "@/components/page-header";
 import StatCard from "@/components/stat-card";
 import CostChart from "@/components/cost-chart";
 import { formatAmount } from "@/lib/utils";
+import { useExportCsv } from "@/lib/hooks/use-export-csv";
 
 interface Record {
   direction: string;
@@ -23,6 +24,7 @@ export default function ReportClient({
   records: Record[];
 }) {
   const router = useRouter();
+  const { exporting, handleExport } = useExportCsv(projectId);
   const [month, setMonth] = useState("");
 
   const months = useMemo(() => {
@@ -47,6 +49,19 @@ export default function ReportClient({
       />
 
       <div className="px-4 -mt-4 space-y-4">
+        {records.length === 0 ? (
+          <div className="bg-white rounded-md p-8 shadow-card text-center animate-fade-in-up">
+            <p className="text-4xl mb-3">📊</p>
+            <p className="text-sm text-[#999999]">暂无记录，无法生成报表</p>
+            <button
+              onClick={() => router.push(`/project/${projectId}`)}
+              className="text-sm text-brand mt-3 btn-press"
+            >
+              去添加记录 →
+            </button>
+          </div>
+        ) : (
+        <>
         <div className="flex gap-2 animate-fade-in-up stagger-1">
           <StatCard label="总收入" value={`¥${formatAmount(report.totalIncome)}`} color="#52C41A" />
           <StatCard label="总支出" value={`¥${formatAmount(report.totalExpense)}`} color="#FF4D4F" />
@@ -85,6 +100,19 @@ export default function ReportClient({
           </select>
         </div>
 
+        <button
+          onClick={() => handleExport(month)}
+          disabled={exporting}
+          className="w-full bg-white text-brand py-3 rounded-xl text-sm font-medium shadow-card disabled:opacity-50 btn-press animate-fade-in-up stagger-3 flex items-center justify-center gap-2"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+          {exporting ? "导出中..." : "导出 CSV"}
+        </button>
+
         <div className="animate-fade-in-up stagger-4">
           <CostChart data={report.categoryBreakdown} />
         </div>
@@ -104,6 +132,8 @@ export default function ReportClient({
               ))}
             </div>
           </div>
+        )}
+        </>
         )}
       </div>
     </div>

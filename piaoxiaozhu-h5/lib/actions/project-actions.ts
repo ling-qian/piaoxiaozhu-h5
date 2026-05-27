@@ -8,7 +8,7 @@ export async function getProjects() {
   const session = await auth();
   if (!session?.user) return [];
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   return prisma.project.findMany({
     where: { userId },
     orderBy: { updatedAt: "desc" },
@@ -20,7 +20,7 @@ export async function createProject(name: string, industry: string = "restaurant
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   const project = await prisma.project.create({
     data: { name, industry, userId },
   });
@@ -32,7 +32,7 @@ export async function updateProject(id: string, name: string) {
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   const project = await prisma.project.update({
     where: { id, userId },
     data: { name },
@@ -46,7 +46,7 @@ export async function deleteProject(id: string) {
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   await prisma.project.delete({ where: { id, userId } });
   revalidatePath("/");
 }
@@ -55,7 +55,7 @@ export async function getProjectStats(projectId: string) {
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId },
   });
@@ -73,6 +73,7 @@ export async function getProjectStats(projectId: string) {
     .reduce((sum, r) => sum + Math.round(r.amount * 100), 0);
 
   return {
+    projectName: project.name,
     recordCount: records.length,
     totalIncome: totalIncome / 100,
     totalExpense: totalExpense / 100,

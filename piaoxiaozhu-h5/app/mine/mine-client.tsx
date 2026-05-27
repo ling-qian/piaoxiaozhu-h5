@@ -3,19 +3,52 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { updateUserName } from "@/lib/actions/user-actions";
 import { useToast } from "@/components/toast";
 import PageHeader from "@/components/page-header";
 import TabBar from "@/components/tab-bar";
 
+const PLAN_LABELS: Record<string, string> = {
+  free: "免费版",
+  pro: "专业版",
+  enterprise: "企业版",
+};
+
 interface UserInfo {
   name: string | null;
   email: string | null;
+  planCode: string;
+  quotaUsed: number;
+  quotaTotal: number;
 }
 
-export default function MineClient({ user }: { user: UserInfo }) {
+export default function MineClient({ user: initialUser }: { user: UserInfo }) {
   const router = useRouter();
   const { showToast } = useToast();
+  const [user, setUser] = useState(initialUser);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(initialUser.name || "");
+  const [savingName, setSavingName] = useState(false);
+
+  async function handleSaveName() {
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
+      showToast("昵称不能为空", "error");
+      return;
+    }
+    setSavingName(true);
+    try {
+      await updateUserName(trimmed);
+      setUser((prev) => ({ ...prev, name: trimmed }));
+      showToast("昵称已更新", "success");
+      setEditingName(false);
+    } catch {
+      showToast("修改失败", "error");
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -36,10 +69,47 @@ export default function MineClient({ user }: { user: UserInfo }) {
           <div className="w-14 h-14 rounded-full bg-brand/10 flex items-center justify-center text-brand text-xl font-bold shrink-0">
             {(user.name || user.email || "U")[0].toUpperCase()}
           </div>
-          <div className="min-w-0">
-            <p className="font-medium text-[#333333] truncate">
-              {user.name || "未设置昵称"}
-            </p>
+          <div className="min-w-0 flex-1">
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
+                  placeholder="输入昵称"
+                  maxLength={20}
+                  className="flex-1 border border-[#EEEEEE] rounded-lg px-3 py-1.5 text-sm focus:border-brand focus:outline-none"
+                  autoFocus
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={savingName}
+                  className="text-sm text-brand btn-press disabled:opacity-50"
+                >
+                  {savingName ? "..." : "保存"}
+                </button>
+                <button
+                  onClick={() => setEditingName(false)}
+                  className="text-sm text-[#999999] btn-press"
+                >
+                  取消
+                </button>
+              </div>
+            ) : (
+              <div
+                onClick={() => {
+                  setNameInput(user.name || "");
+                  setEditingName(true);
+                }}
+                className="cursor-pointer"
+              >
+                <p className="font-medium text-[#333333] truncate">
+                  {user.name || "未设置昵称"}
+                  <span className="text-xs text-brand ml-1">修改</span>
+                </p>
+              </div>
+            )}
             <p className="text-sm text-[#999999] truncate">{user.email}</p>
           </div>
         </div>
@@ -50,13 +120,13 @@ export default function MineClient({ user }: { user: UserInfo }) {
             className="w-full px-4 py-3.5 flex items-center justify-between border-b border-[#EEEEEE] card-press"
           >
             <span className="text-sm">会员套餐</span>
-            <span className="text-xs text-[#999999]">免费版 →</span>
+            <span className="text-xs text-[#999999]">{PLAN_LABELS[user.planCode] || user.planCode} →</span>
           </button>
           <button
             className="w-full px-4 py-3.5 flex items-center justify-between border-b border-[#EEEEEE] card-press"
           >
             <span className="text-sm">使用统计</span>
-            <span className="text-xs text-[#999999]">0/10 次</span>
+            <span className="text-xs text-[#999999]">{user.quotaUsed}/{user.quotaTotal} 次</span>
           </button>
           <button
             className="w-full px-4 py-3.5 flex items-center justify-between card-press"

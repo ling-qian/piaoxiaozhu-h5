@@ -3,10 +3,21 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import { put } from "@vercel/blob";
 import { extractFields } from "@/lib/extract-fields";
 import { categorize } from "@/lib/categorize";
+import { checkQuota, incrementQuotaUsed } from "@/lib/actions/user-actions";
 import { PAGE_SIZE } from "@/lib/constants";
+
+async function uploadImage(imageFile: File): Promise<string | null> {
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+  if (!blobToken) return null;
+
+  const { put } = await import("@vercel/blob");
+  const blob = await put(`receipts/${Date.now()}-${imageFile.name}`, imageFile, {
+    access: "public",
+  });
+  return blob.url;
+}
 
 export async function createRecordFromOcr(
   projectId: string,
@@ -16,7 +27,12 @@ export async function createRecordFromOcr(
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
+
+  const quota = await checkQuota();
+  if (!quota.available) {
+    throw new Error("识别次数已用完，请升级套餐");
+  }
 
   const project = await prisma.project.findFirst({
     where: { id: projectId, userId },
@@ -28,10 +44,7 @@ export async function createRecordFromOcr(
 
   let imageUrl: string | null = null;
   if (imageFile) {
-    const blob = await put(`receipts/${Date.now()}-${imageFile.name}`, imageFile, {
-      access: "public",
-    });
-    imageUrl = blob.url;
+    imageUrl = await uploadImage(imageFile);
   }
 
   const record = await prisma.record.create({
@@ -54,6 +67,8 @@ export async function createRecordFromOcr(
     },
   });
 
+  await incrementQuotaUsed();
+
   revalidatePath(`/project/${projectId}`);
   revalidatePath(`/report/${projectId}`);
   return record;
@@ -75,7 +90,7 @@ export async function createManualRecord(
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
 
   const record = await prisma.record.create({
     data: {
@@ -109,7 +124,7 @@ export async function getRecords(
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
 
   const where: any = { projectId, userId };
   if (month) {
@@ -137,7 +152,7 @@ export async function getRecord(id: string) {
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   return prisma.record.findFirst({ where: { id, userId } });
 }
 
@@ -157,7 +172,7 @@ export async function updateRecord(
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   const existing = await prisma.record.findFirst({ where: { id, userId } });
   if (!existing) throw new Error("记录不存在");
 
@@ -178,7 +193,7 @@ export async function deleteRecord(id: string) {
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   const existing = await prisma.record.findFirst({ where: { id, userId } });
   if (!existing) throw new Error("记录不存在");
 
@@ -191,7 +206,7 @@ export async function getRecordsForReport(projectId: string) {
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  const userId = (session.user as any).id;
+  const userId = session.user.id;
   return prisma.record.findMany({
     where: { projectId, userId },
     orderBy: { invoiceDate: "desc" },

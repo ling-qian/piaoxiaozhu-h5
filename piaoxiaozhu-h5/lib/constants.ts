@@ -15,9 +15,12 @@ export const CATEGORY_MAP = Object.fromEntries(
 
 export const MERCHANT_DICT: Record<string, string> = {
   美团: "platform_fee",
+  三快: "platform_fee",
   饿了么: "platform_fee",
+  拉扎斯: "platform_fee",
   大众点评: "platform_fee",
   抖音: "advertising",
+  字节跳动: "advertising",
   微信支付: "platform_fee",
   支付宝: "platform_fee",
 };
@@ -41,6 +44,9 @@ export const KEYWORD_MAP: Record<string, string> = {
   水费: "utilities",
   电费: "utilities",
   燃气: "utilities",
+  电力: "utilities",
+  供水: "utilities",
+  水电: "utilities",
   佣金: "platform_fee",
   服务费: "platform_fee",
   抽成: "platform_fee",

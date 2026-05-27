@@ -2,9 +2,10 @@ interface PageHeaderProps {
   title: string;
   showBack?: boolean;
   onBack?: () => void;
+  rightAction?: React.ReactNode;
 }
 
-export default function PageHeader({ title, showBack, onBack }: PageHeaderProps) {
+export default function PageHeader({ title, showBack, onBack, rightAction }: PageHeaderProps) {
   return (
     <div
       className="bg-gradient-to-r from-brand to-brand-light px-4 pb-6 relative"
@@ -22,6 +23,14 @@ export default function PageHeader({ title, showBack, onBack }: PageHeaderProps)
         </button>
       )}
       <h1 className="text-white text-lg font-semibold text-center">{title}</h1>
+      {rightAction && (
+        <div
+          className="absolute right-4"
+          style={{ top: "calc(var(--safe-top) + 14px)" }}
+        >
+          {rightAction}
+        </div>
+      )}
     </div>
   );
 }

@@ -7,15 +7,16 @@ export interface ExtractedFields {
 }
 
 const MERCHANT_PATTERNS: [RegExp, number][] = [
-  [/销售方名称[：:]\s*(.+?)(?:\s|$)/, 1],
-  [/销售方[：:]\s*(.+?)(?:\s|$)/, 1],
-  [/商户名称[：:]\s*(.+?)(?:\s|$)/, 1],
-  [/商户[：:]\s*(.+?)(?:\s|$)/, 1],
-  [/收款单位[：:]\s*(.+?)(?:\s|$)/, 1],
-  [/开票方[：:]\s*(.+?)(?:\s|$)/, 1],
-  [/销方[：:]\s*(.+?)(?:\s|$)/, 1],
-  [/销售方信息[：:]\s*(.+?)(?:\s|$)/, 1],
-  [/名称[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/销售方名称\s*[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/销售方\s*[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/商户名称\s*[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/商户\s*[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/收款单位\s*[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/收款方\s*[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/开票方\s*[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/销方\s*[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/销售方信息\s*[：:]\s*(.+?)(?:\s|$)/, 1],
+  [/名称\s*[：:]\s*(.+?)(?:\s|$)/, 1],
 ];
 
 const DATE_PATTERNS = [
@@ -26,10 +27,10 @@ const DATE_PATTERNS = [
 ];
 
 const DATE_PREFIX_PATTERNS = [
-  /开票日期[：:]\s*(.+)/,
-  /日期[：:]\s*(.+)/,
-  /开具日期[：:]\s*(.+)/,
-  /时间[：:]\s*(.+)/,
+  /开票日期\s*[：:]\s*(.+)/,
+  /日期\s*[：:]\s*(.+)/,
+  /开具日期\s*[：:]\s*(.+)/,
+  /时间\s*[：:]\s*(.+)/,
 ];
 
 const INVOICE_TYPE_MAP: [RegExp, string][] = [
@@ -74,6 +75,7 @@ function extractMerchant(text: string): string | null {
     if (/\d{4}/.test(trimmed)) continue;
     if (/^\d+[\.,]?\d*$/.test(trimmed)) continue;
     if (/^[\d.,¥￥\-\s]+$/.test(trimmed)) continue;
+    if (/^(金额|税额|价税|合计|总计|日期|发票|备注|税率)/.test(trimmed)) continue;
     if (trimmed.length >= 2 && !/^[\W\d]+$/.test(trimmed)) {
       return trimmed;
     }
@@ -84,16 +86,24 @@ function extractMerchant(text: string): string | null {
 
 function extractTotal(text: string): number | null {
   const totalPatterns = [
-    /(?:价税合计|合[计總]|总[计計]|应付金额|实付金额|总计金额|合计金额)[：:]*\s*[¥￥]?\s*([\d,，]+\.?\d*)/,
+    /(?:价税合计|合[计總]|总[计計]|应付金额|实付金额|总计金额|合计金额)\s*[：:]*\s*[¥￥]?\s*([\d,，]+\.?\d*)/,
     /[¥￥]\s*([\d,，]+\.?\d*)/,
-    /(?:金[额額])[：:]*\s*[¥￥]?\s*([\d,，]+\.?\d*)/,
+    /(?:金[额額])\s*[：:]*\s*[¥￥]?\s*([\d,，]+\.?\d*)/,
   ];
 
   for (const pattern of totalPatterns) {
-    const m = text.match(pattern);
-    if (m) {
-      const cents = parseYuanToCents(m[1]);
-      if (cents > 0) return centsToYuan(cents);
+    const matches = [...text.matchAll(new RegExp(pattern.source, "g"))];
+    if (matches.length > 0) {
+      let bestCents = 0;
+      let bestMatch = matches[0];
+      for (const m of matches) {
+        const cents = parseYuanToCents(m[1]);
+        if (cents > bestCents) {
+          bestCents = cents;
+          bestMatch = m;
+        }
+      }
+      if (bestCents > 0) return centsToYuan(bestCents);
     }
   }
 
@@ -115,8 +125,8 @@ function extractTotal(text: string): number | null {
 
 function extractTax(text: string): number | null {
   const taxPatterns = [
-    /(?:税[额額]|税款|增值税额|合计税额)[：:]*\s*[¥￥]?\s*([\d,，]+\.?\d*)/,
-    /(?:税[额額])[：:]*\s*[¥￥]?\s*([\d,，]+\.?\d*)/,
+    /(?:税[额額]|税款|增值税额|合计税额)\s*[：:]*\s*[¥￥]?\s*([\d,，]+\.?\d*)/,
+    /(?:税[额額])\s*[：:]*\s*[¥￥]?\s*([\d,，]+\.?\d*)/,
   ];
 
   for (const pattern of taxPatterns) {
@@ -127,7 +137,7 @@ function extractTax(text: string): number | null {
     }
   }
 
-  const rateMatch = text.match(/税[率率][：:]*\s*(\d+(?:\.\d+)?)\s*%/);
+  const rateMatch = text.match(/税[率率]\s*[：:]*\s*(\d+(?:\.\d+)?)\s*%/);
   if (rateMatch) {
     const rate = parseFloat(rateMatch[1]) / 100;
     const total = extractTotal(text);
@@ -177,6 +187,39 @@ function extractType(text: string): string | null {
   return null;
 }
 
+function cleanOcrNoise(text: string): string {
+  let cleaned = text;
+
+  cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF]/g, "");
+
+  const ocrCharFixes: [RegExp, string][] = [
+    [/又/g, "¥"],
+    [/玛/g, "¥"],
+    [/￥/g, "¥"],
+    [/0O(?=\d)/g, "00"],
+    [/(?<=\d)O(?=\d)/g, "0"],
+    [/(?<=\d)l(?=\d)/g, "1"],
+    [/(?<=\d)I(?=\d)/g, "1"],
+  ];
+  for (const [pattern, replacement] of ocrCharFixes) {
+    cleaned = cleaned.replace(pattern, replacement);
+  }
+
+  const lines = cleaned.split("\n");
+  const merged: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      merged.push("");
+      continue;
+    }
+    const deSpaced = trimmed.replace(/(?<=[\u4e00-\u9fff])\s+(?=[\u4e00-\u9fff])/g, "");
+    merged.push(deSpaced);
+  }
+
+  return merged.join("\n");
+}
+
 export function extractFields(rawText: string): ExtractedFields {
   if (!rawText) {
     return {
@@ -188,11 +231,13 @@ export function extractFields(rawText: string): ExtractedFields {
     };
   }
 
+  const text = cleanOcrNoise(rawText);
+
   return {
-    merchantName: extractMerchant(rawText),
-    totalAmount: extractTotal(rawText),
-    taxAmount: extractTax(rawText),
-    invoiceDate: extractDate(rawText),
-    invoiceType: extractType(rawText),
+    merchantName: extractMerchant(text),
+    totalAmount: extractTotal(text),
+    taxAmount: extractTax(text),
+    invoiceDate: extractDate(text),
+    invoiceType: extractType(text),
   };
 }
