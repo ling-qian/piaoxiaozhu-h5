@@ -22,7 +22,7 @@ interface Project {
   _count: { records: number };
 }
 
-export default function HomeClient({ projects }: { projects: Project[] }) {
+export default function HomeClient({ projects, isLoggedIn }: { projects: Project[]; isLoggedIn: boolean }) {
   const router = useRouter();
   const { showToast } = useToast();
   const [showCreate, setShowCreate] = useState(false);
@@ -83,50 +83,82 @@ export default function HomeClient({ projects }: { projects: Project[] }) {
       <PageHeader title="票小助" />
 
       <div className="px-4 -mt-4 space-y-3">
-        <div className="flex items-center justify-between animate-fade-in">
-          <h2 className="text-base font-semibold text-[#333333]">我的项目</h2>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="bg-brand text-white text-sm px-4 py-1.5 rounded-xl btn-press"
-          >
-            + 新建
-          </button>
-        </div>
-
-        {projectList.length === 0 ? (
-          <div className="bg-white rounded-md p-8 shadow-card text-center animate-fade-in-up">
-            <p className="text-4xl mb-3">📋</p>
-            <p className="text-sm text-[#999999]">暂无项目，点击上方新建</p>
+        {!isLoggedIn ? (
+          /* 未登录：品牌介绍 + 登录引导 */
+          <div className="space-y-4 animate-fade-in-up">
+            <div className="bg-white rounded-md p-6 shadow-card text-center">
+              <div className="text-5xl mb-3">🎫</div>
+              <h2 className="text-xl font-bold text-[#333333] mb-2">票小助</h2>
+              <p className="text-sm text-[#999999] mb-1">餐饮票据智能整理助手</p>
+              <p className="text-xs text-[#BBBBBB]">拍照识别 · 自动分类 · 报表统计</p>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { icon: "📸", label: "拍照识别" },
+                { icon: "🏷️", label: "智能分类" },
+                { icon: "📊", label: "报表统计" },
+              ].map((f) => (
+                <div key={f.label} className="bg-white rounded-md p-3 shadow-card text-center">
+                  <div className="text-2xl mb-1">{f.icon}</div>
+                  <div className="text-xs text-[#666666]">{f.label}</div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => router.push("/auth/login")}
+              className="w-full bg-brand text-white py-3 rounded-xl text-sm font-medium btn-press"
+            >
+              登录 / 注册
+            </button>
           </div>
         ) : (
-          <div className="space-y-2">
-            {projectList.map((p, i) => (
-              <div
-                key={p.id}
-                className={`bg-white rounded-md p-4 shadow-card cursor-pointer card-press animate-fade-in-up stagger-${Math.min(i + 1, 6)}`}
-                onClick={() => {
-                  if (!confirmDeleteId) router.push(`/project/${p.id}`);
-                }}
-                onTouchStart={() => handleLongPressStart(p.id)}
-                onTouchEnd={handleLongPressEnd}
-                onTouchCancel={handleLongPressEnd}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setConfirmDeleteId(p.id);
-                }}
+          <>
+            <div className="flex items-center justify-between animate-fade-in">
+              <h2 className="text-base font-semibold text-[#333333]">我的项目</h2>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="bg-brand text-white text-sm px-4 py-1.5 rounded-xl btn-press"
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-[#333333]">{p.name}</span>
-                  <span className="text-xs text-[#999999]">
-                    {p._count.records} 条记录
-                  </span>
-                </div>
-                <p className="text-xs text-[#999999] mt-1">
-                  {INDUSTRIES.find((ind) => ind.value === p.industry)?.label || p.industry} · {new Date(p.createdAt).toLocaleDateString("zh-CN")}
-                </p>
+                + 新建
+              </button>
+            </div>
+
+            {projectList.length === 0 ? (
+              <div className="bg-white rounded-md p-8 shadow-card text-center animate-fade-in-up">
+                <p className="text-4xl mb-3">📋</p>
+                <p className="text-sm text-[#999999]">暂无项目，点击上方新建</p>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="space-y-2">
+                {projectList.map((p, i) => (
+                  <div
+                    key={p.id}
+                    className={`bg-white rounded-md p-4 shadow-card cursor-pointer card-press animate-fade-in-up stagger-${Math.min(i + 1, 6)}`}
+                    onClick={() => {
+                      if (!confirmDeleteId) router.push(`/project/${p.id}`);
+                    }}
+                    onTouchStart={() => handleLongPressStart(p.id)}
+                    onTouchEnd={handleLongPressEnd}
+                    onTouchCancel={handleLongPressEnd}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setConfirmDeleteId(p.id);
+                    }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-[#333333]">{p.name}</span>
+                      <span className="text-xs text-[#999999]">
+                        {p._count.records} 条记录
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#999999] mt-1">
+                      {INDUSTRIES.find((ind) => ind.value === p.industry)?.label || p.industry} · {new Date(p.createdAt).toLocaleDateString("zh-CN")}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 

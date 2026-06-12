@@ -14,3 +14,4 @@ venv/
 venv2/
 uploads/
 *.egg-info/
+.vercel
