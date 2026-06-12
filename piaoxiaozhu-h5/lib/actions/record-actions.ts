@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { extractFields } from "@/lib/extract-fields";
-import { categorize } from "@/lib/categorize";
+import { categorizeWithLlm } from "@/lib/categorize";
 import { checkQuota, incrementQuotaUsed } from "@/lib/actions/user-actions";
 import { PAGE_SIZE } from "@/lib/constants";
 
@@ -40,7 +40,7 @@ export async function createRecordFromOcr(
   if (!project) throw new Error("项目不存在");
 
   const fields = extractFields(rawText);
-  const cat = categorize(fields.merchantName, rawText, project.industry);
+  const cat = await categorizeWithLlm(fields.merchantName, rawText, project.industry);
 
   let imageUrl: string | null = null;
   if (imageFile) {

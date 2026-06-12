@@ -1,4 +1,5 @@
 import { MERCHANT_DICT, KEYWORD_MAP, CATEGORY_MAP } from "./constants";
+import { llmCategorize } from "./llm";
 
 interface CategorizeResult {
   categoryCode: string;
@@ -8,6 +9,7 @@ interface CategorizeResult {
   reason: string;
 }
 
+/** 同步分类（Layer 1-3 + Layer 5 默认），不调用 LLM */
 export function categorize(
   merchantName: string | null,
   rawText: string,
@@ -22,6 +24,44 @@ export function categorize(
   const templateResult = tryIndustryTemplate(industry);
   if (templateResult) return templateResult;
 
+  return {
+    categoryCode: "other",
+    categoryL1: "其他",
+    categoryL2: "其他",
+    confidence: 0.5,
+    reason: "默认分类",
+  };
+}
+
+/** 异步分类（Layer 1-3 → Layer 4 LLM → Layer 5 默认） */
+export async function categorizeWithLlm(
+  merchantName: string | null,
+  rawText: string,
+  industry: string = "restaurant"
+): Promise<CategorizeResult> {
+  const result = tryMerchantMatch(merchantName);
+  if (result) return result;
+
+  const keywordResult = tryKeywordMatch(rawText);
+  if (keywordResult) return keywordResult;
+
+  const templateResult = tryIndustryTemplate(industry);
+  if (templateResult) return templateResult;
+
+  // Layer 4: LLM 补充分类
+  const llmResult = await llmCategorize(merchantName, rawText);
+  if (llmResult) {
+    const cat = CATEGORY_MAP[llmResult.categoryCode];
+    return {
+      categoryCode: llmResult.categoryCode,
+      categoryL1: llmResult.categoryL1,
+      categoryL2: cat?.l2 || llmResult.categoryL1,
+      confidence: 0.7,
+      reason: llmResult.reason,
+    };
+  }
+
+  // Layer 5: 默认
   return {
     categoryCode: "other",
     categoryL1: "其他",
