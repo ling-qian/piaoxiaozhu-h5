@@ -10,13 +10,21 @@ import { PAGE_SIZE } from "@/lib/constants";
 
 async function uploadImage(imageFile: File): Promise<string | null> {
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!blobToken) return null;
+  if (!blobToken) {
+    console.warn("[uploadImage] BLOB_READ_WRITE_TOKEN 未配置，图片将不会上传");
+    return null;
+  }
 
-  const { put } = await import("@vercel/blob");
-  const blob = await put(`receipts/${Date.now()}-${imageFile.name}`, imageFile, {
-    access: "public",
-  });
-  return blob.url;
+  try {
+    const { put } = await import("@vercel/blob");
+    const blob = await put(`receipts/${Date.now()}-${imageFile.name}`, imageFile, {
+      access: "public",
+    });
+    return blob.url;
+  } catch (err) {
+    console.error("[uploadImage] 图片上传失败:", err);
+    return null;
+  }
 }
 
 export async function createRecordFromOcr(
@@ -43,8 +51,10 @@ export async function createRecordFromOcr(
   const cat = await categorizeWithLlm(fields.merchantName, rawText, project.industry);
 
   let imageUrl: string | null = null;
+  let imageUploadFailed = false;
   if (imageFile) {
     imageUrl = await uploadImage(imageFile);
+    if (!imageUrl) imageUploadFailed = true;
   }
 
   const record = await prisma.record.create({
@@ -71,7 +81,13 @@ export async function createRecordFromOcr(
 
   revalidatePath(`/project/${projectId}`);
   revalidatePath(`/report/${projectId}`);
-  return record;
+
+  return {
+    ...record,
+    amount: Number(record.amount),
+    taxAmount: record.taxAmount ? Number(record.taxAmount) : null,
+    _imageUploadFailed: imageUploadFailed,
+  };
 }
 
 export async function createManualRecord(
@@ -91,6 +107,12 @@ export async function createManualRecord(
   if (!session?.user) throw new Error("未登录");
 
   const userId = session.user.id;
+
+  // HIGH-2: 验证项目归属当前用户
+  const project = await prisma.project.findFirst({
+    where: { id: projectId, userId },
+  });
+  if (!project) throw new Error("项目不存在或无权限");
 
   const record = await prisma.record.create({
     data: {
@@ -112,7 +134,11 @@ export async function createManualRecord(
 
   revalidatePath(`/project/${projectId}`);
   revalidatePath(`/report/${projectId}`);
-  return record;
+  return {
+    ...record,
+    amount: Number(record.amount),
+    taxAmount: record.taxAmount ? Number(record.taxAmount) : null,
+  };
 }
 
 export async function getRecords(
@@ -126,7 +152,7 @@ export async function getRecords(
 
   const userId = session.user.id;
 
-  const where: any = { projectId, userId };
+  const where: { projectId: string; userId: string; invoiceDate?: { startsWith: string }; categoryCode?: string } = { projectId, userId };
   if (month) {
     where.invoiceDate = { startsWith: month };
   }
@@ -145,7 +171,15 @@ export async function getRecords(
   const items = hasMore ? records.slice(0, -1) : records;
   const nextCursor = hasMore ? items[items.length - 1].id : null;
 
-  return { items, nextCursor, hasMore };
+  return {
+    items: items.map((r) => ({
+      ...r,
+      amount: Number(r.amount),
+      taxAmount: r.taxAmount ? Number(r.taxAmount) : null,
+    })),
+    nextCursor,
+    hasMore,
+  };
 }
 
 export async function getRecord(id: string) {
@@ -153,7 +187,13 @@ export async function getRecord(id: string) {
   if (!session?.user) throw new Error("未登录");
 
   const userId = session.user.id;
-  return prisma.record.findFirst({ where: { id, userId } });
+  const record = await prisma.record.findFirst({ where: { id, userId } });
+  if (!record) return null;
+  return {
+    ...record,
+    amount: Number(record.amount),
+    taxAmount: record.taxAmount ? Number(record.taxAmount) : null,
+  };
 }
 
 export async function updateRecord(
@@ -186,7 +226,11 @@ export async function updateRecord(
 
   revalidatePath(`/project/${existing.projectId}`);
   revalidatePath(`/report/${existing.projectId}`);
-  return record;
+  return {
+    ...record,
+    amount: Number(record.amount),
+    taxAmount: record.taxAmount ? Number(record.taxAmount) : null,
+  };
 }
 
 export async function deleteRecord(id: string) {
@@ -207,8 +251,13 @@ export async function getRecordsForReport(projectId: string) {
   if (!session?.user) throw new Error("未登录");
 
   const userId = session.user.id;
-  return prisma.record.findMany({
+  const records = await prisma.record.findMany({
     where: { projectId, userId },
     orderBy: { invoiceDate: "desc" },
   });
+  return records.map((r) => ({
+    ...r,
+    amount: Number(r.amount),
+    taxAmount: r.taxAmount ? Number(r.taxAmount) : null,
+  }));
 }

@@ -67,10 +67,10 @@ export async function getProjectStats(projectId: string) {
 
   const totalIncome = records
     .filter((r) => r.direction === "income")
-    .reduce((sum, r) => sum + Math.round(r.amount * 100), 0);
+    .reduce((sum, r) => sum + Math.round(Number(r.amount) * 100), 0);
   const totalExpense = records
     .filter((r) => r.direction === "out")
-    .reduce((sum, r) => sum + Math.round(r.amount * 100), 0);
+    .reduce((sum, r) => sum + Math.round(Number(r.amount) * 100), 0);
 
   return {
     projectName: project.name,

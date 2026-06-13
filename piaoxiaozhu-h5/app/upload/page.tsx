@@ -29,6 +29,7 @@ function UploadContent() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("等待上传");
   const [recognizing, setRecognizing] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,23 +78,37 @@ function UploadContent() {
     setStatus("正在识别...");
     setProgress(0);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const result = await recognizeImage(file, (p) => {
         setProgress(p);
         if (p < 100) setStatus(`正在识别... ${p}%`);
         else setStatus("识别完成，正在保存...");
-      });
+      }, controller.signal);
 
       const record = await createRecordFromOcr(projectId, result.rawText, file);
 
-      showToast("识别成功", "success");
+      // 图片上传失败提示
+      if ((record as Record<string, unknown>)._imageUploadFailed) {
+        showToast("图片上传失败，但记录已保存", "info");
+      } else {
+        showToast("识别成功", "success");
+      }
       router.push(`/result?project=${projectId}&recordId=${record.id}`);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "识别失败，请重试";
-      showToast(message, "error");
-      setStatus("识别失败");
+      if (controller.signal.aborted) {
+        showToast("识别已取消", "info");
+        setStatus("已取消");
+      } else {
+        const message = err instanceof Error ? err.message : "识别失败，请重试";
+        showToast(message, "error");
+        setStatus("识别失败");
+      }
     } finally {
       setRecognizing(false);
+      abortRef.current = null;
     }
   }
 
@@ -195,6 +210,13 @@ function UploadContent() {
               className="flex-1 bg-brand text-white py-3 rounded-xl font-medium btn-press"
             >
               拍照/选图
+            </button>
+          ) : recognizing ? (
+            <button
+              onClick={() => abortRef.current?.abort()}
+              className="flex-1 bg-red-500 text-white py-3 rounded-xl font-medium btn-press"
+            >
+              取消识别
             </button>
           ) : (
             <button

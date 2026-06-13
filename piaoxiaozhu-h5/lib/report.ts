@@ -20,13 +20,17 @@ export interface ReportData {
 
 interface RecordForReport {
   direction: string;
-  amount: number;
+  amount: number | { toNumber: () => number };
   categoryCode: string;
   invoiceDate: string | null;
 }
 
-function yuanToCents(yuan: number): number {
-  return Math.round(yuan * 100);
+function toNumber(val: number | { toNumber: () => number }): number {
+  return typeof val === "number" ? val : val.toNumber();
+}
+
+function yuanToCents(yuan: number | { toNumber: () => number }): number {
+  return Math.round(toNumber(yuan) * 100);
 }
 
 function centsToYuan(cents: number): number {

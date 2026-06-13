@@ -44,8 +44,8 @@ model Record {
   userId            String
   direction         String   @default("out")
   merchantName      String?
-  amount            Float
-  taxAmount         Float?
+  amount        Decimal  @db.Decimal(12, 2)
+  taxAmount         Decimal?  @db.Decimal(12, 2)
   invoiceDate       String?
   invoiceType       String?
   categoryCode      String   @default("other")
@@ -61,6 +61,9 @@ model Record {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  @@index([projectId, invoiceDate])
+  @@index([userId])
+  @@index([categoryCode])
   @@map("records")
 }
 

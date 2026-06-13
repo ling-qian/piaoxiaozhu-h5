@@ -4,16 +4,20 @@ import { getRecordsForReport } from "@/lib/actions/record-actions";
 import { generateReport } from "@/lib/report";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
   }
 
-  const { searchParams } = new URL(req.url);
-  const projectId = searchParams.get("projectId");
-  const format = searchParams.get("format") || "csv";
-  const month = searchParams.get("month") || undefined;
+  let body: { projectId?: string; format?: string; month?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "请求体格式错误" }, { status: 400 });
+  }
+
+  const { projectId, format = "csv", month } = body;
 
   if (!projectId) {
     return NextResponse.json({ error: "缺少项目ID" }, { status: 400 });
@@ -40,7 +44,7 @@ export async function GET(req: NextRequest) {
     const report = generateReport(
       records.map((r) => ({
         direction: r.direction,
-        amount: r.amount,
+        amount: Number(r.amount),
         categoryCode: r.categoryCode,
         invoiceDate: r.invoiceDate,
       })),
@@ -55,10 +59,11 @@ export async function GET(req: NextRequest) {
       const summary = `\n\n总收入,${report.totalIncome.toFixed(2)}\n总支出,${report.totalExpense.toFixed(2)}\n毛利润,${report.grossProfit.toFixed(2)}\n毛利率,${report.grossMargin.toFixed(1)}%`;
 
       const csv = "\uFEFF" + header + rows + summary;
+      const safeName = encodeURIComponent(project.name || projectId);
       return new NextResponse(csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename=report-${projectId}.csv`,
+          "Content-Disposition": `attachment; filename*=UTF-8''${safeName}-report.csv`,
         },
       });
     }

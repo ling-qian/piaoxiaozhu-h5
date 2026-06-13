@@ -31,6 +31,11 @@ interface RecordData {
   imageUrl: string | null;
 }
 
+// Prisma Decimal → number 转换
+function toNum(v: unknown): number {
+  return typeof v === "number" ? v : Number(v);
+}
+
 function ResultContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -69,8 +74,8 @@ function ResultContent() {
         if (record) {
           setDirection(record.direction as "out" | "income");
           setMerchantName(record.merchantName || "");
-          setAmount(record.amount.toString());
-          setTaxAmount(record.taxAmount?.toString() || "");
+          setAmount(toNum(record.amount).toString());
+          setTaxAmount(record.taxAmount ? toNum(record.taxAmount).toString() : "");
           setInvoiceDate(record.invoiceDate || "");
           setCategoryCode(record.categoryCode);
           setConfidence(record.confidence);

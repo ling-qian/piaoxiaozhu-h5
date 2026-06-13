@@ -5,6 +5,8 @@ export interface OcrResult {
   confidence: number;
 }
 
+const OCR_TIMEOUT_MS = 60_000; // OCR 最大 60 秒
+
 function preprocessImage(file: File | Blob): Promise<Blob> {
   return new Promise((resolve) => {
     const img = new Image();
@@ -14,7 +16,12 @@ function preprocessImage(file: File | Blob): Promise<Blob> {
       URL.revokeObjectURL(url);
 
       const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        // canvas 不可用时直接返回原图
+        resolve(file);
+        return;
+      }
 
       const maxDim = 2048;
       let { width, height } = img;
@@ -133,7 +140,8 @@ interface TesseractLoggerInfo {
 
 export async function recognizeImage(
   imageFile: File | Blob,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  signal?: AbortSignal
 ): Promise<OcrResult> {
   const processed = await preprocessImage(imageFile);
 
@@ -147,16 +155,43 @@ export async function recognizeImage(
     preserve_interword_spaces: "1",
   };
 
-  const result = await Tesseract.recognize(
-    processed,
-    "chi_sim+eng",
-    config as Partial<Tesseract.WorkerOptions>
-  );
+  // 超时控制：在 OCR 耗时过长时自动中止
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  let rejectFn: ((reason: Error) => void) | null = null;
 
-  const rawText = cleanOcrText(result.data.text);
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    rejectFn = reject;
+    timeoutId = setTimeout(() => {
+      reject(new Error("OCR 识别超时，请重试或使用手动录入"));
+    }, OCR_TIMEOUT_MS);
+  });
 
-  return {
-    rawText,
-    confidence: result.data.confidence / 100,
-  };
+  // AbortSignal 支持
+  const abortPromise = signal
+    ? new Promise<never>((_, reject) => {
+        const onAbort = () => reject(new Error("OCR 已取消"));
+        signal.addEventListener("abort", onAbort, { once: true });
+      })
+    : new Promise<never>(() => {});
+
+  try {
+    const result = await Promise.race([
+      Tesseract.recognize(
+        processed,
+        "chi_sim+eng",
+        config as Partial<Tesseract.WorkerOptions>
+      ),
+      timeoutPromise,
+      abortPromise,
+    ]);
+
+    const rawText = cleanOcrText(result.data.text);
+
+    return {
+      rawText,
+      confidence: result.data.confidence / 100,
+    };
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
