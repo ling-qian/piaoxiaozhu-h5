@@ -13,7 +13,7 @@ export default function GlobalError({
     console.error("[GlobalError]", error);
     // Sentry上报 — 仅在配置了DSN时生效
     if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
-      import("@sentry/nextjs").then((Sentry) => {
+      import("@sentry/browser").then((Sentry) => {
         Sentry.captureException(error);
       });
     }
