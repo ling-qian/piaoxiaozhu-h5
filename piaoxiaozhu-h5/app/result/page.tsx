@@ -23,6 +23,7 @@ interface RecordData {
   taxAmount: number | null;
   invoiceDate: string | null;
   invoiceType: string | null;
+  invoiceNo: string | null;
   categoryCode: string;
   categoryL1: string;
   categoryL2: string | null;
@@ -31,7 +32,6 @@ interface RecordData {
   imageUrl: string | null;
 }
 
-// Prisma Decimal → number 转换
 function toNum(v: unknown): number {
   return typeof v === "number" ? v : Number(v);
 }
@@ -57,6 +57,12 @@ function ResultContent() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!isManual && !!recordId);
 
+  // MED-6: 原图和OCR原文
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [rawText, setRawText] = useState<string | null>(null);
+  const [showOriginalImage, setShowOriginalImage] = useState(false);
+  const [showRawText, setShowRawText] = useState(false);
+
   useEffect(() => {
     if (!projectId) {
       getProjects().then((list) => {
@@ -79,6 +85,8 @@ function ResultContent() {
           setInvoiceDate(record.invoiceDate || "");
           setCategoryCode(record.categoryCode);
           setConfidence(record.confidence);
+          setImageUrl(record.imageUrl);
+          setRawText(record.rawText);
         }
         setLoading(false);
       });
@@ -174,6 +182,30 @@ function ResultContent() {
           </div>
         )}
 
+        {/* MED-6: 原始票据图片 */}
+        {imageUrl && (
+          <div className="bg-white rounded-md shadow-card animate-fade-in-up overflow-hidden">
+            <button
+              onClick={() => setShowOriginalImage(!showOriginalImage)}
+              className="w-full flex items-center justify-between p-4"
+            >
+              <span className="text-sm text-[#666666]">原始票据</span>
+              <span className="text-xs text-brand">
+                {showOriginalImage ? "收起" : "查看"}
+              </span>
+            </button>
+            {showOriginalImage && (
+              <div className="px-4 pb-4">
+                <img
+                  src={imageUrl}
+                  alt="原始票据"
+                  className="w-full rounded-lg border border-[#EEEEEE]"
+                />
+              </div>
+            )}
+          </div>
+        )}
+
         {!isManual && recordId && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
             <div className="flex items-center justify-between mb-2">
@@ -197,6 +229,26 @@ function ResultContent() {
             <p className="text-xs text-[#999999] mt-1.5">
               {getConfidenceHint(confidence)}
             </p>
+
+            {/* OCR 原文查看 */}
+            {rawText && (
+              <div className="mt-3 pt-3 border-t border-[#EEEEEE]">
+                <button
+                  onClick={() => setShowRawText(!showRawText)}
+                  className="flex items-center justify-between w-full"
+                >
+                  <span className="text-xs text-[#999999]">OCR 识别原文</span>
+                  <span className="text-xs text-brand">
+                    {showRawText ? "收起" : "查看"}
+                  </span>
+                </button>
+                {showRawText && (
+                  <pre className="mt-2 text-xs text-[#666666] bg-gray-50 rounded-lg p-3 whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+                    {rawText}
+                  </pre>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -242,6 +294,7 @@ function ResultContent() {
             <input
               type="number"
               step="0.01"
+              min="0"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
@@ -256,6 +309,7 @@ function ResultContent() {
             <input
               type="number"
               step="0.01"
+              min="0"
               value={taxAmount}
               onChange={(e) => setTaxAmount(e.target.value)}
               className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"

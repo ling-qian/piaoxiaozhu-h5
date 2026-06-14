@@ -7,6 +7,7 @@ import StatCard from "@/components/stat-card";
 import RecordCard from "@/components/record-card";
 import TabBar from "@/components/tab-bar";
 import { formatAmount } from "@/lib/utils";
+import { CATEGORIES } from "@/lib/constants";
 import { deleteRecord, getRecords } from "@/lib/actions/record-actions";
 import { deleteProject } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
@@ -42,8 +43,25 @@ export default function ProjectDetailClient({
   const [swipedId, setSwipedId] = useState<string | null>(null);
   const [showProjectMenu, setShowProjectMenu] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCategory, setFilterCategory] = useState<string>("");
+  const [showFilterBar, setShowFilterBar] = useState(false);
   const touchStartX = useRef(0);
   const touchCurrentId = useRef<string | null>(null);
+
+  // 搜索和筛选
+  const filteredRecords = records.filter((r) => {
+    if (filterCategory && r.categoryCode !== filterCategory) return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchMerchant = r.merchantName?.toLowerCase().includes(q);
+      const matchAmount = r.amount.toString().includes(q);
+      const matchDate = r.invoiceDate?.includes(q);
+      const matchCat = CATEGORIES.find((c) => c.code === r.categoryCode)?.name.includes(q);
+      if (!matchMerchant && !matchAmount && !matchDate && !matchCat) return false;
+    }
+    return true;
+  });
 
   const handleTouchStart = useCallback((recordId: string, e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -149,24 +167,88 @@ export default function ProjectDetailClient({
 
         <div className="flex items-center justify-between animate-fade-in-up stagger-3">
           <h3 className="text-sm font-semibold text-[#333333]">
-            记录 ({records.length})
+            记录 ({filteredRecords.length}{filteredRecords.length < records.length ? `/${records.length}` : ""})
           </h3>
-          <button
-            onClick={() => router.push(`/report/${projectId}`)}
-            className="text-xs text-brand btn-press"
-          >
-            查看报表 →
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowFilterBar(!showFilterBar)}
+              className={`text-xs px-2 py-1 rounded-full btn-press ${filterCategory ? "bg-brand text-white" : "text-brand"}`}
+            >
+              筛选
+            </button>
+            <button
+              onClick={() => router.push(`/report/${projectId}`)}
+              className="text-xs text-brand btn-press"
+            >
+              查看报表 →
+            </button>
+          </div>
         </div>
 
-        {records.length === 0 ? (
+        {/* 搜索栏 */}
+        <div className="animate-fade-in-up">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="搜索商户、金额、日期..."
+              className="w-full bg-white border border-[#EEEEEE] rounded-lg px-3 py-2 pl-8 text-sm focus:border-brand focus:outline-none"
+            />
+            <svg className="absolute left-2.5 top-2.5 text-[#BBBBBB]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-2.5 text-[#999999] text-xs"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 分类筛选条 */}
+        {showFilterBar && (
+          <div className="flex flex-wrap gap-1.5 animate-fade-in-up">
+            <button
+              onClick={() => setFilterCategory("")}
+              className={`px-2.5 py-1 rounded-full text-xs btn-press ${!filterCategory ? "bg-[#333333] text-white" : "bg-gray-100 text-[#666666]"}`}
+            >
+              全部
+            </button>
+            {CATEGORIES.map((cat) => (
+              <button
+                key={cat.code}
+                onClick={() => setFilterCategory(filterCategory === cat.code ? "" : cat.code)}
+                className={`px-2.5 py-1 rounded-full text-xs btn-press ${filterCategory === cat.code ? "text-white" : "bg-gray-100 text-[#666666]"}`}
+                style={filterCategory === cat.code ? { backgroundColor: cat.color } : undefined}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {filteredRecords.length === 0 && records.length > 0 ? (
+          <div className="bg-white rounded-md p-6 shadow-card text-center animate-fade-in-up">
+            <p className="text-sm text-[#999999]">没有匹配的记录</p>
+            <button
+              onClick={() => { setSearchQuery(""); setFilterCategory(""); }}
+              className="text-xs text-brand mt-2 btn-press"
+            >
+              清除筛选
+            </button>
+          </div>
+        ) : records.length === 0 ? (
           <div className="bg-white rounded-md p-8 shadow-card text-center animate-fade-in-up">
             <p className="text-4xl mb-3">📝</p>
             <p className="text-sm text-[#999999]">暂无记录，开始上传票据吧</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {records.map((r, i) => {
+            {filteredRecords.map((r, i) => {
               const isOpen = swipedId === r.id;
               return (
                 <div

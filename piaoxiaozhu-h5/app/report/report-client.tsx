@@ -9,6 +9,7 @@ import StatCard from "@/components/stat-card";
 import CostChart from "@/components/cost-chart";
 import { PageSpinner } from "@/components/spinner";
 import { formatAmount } from "@/lib/utils";
+import { CATEGORY_MAP } from "@/lib/constants";
 import { useExportCsv } from "@/lib/hooks/use-export-csv";
 import { RecordForReport as Record } from "@/types/record";
 
@@ -33,6 +34,7 @@ export default function ReportClient({
   const [month, setMonth] = useState("");
   const [records, setRecords] = useState<Record[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDetail, setShowDetail] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -165,6 +167,57 @@ export default function ReportClient({
             </div>
           </div>
         )}
+
+        {/* 明细表 */}
+        <div className="bg-white rounded-md shadow-card animate-fade-in-up stagger-6">
+          <button
+            onClick={() => setShowDetail(!showDetail)}
+            className="w-full flex items-center justify-between p-4"
+          >
+            <h3 className="text-sm font-medium text-[#333333]">收支明细</h3>
+            <span className="text-xs text-brand">{showDetail ? "收起" : `查看 (${records.length}条)`}</span>
+          </button>
+          {showDetail && (
+            <div className="px-4 pb-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-[#EEEEEE]">
+                      <th className="text-left py-2 text-[#999999] font-normal">日期</th>
+                      <th className="text-left py-2 text-[#999999] font-normal">商户</th>
+                      <th className="text-left py-2 text-[#999999] font-normal">分类</th>
+                      <th className="text-right py-2 text-[#999999] font-normal">金额</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {records
+                      .filter((r) => !month || r.invoiceDate?.startsWith(month))
+                      .map((r) => {
+                        const cat = CATEGORY_MAP[r.categoryCode];
+                        return (
+                          <tr key={r.id} className="border-b border-[#F5F5F5]">
+                            <td className="py-2 text-[#666666] whitespace-nowrap">{r.invoiceDate || "-"}</td>
+                            <td className="py-2 text-[#333333] max-w-[100px] truncate">{r.merchantName || "-"}</td>
+                            <td className="py-2">
+                              <span
+                                className="inline-block px-1.5 py-0.5 rounded text-[10px] text-white"
+                                style={{ backgroundColor: cat?.color || "#999" }}
+                              >
+                                {cat?.l1 || "其他"}
+                              </span>
+                            </td>
+                            <td className={`py-2 text-right whitespace-nowrap font-medium ${r.direction === "income" ? "text-success" : "text-error"}`}>
+                              {r.direction === "income" ? "+" : "-"}¥{formatAmount(r.amount)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
         </>
         )}
       </div>

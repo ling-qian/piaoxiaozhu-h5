@@ -30,6 +30,7 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(initialUser.name || "");
   const [savingName, setSavingName] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
 
   async function handleSaveName() {
     const trimmed = nameInput.trim();
@@ -124,17 +125,43 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
           </button>
           <button
             className="w-full px-4 py-3.5 flex items-center justify-between border-b border-[#EEEEEE] card-press"
+            onClick={() => showToast(`已使用 ${user.quotaUsed}/${user.quotaTotal} 次识别`, "info")}
           >
             <span className="text-sm">使用统计</span>
             <span className="text-xs text-[#999999]">{user.quotaUsed}/{user.quotaTotal} 次</span>
           </button>
           <button
             className="w-full px-4 py-3.5 flex items-center justify-between card-press"
+            onClick={() => setShowAbout(!showAbout)}
           >
             <span className="text-sm">关于票小助</span>
             <span className="text-xs text-[#999999]">v1.0.0</span>
           </button>
         </div>
+
+        {/* 关于弹窗 */}
+        {showAbout && (
+          <div className="bg-white rounded-md p-5 shadow-card animate-fade-in-up">
+            <div className="text-center mb-4">
+              <div className="text-4xl mb-2">🎫</div>
+              <h3 className="text-lg font-bold text-[#333333]">票小助</h3>
+              <p className="text-xs text-[#999999]">v1.0.0</p>
+            </div>
+            <p className="text-sm text-[#666666] text-center leading-relaxed">
+              餐饮票据智能整理助手<br />
+              拍照识别 · 自动分类 · 报表统计
+            </p>
+            <div className="mt-4 pt-3 border-t border-[#EEEEEE] text-center">
+              <p className="text-xs text-[#BBBBBB]">如有问题请联系客服</p>
+            </div>
+            <button
+              onClick={() => setShowAbout(false)}
+              className="w-full mt-3 text-sm text-brand btn-press"
+            >
+              关闭
+            </button>
+          </div>
+        )}
 
         <button
           onClick={handleLogout}

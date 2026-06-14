@@ -9,7 +9,9 @@ export interface RecordItem {
 }
 
 export interface RecordForReport {
+  id: string;
   direction: string;
+  merchantName: string | null;
   amount: number;
   categoryCode: string;
   invoiceDate: string | null;

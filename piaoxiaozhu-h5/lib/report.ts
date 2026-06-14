@@ -19,9 +19,11 @@ export interface ReportData {
 }
 
 interface RecordForReport {
+  id?: string;
   direction: string;
   amount: number | { toNumber: () => number };
   categoryCode: string;
+  merchantName?: string | null;
   invoiceDate: string | null;
 }
 

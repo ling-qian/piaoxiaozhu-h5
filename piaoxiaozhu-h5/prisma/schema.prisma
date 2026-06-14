@@ -48,6 +48,7 @@ model Record {
   taxAmount         Decimal?  @db.Decimal(12, 2)
   invoiceDate       String?
   invoiceType       String?
+  invoiceNo         String?
   categoryCode      String   @default("other")
   categoryL1        String   @default("其他")
   categoryL2        String?

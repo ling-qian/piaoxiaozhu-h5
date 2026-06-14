@@ -16,6 +16,15 @@ interface ProjectOption {
   name: string;
 }
 
+interface BatchItem {
+  id: string;
+  file: File;
+  preview: string;
+  status: "pending" | "recognizing" | "saving" | "done" | "error";
+  progress: number;
+  error?: string;
+}
+
 function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -24,11 +33,8 @@ function UploadContent() {
 
   const [projectId, setProjectId] = useState(urlProjectId);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("等待上传");
-  const [recognizing, setRecognizing] = useState(false);
+  const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
+  const [processing, setProcessing] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -44,19 +50,47 @@ function UploadContent() {
     }
   }, [urlProjectId, projectId]);
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    if (f) {
-      setFile(f);
-      const reader = new FileReader();
-      reader.onload = () => setPreview(reader.result as string);
-      reader.readAsDataURL(f);
+  function addFiles(files: FileList | File[]) {
+    const newItems: BatchItem[] = Array.from(files)
+      .filter((f) => f.type.startsWith("image/"))
+      .map((f) => ({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file: f,
+        preview: URL.createObjectURL(f),
+        status: "pending" as const,
+        progress: 0,
+      }));
+    if (newItems.length === 0) {
+      showToast("请选择图片文件", "error");
+      return;
     }
+    setBatchItems((prev) => [...prev, ...newItems]);
   }
 
-  async function handleRecognize() {
-    if (!file) return;
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      addFiles(files);
+    }
+    // 重置 input 以便再次选择相同文件
+    if (inputRef.current) inputRef.current.value = "";
+  }
 
+  function removeItem(id: string) {
+    setBatchItems((prev) => {
+      const item = prev.find((i) => i.id === id);
+      if (item) URL.revokeObjectURL(item.preview);
+      return prev.filter((i) => i.id !== id);
+    });
+  }
+
+  function clearAll() {
+    batchItems.forEach((item) => URL.revokeObjectURL(item.preview));
+    setBatchItems([]);
+  }
+
+  async function handleBatchRecognize() {
+    if (batchItems.length === 0) return;
     if (!projectId) {
       showToast("请先选择项目", "error");
       return;
@@ -74,47 +108,72 @@ function UploadContent() {
       return;
     }
 
-    setRecognizing(true);
-    setStatus("正在识别...");
-    setProgress(0);
-
+    setProcessing(true);
     const controller = new AbortController();
     abortRef.current = controller;
 
-    try {
-      const result = await recognizeImage(file, (p) => {
-        setProgress(p);
-        if (p < 100) setStatus(`正在识别... ${p}%`);
-        else setStatus("识别完成，正在保存...");
-      }, controller.signal);
+    const pendingItems = batchItems.filter((i) => i.status === "pending" || i.status === "error");
+    let successCount = 0;
+    let failCount = 0;
 
-      const record = await createRecordFromOcr(projectId, result.rawText, file);
+    for (const item of pendingItems) {
+      if (controller.signal.aborted) break;
 
-      // 图片上传失败提示
-      if ((record as Record<string, unknown>)._imageUploadFailed) {
-        showToast("图片上传失败，但记录已保存", "info");
-      } else {
-        showToast("识别成功", "success");
+      // 更新状态为识别中
+      setBatchItems((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, status: "recognizing" as const, progress: 0 } : i))
+      );
+
+      try {
+        const result = await recognizeImage(
+          item.file,
+          (p) => {
+            setBatchItems((prev) =>
+              prev.map((i) => (i.id === item.id ? { ...i, progress: p } : i))
+            );
+          },
+          controller.signal
+        );
+
+        // 保存
+        setBatchItems((prev) =>
+          prev.map((i) => (i.id === item.id ? { ...i, status: "saving" as const } : i))
+        );
+
+        const record = await createRecordFromOcr(projectId, result.rawText, item.file);
+
+        if ((record as Record<string, unknown>)._imageUploadFailed) {
+          // 图片上传失败但记录已保存
+        }
+
+        setBatchItems((prev) =>
+          prev.map((i) => (i.id === item.id ? { ...i, status: "done" as const, progress: 100 } : i))
+        );
+        successCount++;
+      } catch (err: unknown) {
+        const message = controller.signal.aborted ? "已取消" : (err instanceof Error ? err.message : "识别失败");
+        setBatchItems((prev) =>
+          prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: message } : i))
+        );
+        failCount++;
       }
-      router.push(`/result?project=${projectId}&recordId=${record.id}`);
-    } catch (err: unknown) {
-      if (controller.signal.aborted) {
-        showToast("识别已取消", "info");
-        setStatus("已取消");
-      } else {
-        const message = err instanceof Error ? err.message : "识别失败，请重试";
-        showToast(message, "error");
-        setStatus("识别失败");
-      }
-    } finally {
-      setRecognizing(false);
-      abortRef.current = null;
+    }
+
+    setProcessing(false);
+    abortRef.current = null;
+
+    if (controller.signal.aborted) {
+      showToast("批量识别已取消", "info");
+    } else if (failCount === 0) {
+      showToast(`${successCount} 张票据识别完成`, "success");
+    } else {
+      showToast(`完成 ${successCount} 张，失败 ${failCount} 张`, "info");
     }
   }
 
-  function handleCamera() {
-    inputRef.current?.click();
-  }
+  const pendingCount = batchItems.filter((i) => i.status === "pending" || i.status === "error").length;
+  const doneCount = batchItems.filter((i) => i.status === "done").length;
+  const allDone = batchItems.length > 0 && doneCount === batchItems.length;
 
   return (
     <div className="pb-20">
@@ -150,20 +209,82 @@ function UploadContent() {
           </div>
         )}
 
-        <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-1">
-          {preview ? (
-            <div className="relative w-full h-64 rounded-md bg-gray-50">
-              <Image
-                src={preview}
-                alt="预览"
-                fill
-                className="object-contain rounded-md"
-                unoptimized
-              />
+        {/* 图片列表 */}
+        {batchItems.length > 0 && (
+          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm text-[#666666]">
+                已选 {batchItems.length} 张 {doneCount > 0 && `(完成 ${doneCount})`}
+              </span>
+              {!processing && (
+                <button onClick={clearAll} className="text-xs text-error btn-press">
+                  清空
+                </button>
+              )}
             </div>
-          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {batchItems.map((item) => (
+                <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-50">
+                  <Image
+                    src={item.preview}
+                    alt="预览"
+                    fill
+                    className="object-cover"
+                    unoptimized
+                  />
+                  {/* 状态覆盖层 */}
+                  {item.status === "recognizing" && (
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
+                      <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mb-1" />
+                      <span className="text-white text-xs">{item.progress}%</span>
+                    </div>
+                  )}
+                  {item.status === "saving" && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <span className="text-white text-xs">保存中...</span>
+                    </div>
+                  )}
+                  {item.status === "done" && (
+                    <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
+                      <span className="text-white text-lg">✓</span>
+                    </div>
+                  )}
+                  {item.status === "error" && (
+                    <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center">
+                      <span className="text-white text-lg">✕</span>
+                    </div>
+                  )}
+                  {/* 删除按钮 */}
+                  {!processing && item.status !== "recognizing" && (
+                    <button
+                      onClick={() => removeItem(item.id)}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-xs"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              {/* 添加更多按钮 */}
+              {!processing && (
+                <button
+                  onClick={() => inputRef.current?.click()}
+                  className="aspect-square border-2 border-dashed border-[#EEEEEE] rounded-lg flex flex-col items-center justify-center active:border-brand transition-colors"
+                >
+                  <span className="text-2xl text-[#CCCCCC]">+</span>
+                  <span className="text-[10px] text-[#CCCCCC]">添加</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 空状态 - 上传区域 */}
+        {batchItems.length === 0 && (
+          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-1">
             <div
-              onClick={handleCamera}
+              onClick={() => inputRef.current?.click()}
               className="w-full h-64 border-2 border-dashed border-[#EEEEEE] rounded-md flex flex-col items-center justify-center cursor-pointer active:border-brand transition-colors"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="#CCCCCC" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 mb-2">
@@ -171,67 +292,58 @@ function UploadContent() {
                 <circle cx="12" cy="13" r="4" />
               </svg>
               <p className="text-sm text-[#999999]">点击拍照或选择图片</p>
-              <p className="text-xs text-[#CCCCCC] mt-1">支持 JPG、PNG 格式</p>
+              <p className="text-xs text-[#CCCCCC] mt-1">支持多选，JPG、PNG 格式</p>
             </div>
-          )}
-
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-
-          {preview && (
-            <button
-              onClick={() => {
-                setFile(null);
-                setPreview(null);
-                setProgress(0);
-                setStatus("等待上传");
-              }}
-              className="text-sm text-brand mt-2 btn-press"
-            >
-              重新选择
-            </button>
-          )}
-        </div>
-
-        {(recognizing || progress > 0) && (
-          <OcrProgress progress={progress} status={status} />
+          </div>
         )}
 
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          capture="environment"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {/* 操作按钮 */}
         <div className="flex gap-3 animate-fade-in-up stagger-2">
-          {!preview ? (
+          {batchItems.length === 0 ? (
             <button
-              onClick={handleCamera}
+              onClick={() => inputRef.current?.click()}
               className="flex-1 bg-brand text-white py-3 rounded-xl font-medium btn-press"
             >
               拍照/选图
             </button>
-          ) : recognizing ? (
+          ) : processing ? (
             <button
               onClick={() => abortRef.current?.abort()}
               className="flex-1 bg-red-500 text-white py-3 rounded-xl font-medium btn-press"
             >
               取消识别
             </button>
+          ) : allDone ? (
+            <button
+              onClick={() => router.push(`/project/${projectId}`)}
+              className="flex-1 bg-brand text-white py-3 rounded-xl font-medium btn-press"
+            >
+              查看项目记录
+            </button>
           ) : (
             <button
-              onClick={handleRecognize}
-              disabled={recognizing || !projectId}
+              onClick={handleBatchRecognize}
+              disabled={pendingCount === 0 || !projectId}
               className="flex-1 bg-brand text-white py-3 rounded-xl font-medium disabled:opacity-50 btn-press"
             >
-              {recognizing ? "识别中..." : "开始识别"}
+              开始识别 ({pendingCount} 张)
             </button>
           )}
         </div>
 
         <div className="bg-brand-bg rounded-md p-4 animate-fade-in-up stagger-3">
           <p className="text-xs text-[#666666] leading-relaxed">
-            💡 提示：请确保票据清晰可见，避免反光和遮挡。支持增值税发票、收据、小票等常见票据类型。
+            💡 提示：支持多张票据同时上传。请确保票据清晰可见，避免反光和遮挡。
           </p>
         </div>
       </div>

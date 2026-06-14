@@ -67,6 +67,7 @@ export async function createRecordFromOcr(
       taxAmount: fields.taxAmount,
       invoiceDate: fields.invoiceDate,
       invoiceType: fields.invoiceType,
+      invoiceNo: fields.invoiceNo,
       categoryCode: cat.categoryCode,
       categoryL1: cat.categoryL1,
       categoryL2: cat.categoryL2,
