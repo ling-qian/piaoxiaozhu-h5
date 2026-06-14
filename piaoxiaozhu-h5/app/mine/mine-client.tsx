@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { updateUserName } from "@/lib/actions/user-actions";
 import { useToast } from "@/components/toast";
+import { getLocale, setLocale, t } from "@/lib/i18n";
 import PageHeader from "@/components/page-header";
 import TabBar from "@/components/tab-bar";
 
@@ -31,6 +32,14 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
   const [nameInput, setNameInput] = useState(initialUser.name || "");
   const [savingName, setSavingName] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
+  const [locale, setLocaleState] = useState(getLocale());
+
+  function handleToggleLocale() {
+    const next = locale === "zh" ? "en" : "zh";
+    setLocale(next);
+    setLocaleState(next);
+    showToast(next === "zh" ? "已切换为中文" : "Switched to English", "success");
+  }
 
   async function handleSaveName() {
     const trimmed = nameInput.trim();
@@ -129,6 +138,13 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
           >
             <span className="text-sm">使用统计</span>
             <span className="text-xs text-[#999999]">{user.quotaUsed}/{user.quotaTotal} 次</span>
+          </button>
+          <button
+            className="w-full px-4 py-3.5 flex items-center justify-between border-b border-[#EEEEEE] card-press"
+            onClick={handleToggleLocale}
+          >
+            <span className="text-sm">{t("mine.language", locale) || "语言"}</span>
+            <span className="text-xs text-[#999999]">{locale === "zh" ? "中文" : "English"} →</span>
           </button>
           <button
             className="w-full px-4 py-3.5 flex items-center justify-between card-press"

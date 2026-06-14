@@ -1,0 +1,23 @@
+{
+  "name": "票小助 - 餐饮票据智能整理",
+  "short_name": "票小助",
+  "description": "拍照识别 · 自动分类 · 报表统计，餐饮票据智能整理助手",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#FF6B35",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["finance", "productivity"]
+}

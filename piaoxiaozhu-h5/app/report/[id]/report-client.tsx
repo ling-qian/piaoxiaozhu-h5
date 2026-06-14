@@ -5,8 +5,16 @@ import { useRouter } from "next/navigation";
 import { generateReport } from "@/lib/report";
 import PageHeader from "@/components/page-header";
 import StatCard from "@/components/stat-card";
-import CostChart from "@/components/cost-chart";
-import MonthlyTrend from "@/components/monthly-trend";
+import dynamic from "next/dynamic";
+
+const CostChart = dynamic(() => import("@/components/cost-chart"), {
+  ssr: false,
+  loading: () => <div className="h-52 bg-gray-100 rounded-md animate-pulse" />,
+});
+const MonthlyTrend = dynamic(() => import("@/components/monthly-trend"), {
+  ssr: false,
+  loading: () => <div className="h-52 bg-gray-100 rounded-md animate-pulse" />,
+});
 import { formatAmount } from "@/lib/utils";
 import { useExportCsv } from "@/lib/hooks/use-export-csv";
 import { RecordForReport as Record } from "@/types/record";
