@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useToast } from "@/components/toast";
 import PageHeader from "@/components/page-header";
 
@@ -29,6 +30,29 @@ const plans = [
 
 export default function MemberClient({ currentPlan }: { currentPlan: string }) {
   const { showToast } = useToast();
+  const [purchasing, setPurchasing] = useState<string | null>(null);
+
+  async function handlePurchase(planCode: string) {
+    if (planCode === "free") return;
+    setPurchasing(planCode);
+    try {
+      const res = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planCode }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        showToast(data.error || "创建支付会话失败", "error");
+      }
+    } catch {
+      showToast("网络错误，请重试", "error");
+    } finally {
+      setPurchasing(null);
+    }
+  }
 
   return (
     <div className="pb-20">
@@ -37,6 +61,7 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
       <div className="px-4 -mt-4 space-y-3">
         {plans.map((plan, i) => {
           const isCurrent = plan.code === currentPlan;
+          const isPurchasing = purchasing === plan.code;
           return (
             <div
               key={plan.code}
@@ -76,16 +101,17 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
                 onClick={() =>
                   isCurrent
                     ? showToast("当前套餐", "info")
-                    : showToast("即将开放购买", "info")
+                    : handlePurchase(plan.code)
                 }
-                className={`w-full py-2.5 rounded-xl text-sm font-medium btn-press transition-all duration-200 ${
+                disabled={isPurchasing}
+                className={`w-full py-2.5 rounded-xl text-sm font-medium btn-press transition-all duration-200 disabled:opacity-50 ${
                   isCurrent
                     ? "bg-gray-100 text-[#999999]"
                     : "text-white"
                 }`}
                 style={!isCurrent ? { backgroundColor: plan.color } : undefined}
               >
-                {isCurrent ? "当前套餐" : "立即购买"}
+                {isPurchasing ? "跳转支付..." : isCurrent ? "当前套餐" : "立即购买"}
               </button>
             </div>
           );

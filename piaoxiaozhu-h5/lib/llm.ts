@@ -21,6 +21,25 @@ interface LlmCategorizeResult {
   reason: string;
 }
 
+// ─── LLM 分类缓存（LRU，按商户名缓存） ───
+const LLM_CACHE_MAX = 500;
+const llmCache = new Map<string, LlmCategorizeResult>();
+
+function getCachedResult(merchantName: string | null): LlmCategorizeResult | null {
+  if (!merchantName) return null;
+  return llmCache.get(merchantName) ?? null;
+}
+
+function setCachedResult(merchantName: string | null, result: LlmCategorizeResult): void {
+  if (!merchantName) return;
+  // LRU: 超过上限时删除最早的条目
+  if (llmCache.size >= LLM_CACHE_MAX) {
+    const firstKey = llmCache.keys().next().value;
+    if (firstKey !== undefined) llmCache.delete(firstKey);
+  }
+  llmCache.set(merchantName, result);
+}
+
 export async function llmCategorize(
   merchantName: string | null,
   rawText: string
@@ -28,6 +47,12 @@ export async function llmCategorize(
   if (!LLM_API_KEY) {
     console.warn("[llmCategorize] LLM_API_KEY 未配置，跳过 LLM 分类");
     return null;
+  }
+
+  // 检查缓存
+  const cached = getCachedResult(merchantName);
+  if (cached) {
+    return { ...cached, reason: `缓存命中: ${cached.reason}` };
   }
 
   const controller = new AbortController();
@@ -86,18 +111,22 @@ export async function llmCategorize(
     // 校验 LLM 返回的分类代码是否合法，防止幻觉
     if (!VALID_CATEGORY_CODES.has(categoryCode)) {
       console.warn(`[llmCategorize] LLM 返回了无效分类: ${categoryCode}，降级为 other`);
-      return {
+      const fallbackResult: LlmCategorizeResult = {
         categoryCode: "other",
         categoryL1: "其他",
         reason: `LLM返回无效分类(${categoryCode})，已降级`,
       };
+      setCachedResult(merchantName, fallbackResult);
+      return fallbackResult;
     }
 
-    return {
+    const result: LlmCategorizeResult = {
       categoryCode,
       categoryL1: parsed.categoryL1 || "其他",
       reason: parsed.reason || "LLM分类",
     };
+    setCachedResult(merchantName, result);
+    return result;
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
       console.error("[llmCategorize] 请求超时");

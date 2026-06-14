@@ -1,4 +1,4 @@
-import { MERCHANT_DICT, KEYWORD_MAP, CATEGORY_MAP } from "./constants";
+import { MERCHANT_DICT, MERCHANT_ALIASES, KEYWORD_MAP, CATEGORY_MAP } from "./constants";
 import { llmCategorize } from "./llm";
 
 interface CategorizeResult {
@@ -76,6 +76,7 @@ function tryMerchantMatch(
 ): CategorizeResult | null {
   if (!merchantName) return null;
 
+  // Layer 1a: 精确匹配商户字典
   for (const [merchant, code] of Object.entries(MERCHANT_DICT)) {
     if (merchantName.includes(merchant)) {
       const cat = CATEGORY_MAP[code];
@@ -90,7 +91,59 @@ function tryMerchantMatch(
       }
     }
   }
+
+  // Layer 1b: 别名匹配
+  for (const [alias, primaryKey] of Object.entries(MERCHANT_ALIASES)) {
+    if (merchantName.includes(alias)) {
+      const code = MERCHANT_DICT[primaryKey];
+      const cat = code ? CATEGORY_MAP[code] : undefined;
+      if (cat) {
+        return {
+          categoryCode: cat.code,
+          categoryL1: cat.l1,
+          categoryL2: cat.l2,
+          confidence: 0.95,
+          reason: `商户别名匹配: ${alias} → ${primaryKey}`,
+        };
+      }
+    }
+  }
+
+  // Layer 1c: 模糊匹配 — 商户名包含字典key的子串（去掉常见后缀后匹配）
+  const stripped = stripMerchantSuffix(merchantName);
+  for (const [merchant, code] of Object.entries(MERCHANT_DICT)) {
+    if (stripped.includes(merchant) && !merchantName.includes(merchant)) {
+      const cat = CATEGORY_MAP[code];
+      if (cat) {
+        return {
+          categoryCode: cat.code,
+          categoryL1: cat.l1,
+          categoryL2: cat.l2,
+          confidence: 0.8,
+          reason: `商户模糊匹配: ${merchantName} → ${merchant}`,
+        };
+      }
+    }
+  }
+
   return null;
+}
+
+/** 去掉商户名中的常见后缀词，提取核心名称 */
+function stripMerchantSuffix(name: string): string {
+  const suffixes = [
+    "有限公司", "有限责任公司", "股份公司", "股份有限公司",
+    "分公司", "分店", "门店", "加盟店", "直营店",
+    "科技", "网络", "信息", "服务", "管理", "咨询",
+    "餐饮", "食品", "商贸", "贸易", "供应链",
+  ];
+  let result = name;
+  for (const suffix of suffixes) {
+    if (result.endsWith(suffix)) {
+      result = result.slice(0, -suffix.length);
+    }
+  }
+  return result;
 }
 
 function tryKeywordMatch(rawText: string): CategorizeResult | null {

@@ -25,6 +25,28 @@ export const MERCHANT_DICT: Record<string, string> = {
   支付宝: "platform_fee",
 };
 
+/** 商户别名表：别名 → 主键（对应 MERCHANT_DICT 的 key） */
+export const MERCHANT_ALIASES: Record<string, string> = {
+  美团外卖: "美团",
+  美团买菜: "美团",
+  美团优选: "美团",
+  美团到店: "美团",
+  美团配送: "美团",
+  饿了么星选: "饿了么",
+  点评: "大众点评",
+  大众点评网: "大众点评",
+  抖音生活服务: "抖音",
+  抖音电商: "抖音",
+  抖音外卖: "抖音",
+  头条: "字节跳动",
+  今日头条: "字节跳动",
+  飞书: "字节跳动",
+  微信: "微信支付",
+  财付通: "微信支付",
+  蚂蚁金服: "支付宝",
+  网商银行: "支付宝",
+};
+
 export const KEYWORD_MAP: Record<string, string> = {
   食材: "food_material",
   蔬菜: "food_material",

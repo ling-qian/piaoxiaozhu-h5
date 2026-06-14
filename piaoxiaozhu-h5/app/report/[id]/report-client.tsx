@@ -6,6 +6,7 @@ import { generateReport } from "@/lib/report";
 import PageHeader from "@/components/page-header";
 import StatCard from "@/components/stat-card";
 import CostChart from "@/components/cost-chart";
+import MonthlyTrend from "@/components/monthly-trend";
 import { formatAmount } from "@/lib/utils";
 import { useExportCsv } from "@/lib/hooks/use-export-csv";
 import { RecordForReport as Record } from "@/types/record";
@@ -19,7 +20,12 @@ export default function ReportClient({
 }) {
   const router = useRouter();
   const { exporting, handleExport } = useExportCsv(projectId);
-  const [month, setMonth] = useState("");
+  const currentMonth = useMemo(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  }, []);
+
+  const [month, setMonth] = useState(() => currentMonth);
 
   const months = useMemo(() => {
     const set = new Set<string>();
@@ -29,9 +35,12 @@ export default function ReportClient({
     return Array.from(set).sort().reverse();
   }, [records]);
 
+  // 当月无数据时回退到"全部"
+  const effectiveMonth = month && months.length > 0 && !months.includes(month) ? "" : month;
+
   const report = useMemo(
-    () => generateReport(records, month || undefined),
-    [records, month]
+    () => generateReport(records, effectiveMonth || undefined),
+    [records, effectiveMonth]
   );
 
   return (
@@ -81,7 +90,7 @@ export default function ReportClient({
         <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-3">
           <label className="block text-sm text-[#666666] mb-2">月份筛选</label>
           <select
-            value={month}
+            value={effectiveMonth}
             onChange={(e) => setMonth(e.target.value)}
             className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2 text-sm focus:border-brand focus:outline-none"
           >
@@ -95,7 +104,7 @@ export default function ReportClient({
         </div>
 
         <button
-          onClick={() => handleExport(month)}
+          onClick={() => handleExport(effectiveMonth)}
           disabled={exporting}
           className="w-full bg-white text-brand py-3 rounded-xl text-sm font-medium shadow-card disabled:opacity-50 btn-press animate-fade-in-up stagger-3 flex items-center justify-center gap-2"
         >
@@ -112,19 +121,8 @@ export default function ReportClient({
         </div>
 
         {report.monthlyData.length > 0 && (
-          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-5">
-            <h3 className="text-sm font-medium text-[#333333] mb-3">月度趋势</h3>
-            <div className="space-y-2">
-              {report.monthlyData.map((d) => (
-                <div key={d.month} className="flex items-center justify-between text-sm">
-                  <span className="text-[#666666]">{d.month}</span>
-                  <div className="flex gap-4">
-                    <span className="text-success">+¥{formatAmount(d.income)}</span>
-                    <span className="text-error">-¥{formatAmount(d.expense)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="animate-fade-in-up stagger-5">
+            <MonthlyTrend data={report.monthlyData} />
           </div>
         )}
         </>

@@ -9,18 +9,19 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String?
-  avatarUrl    String?
-  planCode     String   @default("free")
-  quotaTotal   Int      @default(10)
-  quotaUsed    Int      @default(0)
-  projects     Project[]
-  records      Record[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String   @id @default(cuid())
+  email            String   @unique
+  passwordHash     String
+  name             String?
+  avatarUrl        String?
+  planCode         String   @default("free")
+  quotaTotal       Int      @default(10)
+  quotaUsed        Int      @default(0)
+  stripeCustomerId String?
+  projects         Project[]
+  records          Record[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@map("users")
 }
