@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getStripe } from "@/lib/stripe";
+import { STRIPE_SECRET_KEY } from "@/lib/env";
 
-const PLAN_CONFIG: Record<string, { priceId: string; quotaTotal: number }> = {
-  pro: {
-    priceId: process.env.STRIPE_PRO_PRICE_ID!,
-    quotaTotal: 100,
-  },
-  enterprise: {
-    priceId: process.env.STRIPE_ENTERPRISE_PRICE_ID!,
-    quotaTotal: 999999,
-  },
+const PLAN_CONFIG: Record<string, { quotaTotal: number }> = {
+  pro: { quotaTotal: 100 },
+  enterprise: { quotaTotal: 999999 },
 };
 
 export async function POST(req: NextRequest) {
@@ -30,39 +24,61 @@ export async function POST(req: NextRequest) {
 
   const config = PLAN_CONFIG[planCode];
 
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) {
-    return NextResponse.json({ error: "用户不存在" }, { status: 404 });
-  }
-
   try {
-    const stripe = getStripe();
-    let customerId = user.stripeCustomerId;
+    // 如果配置了 Stripe，走 Stripe 支付流程
+    if (STRIPE_SECRET_KEY) {
+      const { getStripe } = await import("@/lib/stripe");
+      const { STRIPE_PRO_PRICE_ID, STRIPE_ENTERPRISE_PRICE_ID, NEXT_PUBLIC_BASE_URL } = await import("@/lib/env");
 
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: { userId: user.id },
+      const PRICE_MAP: Record<string, string> = {
+        pro: STRIPE_PRO_PRICE_ID,
+        enterprise: STRIPE_ENTERPRISE_PRICE_ID,
+      };
+
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user) {
+        return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+      }
+
+      const stripe = getStripe();
+      let customerId = user.stripeCustomerId;
+
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email,
+          metadata: { userId: user.id },
+        });
+        customerId = customer.id;
+        await prisma.user.update({
+          where: { id: userId },
+          data: { stripeCustomerId: customerId },
+        });
+      }
+
+      const checkoutSession = await stripe.checkout.sessions.create({
+        customer: customerId,
+        mode: "subscription",
+        line_items: [{ price: PRICE_MAP[planCode], quantity: 1 }],
+        success_url: `${NEXT_PUBLIC_BASE_URL}/member?success=1`,
+        cancel_url: `${NEXT_PUBLIC_BASE_URL}/member?cancel=1`,
+        metadata: { userId, planCode },
       });
-      customerId = customer.id;
-      await prisma.user.update({
-        where: { id: userId },
-        data: { stripeCustomerId: customerId },
-      });
+
+      return NextResponse.json({ url: checkoutSession.url });
     }
 
-    const checkoutSession = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: "subscription",
-      line_items: [{ price: config.priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://piaoxiaozhu-h5.vercel.app"}/member?success=1`,
-      cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || "https://piaoxiaozhu-h5.vercel.app"}/member?cancel=1`,
-      metadata: { userId, planCode },
+    // 未配置 Stripe：直接升级（开发/测试模式）
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        planCode,
+        quotaTotal: config.quotaTotal,
+      },
     });
 
-    return NextResponse.json({ url: checkoutSession.url });
+    return NextResponse.json({ success: true, planCode });
   } catch (err) {
-    console.error("[Stripe Checkout] Error:", err);
-    return NextResponse.json({ error: "创建支付会话失败" }, { status: 500 });
+    console.error("[Checkout] Error:", err);
+    return NextResponse.json({ error: "升级失败，请重试" }, { status: 500 });
   }
 }

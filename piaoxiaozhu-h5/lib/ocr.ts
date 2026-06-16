@@ -5,7 +5,7 @@ export interface OcrResult {
   confidence: number;
 }
 
-const OCR_TIMEOUT_MS = 60_000; // OCR 最大 60 秒
+const OCR_TIMEOUT_MS = 90_000; // OCR 最大 90 秒
 
 function preprocessImage(file: File | Blob): Promise<Blob> {
   return new Promise((resolve) => {
@@ -18,11 +18,11 @@ function preprocessImage(file: File | Blob): Promise<Blob> {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        // canvas 不可用时直接返回原图
         resolve(file);
         return;
       }
 
+      // 限制最大尺寸，避免内存溢出
       const maxDim = 2048;
       let { width, height } = img;
       if (width > maxDim || height > maxDim) {
@@ -31,6 +31,7 @@ function preprocessImage(file: File | Blob): Promise<Blob> {
         height = Math.round(height * scale);
       }
 
+      // 放大小图以提高识别率
       const scale = Math.min(2, 1200 / Math.min(width, height));
       canvas.width = Math.round(width * scale);
       canvas.height = Math.round(height * scale);
@@ -42,11 +43,16 @@ function preprocessImage(file: File | Blob): Promise<Blob> {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
+      // 计算灰度值
       const grayValues: number[] = [];
       for (let i = 0; i < data.length; i += 4) {
         grayValues.push(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]);
       }
 
+      // 计算平均亮度判断票据类型
+      const avgBrightness = grayValues.reduce((a, b) => a + b, 0) / grayValues.length;
+
+      // Otsu 自适应阈值
       const histogram = new Array(256).fill(0);
       for (const g of grayValues) histogram[Math.min(255, Math.round(g))]++;
       const total = grayValues.length;
@@ -74,12 +80,39 @@ function preprocessImage(file: File | Blob): Promise<Blob> {
         }
       }
 
-      for (let i = 0; i < data.length; i += 4) {
-        const gray = grayValues[i / 4];
-        const val = gray > threshold ? 255 : 0;
-        data[i] = val;
-        data[i + 1] = val;
-        data[i + 2] = val;
+      // 根据亮度选择处理策略
+      if (avgBrightness > 200) {
+        // 浅色票据（白底）：增强对比度，不做二值化
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = grayValues[i / 4];
+          // 增强对比度：将暗色区域加深
+          const enhanced = gray < threshold
+            ? Math.max(0, gray * 0.6)
+            : Math.min(255, 128 + (gray - 128) * 1.5);
+          data[i] = enhanced;
+          data[i + 1] = enhanced;
+          data[i + 2] = enhanced;
+        }
+      } else if (avgBrightness > 150) {
+        // 中等亮度：轻度二值化，保留灰度层次
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = grayValues[i / 4];
+          const val = gray > threshold + 20 ? 255
+            : gray < threshold - 20 ? 0
+            : gray;
+          data[i] = val;
+          data[i + 1] = val;
+          data[i + 2] = val;
+        }
+      } else {
+        // 暗色票据：强二值化
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = grayValues[i / 4];
+          const val = gray > threshold ? 255 : 0;
+          data[i] = val;
+          data[i + 1] = val;
+          data[i + 2] = val;
+        }
       }
       ctx.putImageData(imageData, 0, 0);
 
@@ -102,22 +135,49 @@ function preprocessImage(file: File | Blob): Promise<Blob> {
 export function cleanOcrText(text: string): string {
   let cleaned = text;
 
+  // 移除零宽字符
   cleaned = cleaned.replace(/[\u200B-\u200D\uFEFF]/g, "");
 
+  // 常见 OCR 字符修正
   const ocrCharFixes: [RegExp, string][] = [
+    // 金额符号修正
     [/又/g, "¥"],
     [/￥/g, "¥"],
     [/玛/g, "¥"],
+    [/¥\s*¥/g, "¥"],
+    // 数字中混入字母
     [/0O(?=\d)/g, "00"],
     [/(?<=\d)O(?=\d)/g, "0"],
     [/(?<=\d)l(?=\d)/g, "1"],
     [/(?<=\d)I(?=\d)/g, "1"],
+    [/(?<=\d)S(?=\d)/g, "5"],
+    [/(?<=\d)B(?=\d)/g, "8"],
+    // 常见汉字 OCR 错误
+    [/发累/g, "发票"],
+    [/发栗/g, "发票"],
+    [/税额/g, "税额"],
+    [/合汁/g, "合计"],
+    [/大写/g, "大写"],
+    [/小写/g, "小写"],
+    [/人民市/g, "人民币"],
+    [/人民巾/g, "人民币"],
+    [/价税/g, "价税"],
+    [/合认/g, "合计"],
+    [/金颧/g, "金额"],
+    [/金颠/g, "金额"],
+    [/收款/g, "收款"],
+    [/付款/g, "付款"],
+    [/购买方/g, "购买方"],
+    [/销售方/g, "销售方"],
+    // 日期格式修正
+    [/(\d{4})年(\d{1,2})月(\d{1,2})日/g, "$1-$2-$3"],
   ];
 
   for (const [pattern, replacement] of ocrCharFixes) {
     cleaned = cleaned.replace(pattern, replacement);
   }
 
+  // 合并中文字符间的多余空格
   const lines = cleaned.split("\n");
   const merged: string[] = [];
   for (const line of lines) {
@@ -151,6 +211,8 @@ export async function recognizeImage(
         onProgress(Math.round(info.progress * 100));
       }
     },
+    // 从本地 public/tessdata 加载语言包，避免 CDN 被墙导致乱码
+    langPath: "/tessdata",
     tessedit_pageseg_mode: "6",
     preserve_interword_spaces: "1",
   };

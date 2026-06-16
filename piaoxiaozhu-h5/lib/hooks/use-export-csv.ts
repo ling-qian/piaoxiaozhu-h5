@@ -7,14 +7,10 @@ export function useExportCsv(projectId: string) {
   const [exporting, setExporting] = useState(false);
   const { showToast } = useToast();
 
-  async function handleExport(month?: string) {
+  async function handleExport() {
     setExporting(true);
     try {
-      const res = await fetch("/api/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId, format: "csv", month }),
-      });
+      const res = await fetch(`/api/export/csv?projectId=${projectId}`);
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || "导出失败");
@@ -23,7 +19,11 @@ export function useExportCsv(projectId: string) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `report-${projectId}${month ? `-${month}` : ""}.csv`;
+
+      const disposition = res.headers.get("Content-Disposition");
+      const match = disposition?.match(/filename="(.+?)"/);
+      a.download = match ? decodeURIComponent(match[1]) : `records_export.csv`;
+
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

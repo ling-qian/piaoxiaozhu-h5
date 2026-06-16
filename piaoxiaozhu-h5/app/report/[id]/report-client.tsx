@@ -112,7 +112,7 @@ export default function ReportClient({
         </div>
 
         <button
-          onClick={() => handleExport(effectiveMonth)}
+          onClick={() => handleExport()}
           disabled={exporting}
           className="w-full bg-white text-brand py-3 rounded-xl text-sm font-medium shadow-card disabled:opacity-50 btn-press animate-fade-in-up stagger-3 flex items-center justify-center gap-2"
         >

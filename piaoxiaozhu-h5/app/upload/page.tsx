@@ -25,6 +25,9 @@ interface BatchItem {
   error?: string;
 }
 
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+const MAX_FILES = 20;
+
 function UploadContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -35,6 +38,7 @@ function UploadContent() {
   const [projects, setProjects] = useState<ProjectOption[]>([]);
   const [batchItems, setBatchItems] = useState<BatchItem[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,19 +55,34 @@ function UploadContent() {
   }, [urlProjectId, projectId]);
 
   function addFiles(files: FileList | File[]) {
-    const newItems: BatchItem[] = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .map((f) => ({
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        file: f,
-        preview: URL.createObjectURL(f),
-        status: "pending" as const,
-        progress: 0,
-      }));
-    if (newItems.length === 0) {
-      showToast("请选择图片文件", "error");
+    const fileArray = Array.from(files);
+
+    if (batchItems.length + fileArray.length > MAX_FILES) {
+      showToast(`最多支持 ${MAX_FILES} 张图片`, "error");
       return;
     }
+
+    const newItems: BatchItem[] = [];
+    for (const f of fileArray) {
+      const isImage = f.type.startsWith("image/");
+      const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
+      if (!isImage && !isPdf) {
+        showToast(`"${f.name}" 不是图片或PDF文件，已跳过`, "error");
+        continue;
+      }
+      if (f.size > MAX_FILE_SIZE) {
+        showToast(`"${f.name}" 超过 20MB，已跳过`, "error");
+        continue;
+      }
+      newItems.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        file: f,
+        preview: isPdf ? "" : URL.createObjectURL(f),
+        status: "pending" as const,
+        progress: 0,
+      });
+    }
+    if (newItems.length === 0) return;
     setBatchItems((prev) => [...prev, ...newItems]);
   }
 
@@ -125,22 +144,99 @@ function UploadContent() {
       );
 
       try {
-        const result = await recognizeImage(
-          item.file,
-          (p) => {
-            setBatchItems((prev) =>
-              prev.map((i) => (i.id === item.id ? { ...i, progress: p } : i))
-            );
-          },
-          controller.signal
-        );
+        // 优先使用服务端视觉模型 OCR（准确率高）
+        let ocrResult: { rawText: string; confidence: number } | null = null;
+
+        try {
+          setBatchItems((prev) =>
+            prev.map((i) => (i.id === item.id ? { ...i, status: "recognizing" as const, progress: 10 } : i))
+          );
+
+          const formData = new FormData();
+          formData.append("image", item.file);
+
+          const ocrResponse = await fetch("/api/ocr", {
+            method: "POST",
+            body: formData,
+            signal: controller.signal,
+          });
+
+          if (ocrResponse.ok) {
+            const visionResult = await ocrResponse.json();
+            ocrResult = {
+              rawText: visionResult.rawText || "",
+              confidence: visionResult.confidence || 0.9,
+            };
+
+            // 如果视觉模型返回了结构化字段，直接用
+            if (visionResult.merchantName || visionResult.totalAmount) {
+              // 保存时把视觉模型的结构化结果也传入
+              setBatchItems((prev) =>
+                prev.map((i) => (i.id === item.id ? { ...i, progress: 80 } : i))
+              );
+
+              const record = await createRecordFromOcr(
+                projectId,
+                ocrResult.rawText,
+                item.file,
+                {
+                  merchantName: visionResult.merchantName,
+                  totalAmount: visionResult.totalAmount,
+                  taxAmount: visionResult.taxAmount,
+                  amountWithoutTax: visionResult.amountWithoutTax,
+                  taxRate: visionResult.taxRate,
+                  invoiceDate: visionResult.invoiceDate,
+                  invoiceType: visionResult.invoiceType,
+                  invoiceNo: visionResult.invoiceNo,
+                  invoiceCode: visionResult.invoiceCode,
+                  checkCode: visionResult.checkCode,
+                  buyerName: visionResult.buyerName,
+                  buyerTaxNo: visionResult.buyerTaxNo,
+                  sellerTaxNo: visionResult.sellerTaxNo,
+                  items: visionResult.items,
+                }
+              );
+
+              setBatchItems((prev) =>
+                prev.map((i) => (i.id === item.id ? { ...i, status: "done" as const, progress: 100 } : i))
+              );
+              successCount++;
+              continue; // 跳过 Tesseract 备用流程
+            }
+          } else {
+            console.warn("[Upload] 视觉模型 OCR 失败，降级到 Tesseract.js");
+          }
+        } catch (visionErr) {
+          console.warn("[Upload] 视觉模型 OCR 异常，降级到 Tesseract.js:", visionErr);
+        }
+
+        // 备用：Tesseract.js 客户端 OCR（仅图片文件，PDF 不支持）
+        const isPdf = item.file.type === "application/pdf" || item.file.name.toLowerCase().endsWith(".pdf");
+        if (!ocrResult && !isPdf) {
+          ocrResult = await recognizeImage(
+            item.file,
+            (p) => {
+              setBatchItems((prev) =>
+                prev.map((i) => (i.id === item.id ? { ...i, progress: p } : i))
+              );
+            },
+            controller.signal
+          );
+        }
+
+        if (!ocrResult && isPdf) {
+          setBatchItems((prev) =>
+            prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: "PDF识别失败，请尝试截图后上传" } : i))
+          );
+          continue;
+        }
 
         // 保存
         setBatchItems((prev) =>
           prev.map((i) => (i.id === item.id ? { ...i, status: "saving" as const } : i))
         );
 
-        const record = await createRecordFromOcr(projectId, result.rawText, item.file);
+        const record = await createRecordFromOcr(projectId, ocrResult!.rawText, item.file);
 
         if ((record as Record<string, unknown>)._imageUploadFailed) {
           // 图片上传失败但记录已保存
@@ -222,43 +318,55 @@ function UploadContent() {
                 </button>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-3 gap-3">
               {batchItems.map((item) => (
                 <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-50">
-                  <Image
-                    src={item.preview}
-                    alt="预览"
-                    fill
-                    className="object-cover"
-                    unoptimized
-                  />
+                  {item.preview ? (
+                    <Image
+                      src={item.preview}
+                      alt="预览"
+                      fill
+                      className="object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-red-50">
+                      <span className="text-3xl">📄</span>
+                      <span className="text-xs text-red-400 mt-1 px-1 truncate w-full text-center">{item.file.name}</span>
+                    </div>
+                  )}
                   {/* 状态覆盖层 */}
                   {item.status === "recognizing" && (
                     <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center">
                       <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin mb-1" />
-                      <span className="text-white text-xs">{item.progress}%</span>
+                      <span className="text-white text-xs font-medium">{item.progress}%</span>
                     </div>
                   )}
                   {item.status === "saving" && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <span className="text-white text-xs">保存中...</span>
+                      <span className="text-white text-xs font-medium">保存中...</span>
                     </div>
                   )}
                   {item.status === "done" && (
                     <div className="absolute inset-0 bg-green-500/30 flex items-center justify-center">
-                      <span className="text-white text-lg">✓</span>
+                      <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
                     </div>
                   )}
                   {item.status === "error" && (
-                    <div className="absolute inset-0 bg-red-500/30 flex items-center justify-center">
-                      <span className="text-white text-lg">✕</span>
+                    <div className="absolute inset-0 bg-red-500/30 flex flex-col items-center justify-center px-1">
+                      <svg className="w-6 h-6 text-white mb-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      {item.error && <span className="text-white text-[9px] leading-tight text-center">{item.error.slice(0, 12)}</span>}
                     </div>
                   )}
-                  {/* 删除按钮 */}
+                  {/* 删除按钮 - 更大的触摸区域 */}
                   {!processing && item.status !== "recognizing" && (
                     <button
                       onClick={() => removeItem(item.id)}
-                      className="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-xs"
+                      className="absolute top-1 right-1 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center text-white text-xs active:bg-black/80"
                     >
                       ✕
                     </button>
@@ -270,10 +378,10 @@ function UploadContent() {
               {!processing && (
                 <button
                   onClick={() => inputRef.current?.click()}
-                  className="aspect-square border-2 border-dashed border-[#EEEEEE] rounded-lg flex flex-col items-center justify-center active:border-brand transition-colors"
+                  className="aspect-square border-2 border-dashed border-[#DDDDDD] rounded-lg flex flex-col items-center justify-center active:border-brand active:bg-brand-bg transition-colors"
                 >
                   <span className="text-2xl text-[#CCCCCC]">+</span>
-                  <span className="text-[10px] text-[#CCCCCC]">添加</span>
+                  <span className="text-[10px] text-[#CCCCCC] mt-0.5">添加</span>
                 </button>
               )}
             </div>
@@ -285,14 +393,29 @@ function UploadContent() {
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-1">
             <div
               onClick={() => inputRef.current?.click()}
-              className="w-full h-64 border-2 border-dashed border-[#EEEEEE] rounded-md flex flex-col items-center justify-center cursor-pointer active:border-brand transition-colors"
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOver(false);
+                if (e.dataTransfer.files.length > 0) {
+                  addFiles(e.dataTransfer.files);
+                }
+              }}
+              className={`w-full min-h-[200px] border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${
+                dragOver
+                  ? "border-brand bg-brand-bg scale-[1.02]"
+                  : "border-[#EEEEEE] active:border-brand"
+              }`}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="#CCCCCC" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 mb-2">
+              <svg viewBox="0 0 24 24" fill="none" stroke={dragOver ? "#FF6B35" : "#CCCCCC"} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" className="w-12 h-12 mb-2 transition-colors">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
                 <circle cx="12" cy="13" r="4" />
               </svg>
-              <p className="text-sm text-[#999999]">点击拍照或选择图片</p>
-              <p className="text-xs text-[#CCCCCC] mt-1">支持多选，JPG、PNG 格式</p>
+              <p className={`text-sm transition-colors ${dragOver ? "text-brand" : "text-[#999999]"}`}>
+                {dragOver ? "松开即可上传" : "点击拍照、选择图片或PDF"}
+              </p>
+              <p className="text-xs text-[#CCCCCC] mt-1">支持多选，JPG/PNG/PDF，单文件不超过 20MB</p>
             </div>
           </div>
         )}
@@ -300,7 +423,7 @@ function UploadContent() {
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept="image/*,.pdf"
           multiple
           capture="environment"
           onChange={handleFileChange}

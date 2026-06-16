@@ -1,5 +1,8 @@
-const CACHE_NAME = "piaoxiaozhu-v1";
-const PRECACHE_URLS = ["/", "/auth/login", "/toolkit"];
+const CACHE_NAME = "piaoxiaozhu-v2";
+const PRECACHE_URLS = ["/", "/auth/login", "/toolkit", "/upload", "/result"];
+
+// 离线回退页面（缓存中没有匹配时的兜底）
+const FALLBACK_URL = "/";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -26,8 +29,8 @@ self.addEventListener("fetch", (event) => {
   // API 请求不缓存
   if (request.url.includes("/api/")) return;
 
-  // 静态资源：缓存优先
-  if (request.url.includes("/_next/static/")) {
+  // 静态资源：缓存优先（CacheFirst）
+  if (request.url.includes("/_next/static/") || request.url.match(/\.(png|jpg|jpeg|svg|woff2?|ttf)$/)) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) return cached;
@@ -37,13 +40,13 @@ self.addEventListener("fetch", (event) => {
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           }
           return response;
-        });
+        }).catch(() => new Response("Not cached", { status: 504 }));
       })
     );
     return;
   }
 
-  // 页面请求：网络优先，离线回退缓存
+  // 页面请求：网络优先（NetworkFirst），离线回退缓存
   event.respondWith(
     fetch(request)
       .then((response) => {
@@ -53,6 +56,6 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("/")))
+      .catch(() => caches.match(request).then((cached) => cached || caches.match(FALLBACK_URL)))
   );
 });

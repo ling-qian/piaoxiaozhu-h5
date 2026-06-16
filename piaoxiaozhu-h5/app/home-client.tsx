@@ -113,6 +113,38 @@ export default function HomeClient({ projects, isLoggedIn }: { projects: Project
           </div>
         ) : (
           <>
+            {/* 快捷操作 */}
+            <div className="grid grid-cols-2 gap-3 animate-fade-in-up">
+              <button
+                onClick={async () => {
+                  if (projectList.length > 0) {
+                    router.push(`/upload?project=${projectList[0].id}`);
+                  } else {
+                    setShowCreate(true);
+                  }
+                }}
+                className="bg-brand text-white rounded-xl p-4 text-center btn-press shadow-card"
+              >
+                <div className="text-3xl mb-1">📷</div>
+                <div className="text-sm font-medium">拍照识别</div>
+                <div className="text-xs opacity-80 mt-0.5">上传票据自动识别</div>
+              </button>
+              <button
+                onClick={async () => {
+                  if (projectList.length > 0) {
+                    router.push(`/result?project=${projectList[0].id}&manual=1`);
+                  } else {
+                    setShowCreate(true);
+                  }
+                }}
+                className="bg-white border border-brand text-brand rounded-xl p-4 text-center btn-press shadow-card"
+              >
+                <div className="text-3xl mb-1">✏️</div>
+                <div className="text-sm font-medium">手动录入</div>
+                <div className="text-xs opacity-70 mt-0.5">手动填写票据信息</div>
+              </button>
+            </div>
+
             <div className="flex items-center justify-between animate-fade-in">
               <h2 className="text-base font-semibold text-[#333333]">我的项目</h2>
               <button

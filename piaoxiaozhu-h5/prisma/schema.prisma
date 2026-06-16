@@ -27,14 +27,17 @@ model User {
 }
 
 model Project {
-  id        String   @id @default(cuid())
-  userId    String
-  name      String
-  industry  String   @default("restaurant")
-  records   Record[]
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String    @id @default(cuid())
+  userId        String
+  name          String
+  industry      String    @default("restaurant")
+  aiAnalysis    String?
+  aiAnalysisAt  DateTime?
+  deletedAt     DateTime?
+  records       Record[]
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   @@map("projects")
 }
@@ -45,11 +48,19 @@ model Record {
   userId            String
   direction         String   @default("out")
   merchantName      String?
-  amount        Decimal  @db.Decimal(12, 2)
+  amount            Decimal  @db.Decimal(12, 2)
   taxAmount         Decimal?  @db.Decimal(12, 2)
+  amountWithoutTax  Decimal?  @db.Decimal(12, 2)
+  taxRate           Float?
   invoiceDate       String?
   invoiceType       String?
   invoiceNo         String?
+  invoiceCode       String?
+  checkCode         String?
+  buyerName         String?
+  buyerTaxNo        String?
+  sellerTaxNo       String?
+  items             String?
   categoryCode      String   @default("other")
   categoryL1        String   @default("其他")
   categoryL2        String?

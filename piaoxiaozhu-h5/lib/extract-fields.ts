@@ -1,12 +1,29 @@
 import { cleanOcrText } from "./ocr";
 
+export interface InvoiceItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+  amount: number;
+  taxRate: number;
+  taxAmount: number;
+}
+
 export interface ExtractedFields {
   merchantName: string | null;
   totalAmount: number | null;
   taxAmount: number | null;
+  amountWithoutTax: number | null;
+  taxRate: number | null;
   invoiceDate: string | null;
   invoiceType: string | null;
   invoiceNo: string | null;
+  invoiceCode: string | null;
+  checkCode: string | null;
+  buyerName: string | null;
+  buyerTaxNo: string | null;
+  sellerTaxNo: string | null;
+  items: InvoiceItem[];
 }
 
 /* ───────── helpers ───────── */
@@ -56,6 +73,11 @@ function extractInvoiceNo(text: string): string | null {
 const MERCHANT_PATTERNS: RegExp[] = [
   /销售方名称\s*[：:]\s*(.+?)(?:\s|$)/,
   /销售方\s*[：:]\s*(.+?)(?:\s|$)/,
+  /销售方名称\s+(.+?)(?:\s|$)/,
+  /销售方\s+(.+?)(?:\s|$)/,
+  /^销售方(.+(?:有限责任公司|股份有限公司|有限公司))/m,
+  /商家名称\s*[：:]\s*(.+?)(?:\s|$)/,
+  /商家\s*[：:]\s*(.+?)(?:\s|$)/,
   /商户名称\s*[：:]\s*(.+?)(?:\s|$)/,
   /商户\s*[：:]\s*(.+?)(?:\s|$)/,
   /收款单位\s*[：:]\s*(.+?)(?:\s|$)/,
@@ -63,6 +85,7 @@ const MERCHANT_PATTERNS: RegExp[] = [
   /开票方\s*[：:]\s*(.+?)(?:\s|$)/,
   /销方\s*[：:]\s*(.+?)(?:\s|$)/,
   /销售方信息\s*[：:]\s*(.+?)(?:\s|$)/,
+  /付款给\s*[：:]\s*(.+?)(?:\s|$)/,
 ];
 
 /** 公司名称后缀——出现则大概率是商户名 */
@@ -71,7 +94,7 @@ const COMPANY_SUFFIXES =
 
 /** 应排除的行首关键词 */
 const SKIP_LINE_PREFIXES =
-  /^(金额|税额|价税|合计|总计|日期|发票|备注|税率|购买方|销售方|收款|开票|发票代码|发票号码|校验码|机器|编号|账号|地址|电话|纳税人|识别号|统一社会信用|规格|单位|数量|单价|税率|税额|价税合计|合\s*计|大写|小写|¥|￥|RMB|\d{4}[-/年])/;
+  /^(金额|税额|价税|合计|总计|日期|发票|备注|税率|购买方|收款|开票|发票代码|发票号码|校验码|机器|编号|账号|地址|电话|纳税人|识别号|统一社会信用|规格|单位|数量|单价|税率|税额|价税合计|合\s*计|大写|小写|¥|￥|RMB|\d{4}[-/年])/;
 
 function extractMerchant(text: string): string | null {
   // 1) 精确匹配带标签的商户名
@@ -301,13 +324,23 @@ function extractDate(text: string): string | null {
 /* ───────── 发票类型 ───────── */
 
 const INVOICE_TYPE_MAP: [RegExp, string][] = [
+  // 数电票优先匹配（含"全电"关键词）
+  [/全电.*?增值税.*?专用/, "vat_special_electronic"],
+  [/全电.*?增值税.*?普通/, "vat_normal_electronic"],
+  [/数电.*?增值税.*?专用/, "vat_special_electronic"],
+  [/数电.*?增值税.*?普通/, "vat_normal_electronic"],
+  // 电子发票
   [/增值税.*?电子.*?专用/, "vat_special_electronic"],
   [/增值税.*?电子.*?普通/, "vat_normal_electronic"],
   [/电子发票[\s\S]*?增值税专用/, "vat_special_electronic"],
   [/电子发票[\s\S]*?增值税普通/, "vat_normal_electronic"],
+  [/电子发票[\s\S]*?专用/, "vat_special_electronic"],
+  [/电子发票[\s\S]*?普通/, "vat_normal_electronic"],
+  [/电子发票服务平台/, "electronic"],
+  [/电子发票/, "electronic"],
+  // 纸质发票
   [/增值税专用发票/, "vat_special"],
   [/增值税普通发票/, "vat_normal"],
-  [/电子发票/, "electronic"],
   [/机打发票/, "machine_printed"],
   [/收据/, "receipt"],
   [/小票/, "receipt"],
@@ -320,6 +353,123 @@ function extractType(text: string): string | null {
   return null;
 }
 
+/* ───────── 发票代码 ───────── */
+
+const INVOICE_CODE_PATTERNS = [
+  /发票代码\s*[：:]\s*(\d{10,12})/,
+  /代码\s*[：:]\s*(\d{10,12})/,
+];
+
+function extractInvoiceCode(text: string): string | null {
+  for (const pattern of INVOICE_CODE_PATTERNS) {
+    const m = text.match(pattern);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+/* ───────── 校验码 ───────── */
+
+const CHECK_CODE_PATTERNS = [
+  /校验码\s*[：:]\s*(\d{6,20})/,
+  /验证码\s*[：:]\s*(\d{6,20})/,
+];
+
+function extractCheckCode(text: string): string | null {
+  for (const pattern of CHECK_CODE_PATTERNS) {
+    const m = text.match(pattern);
+    if (m) {
+      const code = m[1];
+      // 只保留后6位
+      return code.length > 6 ? code.slice(-6) : code;
+    }
+  }
+  return null;
+}
+
+/* ───────── 税率 ───────── */
+
+function extractTaxRate(text: string): number | null {
+  const patterns = [
+    /税[率率]\s*[：:]*\s*(\d+(?:\.\d+)?)\s*%/,
+    /(\d+(?:\.\d+)?)\s*%\s*税率/,
+  ];
+  for (const pattern of patterns) {
+    const m = text.match(pattern);
+    if (m) {
+      const rate = parseFloat(m[1]) / 100;
+      if (rate > 0 && rate <= 1) return rate;
+    }
+  }
+  return null;
+}
+
+/* ───────── 购买方/销售方税号 ───────── */
+
+function extractBuyerName(text: string): string | null {
+  const patterns = [
+    /购买方名称\s*[：:]\s*([^\n\r]*?)(?:\s+购买方|购买方纳税人|统一社会|$)/,
+    /购方名称\s*[：:]\s*([^\n\r]*?)(?:\s+购方|$)/,
+    /买方名称?\s*[：:]\s*([^\n\r]*?)(?:\s+买方|$)/,
+  ];
+  for (const pattern of patterns) {
+    const m = text.match(pattern);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+
+function extractBuyerTaxNo(text: string): string | null {
+  const patterns = [
+    /购买方.*?纳税人识别号\s*[：:]\s*([A-Z0-9]{15,20})/,
+    /购买方.*?统一社会信用代码\s*[：:]\s*([A-Z0-9]{18})/,
+    /购方.*?识别号\s*[：:]\s*([A-Z0-9]{15,20})/,
+    /购买方.*?识别号\s*[：:]\s*([A-Z0-9]{15,20})/,
+  ];
+  for (const pattern of patterns) {
+    const m = text.match(pattern);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function extractSellerTaxNo(text: string): string | null {
+  const patterns = [
+    /销售方.*?纳税人识别号\s*[：:]\s*([A-Z0-9]{15,20})/,
+    /销售方.*?统一社会信用代码\s*[：:]\s*([A-Z0-9]{18})/,
+    /销方.*?识别号\s*[：:]\s*([A-Z0-9]{15,20})/,
+    /销售方.*?识别号\s*[：:]\s*([A-Z0-9]{15,20})/,
+  ];
+  for (const pattern of patterns) {
+    const m = text.match(pattern);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+/* ───────── 发票类型深度校验 ───────── */
+
+function validateInvoiceType(type: string | null, invoiceNo: string | null, invoiceCode: string | null): string | null {
+  if (!type || !invoiceNo) return type;
+
+  const noLen = invoiceNo.replace(/\s/g, "").length;
+
+  // 20位号码 → 必定是数电票/电子票
+  if (noLen === 20) {
+    if (type === "vat_special") return "vat_special_electronic";
+    if (type === "vat_normal") return "vat_normal_electronic";
+    if (type === "electronic") return type; // 已经是电子票
+  }
+
+  // 8位号码 + 有发票代码 → 纸质票
+  if (noLen === 8 && invoiceCode) {
+    if (type === "vat_special_electronic") return "vat_special";
+    if (type === "vat_normal_electronic") return "vat_normal";
+  }
+
+  return type;
+}
+
 /* ───────── 主入口 ───────── */
 
 export function extractFields(rawText: string): ExtractedFields {
@@ -328,21 +478,52 @@ export function extractFields(rawText: string): ExtractedFields {
       merchantName: null,
       totalAmount: null,
       taxAmount: null,
+      amountWithoutTax: null,
+      taxRate: null,
       invoiceDate: null,
       invoiceType: null,
       invoiceNo: null,
+      invoiceCode: null,
+      checkCode: null,
+      buyerName: null,
+      buyerTaxNo: null,
+      sellerTaxNo: null,
+      items: [],
     };
   }
 
   const text = cleanOcrText(rawText);
   const amounts = extractAmounts(text);
 
+  // totalAmount 优先取价税合计，否则取金额（不含税）
+  const totalAmount = amounts.totalWithTax ?? amounts.netAmount;
+  const amountWithoutTax = amounts.netAmount;
+
+  const invoiceNo = extractInvoiceNo(text);
+  const invoiceCode = extractInvoiceCode(text);
+  let invoiceType = extractType(text);
+
+  // 深度校验：根据发票号码长度和有无代码修正类型
+  invoiceType = validateInvoiceType(invoiceType, invoiceNo, invoiceCode);
+
+  // 数电票无发票代码
+  const isElectronic = invoiceType?.includes("electronic") || invoiceType === "electronic";
+  const finalInvoiceCode = isElectronic ? null : invoiceCode;
+
   return {
     merchantName: extractMerchant(text),
-    totalAmount: amounts.totalWithTax,
+    totalAmount,
     taxAmount: amounts.taxAmount,
+    amountWithoutTax,
+    taxRate: extractTaxRate(text),
     invoiceDate: extractDate(text),
-    invoiceType: extractType(text),
-    invoiceNo: extractInvoiceNo(text),
+    invoiceType,
+    invoiceNo,
+    invoiceCode: finalInvoiceCode,
+    checkCode: extractCheckCode(text),
+    buyerName: extractBuyerName(text),
+    buyerTaxNo: extractBuyerTaxNo(text),
+    sellerTaxNo: extractSellerTaxNo(text),
+    items: [],
   };
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
+import { STRIPE_WEBHOOK_SECRET } from "@/lib/env";
 
 const PLAN_QUOTA: Record<string, number> = {
   pro: 100,
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
   }
 
   const stripe = getStripe();
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const webhookSecret = STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     console.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured");
     return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });

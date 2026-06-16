@@ -7,9 +7,9 @@ const secret = process.env.AUTH_SECRET;
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // 公开页面：首页、工具箱、登录注册、auth API、Stripe webhook
-  const publicPaths = ["/auth/login", "/auth/register", "/api/auth", "/api/stripe/webhook"];
-  const publicExactPaths = ["/", "/toolkit"];
+  // 公开页面：首页、工具箱、登录注册、auth API、Stripe webhook、OCR 语言包
+  const publicPaths = ["/auth/login", "/auth/register", "/api/auth", "/api/stripe/webhook", "/api/ocr", "/tessdata"];
+  const publicExactPaths = ["/"];
   if (publicPaths.some((p) => pathname.startsWith(p)) || publicExactPaths.includes(pathname)) {
     return NextResponse.next();
   }
