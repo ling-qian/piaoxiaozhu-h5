@@ -2,16 +2,22 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { getRecordsForReport } from "@/lib/actions/record-actions";
 import { generateReport } from "@/lib/report";
 import PageHeader from "@/components/page-header";
 import StatCard from "@/components/stat-card";
 import CostChart from "@/components/cost-chart";
-import { PageSpinner } from "@/components/spinner";
 import { formatAmount } from "@/lib/utils";
 import { CATEGORY_MAP } from "@/lib/constants";
 import { useExportCsv } from "@/lib/hooks/use-export-csv";
 import { RecordForReport as Record } from "@/types/record";
+import ReportSkeleton from "@/components/report-skeleton";
+
+const MonthlyTrend = dynamic(() => import("@/components/monthly-trend"), {
+  ssr: false,
+  loading: () => <div className="h-52 bg-gray-100 rounded-md animate-pulse" />,
+});
 
 interface Project {
   id: string;
@@ -109,7 +115,7 @@ export default function ReportClient({
   }, [searchResults, month]);
 
   if (loading) {
-    return <PageSpinner text="加载报表" />;
+    return <ReportSkeleton />;
   }
 
   return (
@@ -213,18 +219,27 @@ export default function ReportClient({
 
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-3">
             <label className="block text-sm text-[#666666] mb-2">月份筛选</label>
-            <select
-              value={month}
-              onChange={(e) => setMonth(e.target.value)}
-              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2 text-sm focus:border-brand focus:outline-none"
-            >
-              <option value="">全部</option>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+              <button
+                onClick={() => setMonth("")}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  month === "" ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+                }`}
+              >
+                全部
+              </button>
               {months.map((m) => (
-                <option key={m} value={m}>
+                <button
+                  key={m}
+                  onClick={() => setMonth(m)}
+                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    month === m ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+                  }`}
+                >
                   {m}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           <button
@@ -245,19 +260,8 @@ export default function ReportClient({
           </div>
 
           {report.monthlyData.length > 0 && (
-            <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-5">
-              <h3 className="text-sm font-medium text-[#333333] mb-3">月度趋势</h3>
-              <div className="space-y-2">
-                {report.monthlyData.map((d) => (
-                  <div key={d.month} className="flex items-center justify-between text-sm">
-                    <span className="text-[#666666]">{d.month}</span>
-                    <div className="flex gap-4">
-                      <span className="text-success">+¥{formatAmount(d.income)}</span>
-                      <span className="text-error">-¥{formatAmount(d.expense)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="animate-fade-in-up stagger-5">
+              <MonthlyTrend data={report.monthlyData} />
             </div>
           )}
 

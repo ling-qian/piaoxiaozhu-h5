@@ -62,7 +62,10 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
     fetch("/api/payment/qr")
       .then((r) => r.json())
       .then((data) => setQrConfig(data))
-      .catch(() => {});
+      .catch(() => {
+        // QR config is optional — if fetch fails, QR modal will show placeholder images
+        console.warn("Failed to load payment QR config");
+      });
   }, []);
 
   async function handlePurchase(planCode: string) {
@@ -103,6 +106,12 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
     if (!payPlan) return;
     setConfirming(true);
     try {
+      // 只有配置了 Stripe 时才允许手动确认升级（防止无 Stripe 时免费升级）
+      if (!qrConfig?.hasStripe) {
+        showToast("暂未开通在线支付，请联系客服", "error");
+        setShowPayModal(false);
+        return;
+      }
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

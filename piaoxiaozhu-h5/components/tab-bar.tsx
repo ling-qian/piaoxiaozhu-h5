@@ -91,9 +91,11 @@ export default function TabBar({ projectId }: { projectId?: string }) {
                 active ? "text-brand" : "text-[#999999]"
               }`}
             >
-              {active && (
-                <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand rounded-full" />
-              )}
+              <span
+                className={`absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-brand rounded-full transition-opacity duration-300 ${
+                  active ? "opacity-100" : "opacity-0"
+                }`}
+              />
               <span className={`transition-transform duration-200 ${active ? "scale-110" : ""}`}>
                 {tab.icon}
               </span>

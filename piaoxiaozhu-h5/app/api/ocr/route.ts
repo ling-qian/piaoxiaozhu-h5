@@ -3,9 +3,9 @@ import { auth } from "@/lib/auth";
 import { checkQuota } from "@/lib/actions/user-actions";
 import { LLM_BASE_URL, LLM_API_KEY } from "@/lib/env";
 
-// ─── 简单内存限速（单 IP 每分钟上限） ───
+// ─── 简单内存限速（IP + UserID 双维度，每个维度独立限制） ───
 const rateLimitWindow = 60_000; // 60 秒窗口
-const rateLimitMax = 10; // 每个 IP 每分钟最多 10 次
+const rateLimitMax = 10; // 每个维度每分钟最多 10 次
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function rateLimit(key: string): { allowed: boolean } {
@@ -13,8 +13,9 @@ function rateLimit(key: string): { allowed: boolean } {
   const entry = rateLimitMap.get(key);
 
   if (!entry || now > entry.resetAt) {
-    // 新窗口
+    // 新窗口，重置计数
     rateLimitMap.set(key, { count: 1, resetAt: now + rateLimitWindow });
+    // 清理过期条目
     rateLimitMap.forEach((v, k) => {
       if (now > v.resetAt) rateLimitMap.delete(k);
     });
@@ -76,10 +77,19 @@ export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")
     || req.headers.get("x-real-ip")
     || "unknown";
-  const rateResult = rateLimit(ip);
-  if (!rateResult.allowed) {
+  const rateResultIp = rateLimit(`ip:${ip}`);
+  if (!rateResultIp.allowed) {
     return NextResponse.json(
       { error: "请求过于频繁，请稍后再试" },
+      { status: 429 }
+    );
+  }
+
+  // 4. UserID 限速（同一用户独立限制，避免同 IP 下其他用户被误伤）
+  const rateResultUser = rateLimit(`user:${userId}`);
+  if (!rateResultUser.allowed) {
+    return NextResponse.json(
+      { error: "识别过于频繁，请稍后再试" },
       { status: 429 }
     );
   }

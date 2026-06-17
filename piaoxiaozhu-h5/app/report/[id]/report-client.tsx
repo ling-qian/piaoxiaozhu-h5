@@ -97,18 +97,27 @@ export default function ReportClient({
 
         <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-3">
           <label className="block text-sm text-[#666666] mb-2">月份筛选</label>
-          <select
-            value={effectiveMonth}
-            onChange={(e) => setMonth(e.target.value)}
-            className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2 text-sm focus:border-brand focus:outline-none"
-          >
-            <option value="">全部</option>
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+            <button
+              onClick={() => setMonth("")}
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                effectiveMonth === "" ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+              }`}
+            >
+              全部
+            </button>
             {months.map((m) => (
-              <option key={m} value={m}>
+              <button
+                key={m}
+                onClick={() => setMonth(m)}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  effectiveMonth === m ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+                }`}
+              >
                 {m}
-              </option>
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
         <button

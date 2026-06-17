@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/page-header";
+import MarkdownRenderer from "@/components/markdown-renderer";
 import { useToast } from "@/components/toast";
 import {
   BarChart,
@@ -162,17 +163,19 @@ export default function AnalysisClient({
           )}
         </div>
 
-        {/* 加载动画 */}
+        {/* 加载提示条（重新分析时显示，不覆盖已有数据） */}
         {loading && (
-          <div className="bg-white rounded-md p-6 shadow-card animate-fade-in-up text-center">
-            <div className="w-12 h-12 border-3 border-brand/20 border-t-brand rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm text-[#666666]">AI 正在分析您的经营数据...</p>
-            <p className="text-xs text-[#999999] mt-1">通常需要 10-20 秒</p>
+          <div className="bg-white rounded-md p-3 shadow-card animate-fade-in-up flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-brand/20 border-t-brand rounded-full animate-spin shrink-0" />
+            <div>
+              <p className="text-sm text-[#666666]">AI 正在分析您的经营数据...</p>
+              <p className="text-xs text-[#999999]">通常需要 10-20 秒</p>
+            </div>
           </div>
         )}
 
         {/* 数据概览卡片 */}
-        {summary && !loading && (
+        {summary && (
           <div className="grid grid-cols-2 gap-2 animate-fade-in-up">
             <div className="bg-white rounded-md p-3 shadow-card">
               <p className="text-xs text-[#999999]">总收入</p>
@@ -198,7 +201,7 @@ export default function AnalysisClient({
         )}
 
         {/* 月度收支趋势图 */}
-        {summary && !loading && monthlyChartData.length > 0 && (
+        {summary && monthlyChartData.length > 0 && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
             <h3 className="text-sm font-semibold text-[#333333] mb-3">月度收支趋势</h3>
             <ResponsiveContainer width="100%" height={220}>
@@ -220,7 +223,7 @@ export default function AnalysisClient({
         )}
 
         {/* 支出分类饼图 */}
-        {summary && !loading && categoryPieData.length > 0 && (
+        {summary && categoryPieData.length > 0 && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
             <h3 className="text-sm font-semibold text-[#333333] mb-3">支出分类占比</h3>
             <div className="flex items-center">
@@ -264,62 +267,9 @@ export default function AnalysisClient({
         )}
 
         {/* 分析结果 */}
-        {analysis && !loading && (
+        {analysis && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
-            <div className="prose prose-sm max-w-none">
-              {analysis.split("\n").map((line, i) => {
-                if (line.startsWith("# ")) {
-                  return (
-                    <h2 key={i} className="text-base font-bold text-[#333333] mt-4 mb-2">
-                      {line.replace("# ", "")}
-                    </h2>
-                  );
-                }
-                if (line.startsWith("## ")) {
-                  return (
-                    <h3 key={i} className="text-sm font-bold text-[#333333] mt-3 mb-1.5">
-                      {line.replace("## ", "")}
-                    </h3>
-                  );
-                }
-                if (line.startsWith("### ")) {
-                  return (
-                    <h4 key={i} className="text-sm font-semibold text-[#444444] mt-2 mb-1">
-                      {line.replace("### ", "")}
-                    </h4>
-                  );
-                }
-                if (line.startsWith("- ") || line.startsWith("* ")) {
-                  return (
-                    <div key={i} className="flex items-start gap-1.5 my-0.5">
-                      <span className="text-brand mt-0.5 shrink-0">•</span>
-                      <span className="text-sm text-[#555555] leading-relaxed">
-                        {renderBoldText(line.replace(/^[-*]\s*/, ""))}
-                      </span>
-                    </div>
-                  );
-                }
-                const numMatch = line.match(/^(\d+)\.\s/);
-                if (numMatch) {
-                  return (
-                    <div key={i} className="flex items-start gap-1.5 my-0.5">
-                      <span className="text-brand font-semibold text-sm shrink-0">
-                        {numMatch[1]}.
-                      </span>
-                      <span className="text-sm text-[#555555] leading-relaxed">
-                        {renderBoldText(line.replace(/^\d+\.\s*/, ""))}
-                      </span>
-                    </div>
-                  );
-                }
-                if (!line.trim()) return <div key={i} className="h-1" />;
-                return (
-                  <p key={i} className="text-sm text-[#555555] leading-relaxed my-0.5">
-                    {renderBoldText(line)}
-                  </p>
-                );
-              })}
-            </div>
+            <MarkdownRenderer content={analysis} />
           </div>
         )}
 
@@ -339,18 +289,5 @@ export default function AnalysisClient({
         )}
       </div>
     </div>
-  );
-}
-
-function renderBoldText(text: string) {
-  const parts = text.split(/\*\*(.*?)\*\*/g);
-  return parts.map((part, i) =>
-    i % 2 === 1 ? (
-      <strong key={i} className="font-semibold text-[#333333]">
-        {part}
-      </strong>
-    ) : (
-      part
-    )
   );
 }

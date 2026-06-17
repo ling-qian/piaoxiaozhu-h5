@@ -18,18 +18,24 @@ interface LlmCategorizeResult {
 const LLM_CACHE_MAX = 500;
 const llmCache = new Map<string, LlmCategorizeResult>();
 
-function getCachedResult(merchantName: string | null): LlmCategorizeResult | null {
-  if (!merchantName) return null;
-  return llmCache.get(merchantName) ?? null;
+/** 缓存 key 包含 merchantName + rawText 前 50 字符，避免同名商户不同内容被错误命中 */
+function cacheKey(merchantName: string | null, rawText: string): string {
+  const preview = rawText.substring(0, 50).replace(/\s+/g, "");
+  return `${merchantName || ""}::${preview}`;
 }
 
-function setCachedResult(merchantName: string | null, result: LlmCategorizeResult): void {
+function getCachedResult(merchantName: string | null, rawText: string): LlmCategorizeResult | null {
+  if (!merchantName) return null;
+  return llmCache.get(cacheKey(merchantName, rawText)) ?? null;
+}
+
+function setCachedResult(merchantName: string | null, rawText: string, result: LlmCategorizeResult): void {
   if (!merchantName) return;
   if (llmCache.size >= LLM_CACHE_MAX) {
     const firstKey = llmCache.keys().next().value;
     if (firstKey !== undefined) llmCache.delete(firstKey);
   }
-  llmCache.set(merchantName, result);
+  llmCache.set(cacheKey(merchantName, rawText), result);
 }
 
 // ─── 熔断器（Circuit Breaker） ───
@@ -98,7 +104,7 @@ export async function llmCategorize(
   }
 
   // 缓存命中
-  const cached = getCachedResult(merchantName);
+  const cached = getCachedResult(merchantName, rawText);
   if (cached) {
     return { ...cached, reason: `缓存命中: ${cached.reason}` };
   }
@@ -170,7 +176,7 @@ export async function llmCategorize(
             categoryL1: "其他",
             reason: `LLM返回无效分类(${categoryCode})，已降级`,
           };
-          setCachedResult(merchantName, fallbackResult);
+          setCachedResult(merchantName, rawText, fallbackResult);
           return fallbackResult;
         }
 

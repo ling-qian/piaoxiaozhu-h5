@@ -3,12 +3,14 @@
 import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CATEGORIES, CATEGORY_MAP } from "@/lib/constants";
-import { formatAmount, getConfidenceColor, getConfidenceHint } from "@/lib/utils";
+import { formatAmount } from "@/lib/utils";
 import { getRecord, updateRecord, createManualRecord } from "@/lib/actions/record-actions";
 import { getProjects } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
 import { PageSpinner } from "@/components/spinner";
 import PageHeader from "@/components/page-header";
+import ConfidenceCard from "@/components/confidence-card";
+import InvoiceDetailCard from "@/components/invoice-detail-card";
 
 interface ProjectOption {
   id: string;
@@ -43,26 +45,6 @@ interface RecordData {
 function toNum(v: unknown): number {
   return typeof v === "number" ? v : Number(v);
 }
-
-const INVOICE_TYPE_LABELS: Record<string, string> = {
-  vat_special: "增值税专用发票",
-  vat_normal: "增值税普通发票",
-  vat_special_electronic: "增值税专用发票(数电)",
-  vat_normal_electronic: "增值税普通发票(数电)",
-  electronic: "电子发票",
-  machine_printed: "机打发票",
-  receipt: "收据/小票",
-};
-
-const INVOICE_TYPE_COLORS: Record<string, string> = {
-  vat_special: "bg-red-100 text-red-700",
-  vat_normal: "bg-blue-100 text-blue-700",
-  vat_special_electronic: "bg-purple-100 text-purple-700",
-  vat_normal_electronic: "bg-indigo-100 text-indigo-700",
-  electronic: "bg-green-100 text-green-700",
-  machine_printed: "bg-yellow-100 text-yellow-700",
-  receipt: "bg-gray-100 text-gray-600",
-};
 
 function ResultContent() {
   const router = useRouter();
@@ -101,7 +83,6 @@ function ResultContent() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [rawText, setRawText] = useState<string | null>(null);
   const [showOriginalImage, setShowOriginalImage] = useState(false);
-  const [showRawText, setShowRawText] = useState(false);
 
   useEffect(() => {
     if (!projectId) {
@@ -204,289 +185,58 @@ function ResultContent() {
       />
 
       <div className="px-4 -mt-4 space-y-4">
+        {/* 项目选择 */}
         {!projectId && projects.length > 0 && (
-          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
-            <label className="block text-sm text-[#666666] mb-1">选择项目</label>
-            <select
-              value={activeProjectId}
-              onChange={(e) => setActiveProjectId(e.target.value)}
-              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm bg-white text-[#333333] focus:border-brand focus:outline-none"
-            >
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <ProjectSelector
+            projects={projects}
+            value={activeProjectId}
+            onChange={setActiveProjectId}
+          />
         )}
-
         {!projectId && projects.length === 0 && (
-          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up text-center">
-            <p className="text-sm text-[#999999]">暂无项目，请先创建项目</p>
-            <button
-              onClick={() => router.push("/")}
-              className="text-sm text-brand mt-2 btn-press"
-            >
-              去创建 →
-            </button>
-          </div>
+          <EmptyProjects redirect={() => router.push("/")} />
         )}
 
         {/* 原始票据图片 */}
         {imageUrl && (
-          <div className="bg-white rounded-md shadow-card animate-fade-in-up overflow-hidden">
-            <button
-              onClick={() => setShowOriginalImage(!showOriginalImage)}
-              className="w-full flex items-center justify-between p-4"
-            >
-              <span className="text-sm text-[#666666]">原始票据</span>
-              <span className="text-xs text-brand">
-                {showOriginalImage ? "收起 ▲" : "查看 ▼"}
-              </span>
-            </button>
-            {showOriginalImage && (
-              <div className="px-4 pb-4">
-                <img
-                  src={imageUrl}
-                  alt="原始票据"
-                  className="w-full rounded-lg border border-[#EEEEEE]"
-                />
-              </div>
-            )}
-          </div>
+          <OriginalImage image={imageUrl} />
         )}
 
+        {/* 置信度卡片 — 仅非手动录入时展示 */}
         {!isManual && recordId && (
-          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-[#666666]">识别置信度</span>
-              <span
-                className="text-sm font-medium"
-                style={{ color: getConfidenceColor(confidence) }}
-              >
-                {Math.round(confidence * 100)}%
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-[#EEEEEE] rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${confidence * 100}%`,
-                  backgroundColor: getConfidenceColor(confidence),
-                }}
-              />
-            </div>
-            <p className="text-xs text-[#999999] mt-1.5">
-              {getConfidenceHint(confidence)}
-            </p>
-
-            {/* OCR 原文查看 */}
-            {rawText && (
-              <div className="mt-3 pt-3 border-t border-[#EEEEEE]">
-                <button
-                  onClick={() => setShowRawText(!showRawText)}
-                  className="flex items-center justify-between w-full"
-                >
-                  <span className="text-xs text-[#999999]">OCR 识别原文</span>
-                  <span className="text-xs text-brand">
-                    {showRawText ? "收起 ▲" : "查看 ▼"}
-                  </span>
-                </button>
-                {showRawText && (
-                  <pre className="mt-2 text-xs text-[#666666] bg-gray-50 rounded-lg p-3 whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
-                    {rawText}
-                  </pre>
-                )}
-              </div>
-            )}
-          </div>
+          <ConfidenceCard confidence={confidence} rawText={rawText} />
         )}
 
-        <div className="bg-white rounded-md p-4 shadow-card space-y-4 animate-fade-in-up stagger-1">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setDirection("out")}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 btn-press ${
-                direction === "out"
-                  ? "bg-error/10 text-error border border-error/30"
-                  : "bg-gray-50 text-[#999999] border border-transparent"
-              }`}
-            >
-              支出
-            </button>
-            <button
-              onClick={() => setDirection("income")}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 btn-press ${
-                direction === "income"
-                  ? "bg-success/10 text-success border border-success/30"
-                  : "bg-gray-50 text-[#999999] border border-transparent"
-              }`}
-            >
-              收入
-            </button>
-          </div>
+        {/* 表单 */}
+        <RecordForm
+          direction={direction}
+          setDirection={setDirection}
+          merchantName={merchantName}
+          setMerchantName={setMerchantName}
+          amount={amount}
+          setAmount={setAmount}
+          taxAmount={taxAmount}
+          setTaxAmount={setTaxAmount}
+          invoiceDate={invoiceDate}
+          setInvoiceDate={setInvoiceDate}
+          categoryCode={categoryCode}
+          setCategoryCode={setCategoryCode}
+        />
 
-          <div>
-            <label className="block text-sm text-[#666666] mb-1">商户名称</label>
-            <input
-              type="text"
-              value={merchantName}
-              onChange={(e) => setMerchantName(e.target.value)}
-              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
-              placeholder="请输入商户名称"
-              autoComplete="off"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-[#666666] mb-1">
-              金额 (元)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
-              placeholder="0.00"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-[#666666] mb-1">
-              税额 (元)
-            </label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              inputMode="decimal"
-              value={taxAmount}
-              onChange={(e) => setTaxAmount(e.target.value)}
-              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
-              placeholder="0.00 (可选)"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-[#666666] mb-1">日期</label>
-            <input
-              type="date"
-              value={invoiceDate}
-              onChange={(e) => setInvoiceDate(e.target.value)}
-              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm text-[#666666] mb-2">分类</label>
-            <div className="flex flex-wrap gap-2">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.code}
-                  onClick={() => setCategoryCode(cat.code)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 btn-press ${
-                    categoryCode === cat.code
-                      ? "text-white scale-105"
-                      : "bg-gray-100 text-[#666666]"
-                  }`}
-                  style={
-                    categoryCode === cat.code
-                      ? { backgroundColor: cat.color }
-                      : undefined
-                  }
-                >
-                  {cat.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* 发票类型深度适配 - 发票详情卡片 */}
+        {/* 发票详情卡片 */}
         {invoiceType && !isManual && (
-          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-2">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium text-[#333333]">发票详情</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${INVOICE_TYPE_COLORS[invoiceType] || "bg-gray-100 text-gray-600"}`}>
-                {INVOICE_TYPE_LABELS[invoiceType] || invoiceType}
-              </span>
-            </div>
-            <div className="space-y-2 text-sm">
-              {invoiceNo && (
-                <div className="flex justify-between">
-                  <span className="text-[#999999]">发票号码</span>
-                  <span className="text-[#333333] font-mono">{invoiceNo}</span>
-                </div>
-              )}
-              {invoiceCode && (
-                <div className="flex justify-between">
-                  <span className="text-[#999999]">发票代码</span>
-                  <span className="text-[#333333] font-mono">{invoiceCode}</span>
-                </div>
-              )}
-              {checkCode && (
-                <div className="flex justify-between">
-                  <span className="text-[#999999]">校验码</span>
-                  <span className="text-[#333333] font-mono">{checkCode}</span>
-                </div>
-              )}
-              {taxRate !== null && (
-                <div className="flex justify-between">
-                  <span className="text-[#999999]">税率</span>
-                  <span className="text-[#333333]">{(taxRate * 100).toFixed(taxRate * 100 % 1 === 0 ? 0 : 1)}%</span>
-                </div>
-              )}
-              {amountWithoutTax !== null && (
-                <div className="flex justify-between">
-                  <span className="text-[#999999]">不含税金额</span>
-                  <span className="text-[#333333]">¥{amountWithoutTax.toFixed(2)}</span>
-                </div>
-              )}
-              {buyerName && (
-                <div className="flex justify-between">
-                  <span className="text-[#999999]">购买方</span>
-                  <span className="text-[#333333] text-right max-w-[60%] truncate">{buyerName}</span>
-                </div>
-              )}
-              {buyerTaxNo && (
-                <div className="flex justify-between">
-                  <span className="text-[#999999]">购买方税号</span>
-                  <span className="text-[#333333] font-mono text-xs">{buyerTaxNo}</span>
-                </div>
-              )}
-              {sellerTaxNo && (
-                <div className="flex justify-between">
-                  <span className="text-[#999999]">销售方税号</span>
-                  <span className="text-[#333333] font-mono text-xs">{sellerTaxNo}</span>
-                </div>
-              )}
-            </div>
-
-            {/* 商品明细 */}
-            {invoiceItems && (() => {
-              try {
-                const items = JSON.parse(invoiceItems);
-                if (!Array.isArray(items) || items.length === 0) return null;
-                return (
-                  <div className="mt-3 pt-3 border-t border-[#EEEEEE]">
-                    <span className="text-xs text-[#999999] mb-2 block">商品明细</span>
-                    <div className="space-y-1.5">
-                      {items.map((item: { name: string; quantity: number; amount: number; taxRate: number }, idx: number) => (
-                        <div key={idx} className="flex justify-between text-xs">
-                          <span className="text-[#333333] truncate max-w-[50%]">{item.name}</span>
-                          <span className="text-[#666666]">×{item.quantity} ¥{item.amount.toFixed(2)} {(item.taxRate * 100).toFixed(0)}%</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              } catch { return null; }
-            })()}
-          </div>
+          <InvoiceDetailCard
+            invoiceType={invoiceType}
+            invoiceNo={invoiceNo}
+            invoiceCode={invoiceCode}
+            checkCode={checkCode}
+            taxRate={taxRate}
+            amountWithoutTax={amountWithoutTax}
+            buyerName={buyerName}
+            buyerTaxNo={buyerTaxNo}
+            sellerTaxNo={sellerTaxNo}
+            invoiceItems={invoiceItems}
+          />
         )}
 
         {/* 固定底部保存按钮 */}
@@ -501,6 +251,219 @@ function ResultContent() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** 项目选择器 */
+function ProjectSelector({
+  projects,
+  value,
+  onChange,
+}: {
+  projects: ProjectOption[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
+      <label className="block text-sm text-[#666666] mb-1">选择项目</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm bg-white text-[#333333] focus:border-brand focus:outline-none"
+      >
+        {projects.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+/** 无项目提示 */
+function EmptyProjects({ redirect }: { redirect: () => void }) {
+  return (
+    <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up text-center">
+      <p className="text-sm text-[#999999]">暂无项目，请先创建项目</p>
+      <button
+        onClick={redirect}
+        className="text-sm text-brand mt-2 btn-press"
+      >
+        去创建 →
+      </button>
+    </div>
+  );
+}
+
+/** 原始票据图片折叠展示 */
+function OriginalImage({ image }: { image: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="bg-white rounded-md shadow-card animate-fade-in-up overflow-hidden">
+      <button
+        onClick={() => setShow(!show)}
+        className="w-full flex items-center justify-between p-4"
+      >
+        <span className="text-sm text-[#666666]">原始票据</span>
+        <span className="text-xs text-brand">
+          {show ? "收起 ▲" : "查看 ▼"}
+        </span>
+      </button>
+      {show && (
+        <div className="px-4 pb-4">
+          <img
+            src={image}
+            alt="原始票据"
+            className="w-full rounded-lg border border-[#EEEEEE]"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** 编辑表单 — 方向切换 + 字段输入 + 分类选择 */
+function RecordForm({
+  direction, setDirection,
+  merchantName, setMerchantName,
+  amount, setAmount,
+  taxAmount, setTaxAmount,
+  invoiceDate, setInvoiceDate,
+  categoryCode, setCategoryCode,
+}: {
+  direction: "out" | "income";
+  setDirection: (d: "out" | "income") => void;
+  merchantName: string;
+  setMerchantName: (v: string) => void;
+  amount: string;
+  setAmount: (v: string) => void;
+  taxAmount: string;
+  setTaxAmount: (v: string) => void;
+  invoiceDate: string;
+  setInvoiceDate: (v: string) => void;
+  categoryCode: string;
+  setCategoryCode: (v: string) => void;
+}) {
+  return (
+    <div className="bg-white rounded-md p-4 shadow-card space-y-4 animate-fade-in-up stagger-1">
+      <div className="flex items-center gap-4">
+        <DirectionButton
+          label="支出"
+          active={direction === "out"}
+          onClick={() => setDirection("out")}
+        />
+        <DirectionButton
+          label="收入"
+          active={direction === "income"}
+          onClick={() => setDirection("income")}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-[#666666] mb-1">商户名称</label>
+        <input
+          type="text"
+          value={merchantName}
+          onChange={(e) => setMerchantName(e.target.value)}
+          className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+          placeholder="请输入商户名称"
+          autoComplete="off"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-[#666666] mb-1">
+          金额 (元)
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          inputMode="decimal"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+          placeholder="0.00"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-[#666666] mb-1">
+          税额 (元)
+        </label>
+        <input
+          type="number"
+          step="0.01"
+          min="0"
+          inputMode="decimal"
+          value={taxAmount}
+          onChange={(e) => setTaxAmount(e.target.value)}
+          className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+          placeholder="0.00 (可选)"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-[#666666] mb-1">日期</label>
+        <input
+          type="date"
+          value={invoiceDate}
+          onChange={(e) => setInvoiceDate(e.target.value)}
+          className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm focus:border-brand focus:outline-none"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-[#666666] mb-2">分类</label>
+        <div className="flex flex-wrap gap-2">
+          {CATEGORIES.map((cat) => (
+            <button
+              key={cat.code}
+              onClick={() => setCategoryCode(cat.code)}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 btn-press ${
+                categoryCode === cat.code
+                  ? "text-white scale-105"
+                  : "bg-gray-100 text-[#666666]"
+              }`}
+              style={
+                categoryCode === cat.code
+                  ? { backgroundColor: cat.color }
+                  : undefined
+              }
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DirectionButton({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 btn-press ${
+        active
+          ? label === "支出"
+            ? "bg-error/10 text-error border border-error/30"
+            : "bg-success/10 text-success border border-success/30"
+          : "bg-gray-50 text-[#999999] border border-transparent"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
