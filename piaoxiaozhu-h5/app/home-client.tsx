@@ -32,15 +32,22 @@ export default function HomeClient({ projects, isLoggedIn }: { projects: Project
   const [projectList, setProjectList] = useState(projects);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [pressingId, setPressingId] = useState<string | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLongPressStart = useCallback((id: string) => {
+    setPressingId(id);
     longPressTimer.current = setTimeout(() => {
       setConfirmDeleteId(id);
+      setPressingId(null);
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate(50);
+      }
     }, 500);
   }, []);
 
   const handleLongPressEnd = useCallback(() => {
+    setPressingId(null);
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
@@ -79,7 +86,7 @@ export default function HomeClient({ projects, isLoggedIn }: { projects: Project
   }
 
   return (
-    <div className="pb-16">
+    <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="票小助" />
 
       <div className="px-4 -mt-4 space-y-3">
@@ -165,7 +172,9 @@ export default function HomeClient({ projects, isLoggedIn }: { projects: Project
                 {projectList.map((p, i) => (
                   <div
                     key={p.id}
-                    className={`bg-white rounded-md p-4 shadow-card cursor-pointer card-press animate-fade-in-up stagger-${Math.min(i + 1, 6)}`}
+                    className={`bg-white rounded-md p-4 shadow-card cursor-pointer card-press animate-fade-in-up stagger-${Math.min(i + 1, 6)} transition-all duration-150 ${
+                      pressingId === p.id ? "scale-95 bg-gray-50" : ""
+                    }`}
                     onClick={() => {
                       if (!confirmDeleteId) router.push(`/project/${p.id}`);
                     }}

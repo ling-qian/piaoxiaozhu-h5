@@ -71,7 +71,7 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
   }
 
   return (
-    <div className="pb-16">
+    <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="我的" />
 
       <div className="px-4 -mt-4 space-y-4">

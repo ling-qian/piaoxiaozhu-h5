@@ -9,7 +9,7 @@ interface ProjectMenuModalProps {
   onClose: () => void;
   onDeleteProject: () => void;
   onViewReport: () => void;
-  showToast: (msg: string, type: string) => void;
+  showToast: (msg: string, type: "success" | "error" | "info") => void;
 }
 
 /** 项目操作弹窗 — 查看报表 / 删除项目 */

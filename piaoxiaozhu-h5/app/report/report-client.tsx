@@ -119,23 +119,25 @@ export default function ReportClient({
   }
 
   return (
-    <div className="pb-16">
+    <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="利润报表" />
 
       <div className="px-4 -mt-4 space-y-4">
         {projects.length > 1 && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
-            <select
-              value={activeProjectId}
-              onChange={(e) => router.push(`/report?project=${e.target.value}`)}
-              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2 text-sm focus:border-brand focus:outline-none"
-            >
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {projects.map((p) => (
-                <option key={p.id} value={p.id}>
+                <button
+                  key={p.id}
+                  onClick={() => router.push(`/report?project=${p.id}`)}
+                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    activeProjectId === p.id ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+                  }`}
+                >
                   {p.name}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
         )}
 
@@ -162,36 +164,51 @@ export default function ReportClient({
                 onChange={(e) => setKeyword(e.target.value)}
                 className="flex-1 border border-[#EEEEEE] rounded-lg px-3 py-2 text-sm focus:border-brand focus:outline-none"
               />
-              <select
-                value={direction}
-                onChange={(e) => setDirection(e.target.value)}
-                className="border border-[#EEEEEE] rounded-lg px-3 py-2 text-sm focus:border-brand focus:outline-none"
-              >
-                <option value="all">全部</option>
-                <option value="income">收入</option>
-                <option value="out">支出</option>
-              </select>
             </div>
-            <div className="flex gap-2">
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="flex-1 border border-[#EEEEEE] rounded-lg px-3 py-2 text-sm focus:border-brand focus:outline-none"
-              >
-                <option value="all">全部分类</option>
-                {categories.map((c) => {
-                  const cat = CATEGORY_MAP[c];
-                  return (
-                    <option key={c} value={c}>
-                      {cat?.l1 || c}
-                    </option>
-                  );
-                })}
-              </select>
-              <span className="text-xs text-[#999999] self-center">
-                {searchResults.length} 条记录
-              </span>
+            <div className="flex items-center gap-1.5 mb-2">
+              <span className="text-xs text-[#999999] shrink-0">收支</span>
+              {[
+                { v: "all", l: "全部" },
+                { v: "income", l: "收入" },
+                { v: "out", l: "支出" },
+              ].map((opt) => (
+                <button
+                  key={opt.v}
+                  onClick={() => setDirection(opt.v)}
+                  className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    direction === opt.v ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+                  }`}
+                >
+                  {opt.l}
+                </button>
+              ))}
             </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+              <span className="text-xs text-[#999999] shrink-0">分类</span>
+              <button
+                onClick={() => setCategory("all")}
+                className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  category === "all" ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+                }`}
+              >
+                全部
+              </button>
+              {categories.map((c) => {
+                const cat = CATEGORY_MAP[c];
+                return (
+                  <button
+                    key={c}
+                    onClick={() => setCategory(c)}
+                    className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                      category === c ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+                    }`}
+                  >
+                    {cat?.l1 || c}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-[#999999] mt-2">{searchResults.length} 条记录</p>
           </div>
 
           {/* 统计卡片 */}

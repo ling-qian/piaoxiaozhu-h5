@@ -24,14 +24,14 @@ export default async function AnalysisPage({
     select: { planCode: true },
   });
 
-  // 计算汇总数据用于图表
+  // 计算汇总数据用于图表（有记录即计算，不依赖是否已分析）
   let summary = null;
   const records = await prisma.record.findMany({
     where: { projectId, userId: session.user.id },
     orderBy: { invoiceDate: "desc" },
   });
 
-  if (project.aiAnalysis && records.length > 0) {
+  if (records.length > 0) {
     const totalIncome = records
       .filter((r) => r.direction === "income")
       .reduce((s, r) => s + Number(r.amount), 0);

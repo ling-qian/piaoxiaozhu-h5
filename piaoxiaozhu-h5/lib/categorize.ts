@@ -62,12 +62,13 @@ export async function categorizeWithLlm(
   }
 
   // Layer 5: 默认
+  // **优化点：将LLM的失败结果作为"建议"而非直接丢弃，让前端展示并允许用户修正**
   return {
-    categoryCode: "other",
-    categoryL1: "其他",
-    categoryL2: "其他",
-    confidence: 0.5,
-    reason: "默认分类",
+    categoryCode: "llm_failed",
+    categoryL1: "AI建议失败",
+    categoryL2: "AI建议失败",
+    confidence: 0.3,
+    reason: "LLM分类失败，使用默认分类",
   };
 }
 
@@ -75,59 +76,70 @@ function tryMerchantMatch(
   merchantName: string | null
 ): CategorizeResult | null {
   if (!merchantName) return null;
-
-  // Layer 1a: 精确匹配商户字典
+    // Layer 1a: 精确匹配商户字典
   for (const [merchant, code] of Object.entries(MERCHANT_DICT)) {
-    if (merchantName.includes(merchant)) {
-      const cat = CATEGORY_MAP[code];
-      if (cat) {
-        return {
-          categoryCode: cat.code,
-          categoryL1: cat.l1,
-          categoryL2: cat.l2,
-          confidence: 1.0,
-          reason: `商户字典匹配: ${merchant}`,
-        };
-      }
-    }
+  if (merchantName.includes(merchant)) {
+  const cat = CATEGORY_MAP[code];
+  if (cat) {
+  return {
+  categoryCode: cat.code,
+  categoryL1: cat.l1,
+  categoryL2: cat.l2,
+  confidence: 1.0,
+  reason: `商户字典匹配: ${merchant}`,
+  };
   }
-
-  // Layer 1b: 别名匹配
+  }
+  }
+    // Layer 1b: 别名匹配
   for (const [alias, primaryKey] of Object.entries(MERCHANT_ALIASES)) {
-    if (merchantName.includes(alias)) {
-      const code = MERCHANT_DICT[primaryKey];
-      const cat = code ? CATEGORY_MAP[code] : undefined;
-      if (cat) {
-        return {
-          categoryCode: cat.code,
-          categoryL1: cat.l1,
-          categoryL2: cat.l2,
-          confidence: 0.95,
-          reason: `商户别名匹配: ${alias} → ${primaryKey}`,
-        };
-      }
-    }
+  if (merchantName.includes(alias)) {
+  const code = MERCHANT_DICT[primaryKey];
+  const cat = code ? CATEGORY_MAP[code] : undefined;
+  if (cat) {
+  return {
+  categoryCode: cat.code,
+  categoryL1: cat.l1,
+  categoryL2: cat.l2,
+  confidence: 0.95,
+  reason: `商户别名匹配: ${alias} → ${primaryKey}`,
+  };
   }
-
-  // Layer 1c: 模糊匹配 — 商户名包含字典key的子串（去掉常见后缀后匹配）
+  }
+  }
+    // Layer 1c: 模糊匹配 — 商户名包含字典key的子串（去掉常见后缀后匹配）
   const stripped = stripMerchantSuffix(merchantName);
   for (const [merchant, code] of Object.entries(MERCHANT_DICT)) {
-    if (stripped.includes(merchant) && !merchantName.includes(merchant)) {
-      const cat = CATEGORY_MAP[code];
-      if (cat) {
-        return {
-          categoryCode: cat.code,
-          categoryL1: cat.l1,
-          categoryL2: cat.l2,
-          confidence: 0.8,
-          reason: `商户模糊匹配: ${merchantName} → ${merchant}`,
-        };
-      }
-    }
+  if (stripped.includes(merchant) && !merchantName.includes(merchant)) {
+  const cat = CATEGORY_MAP[code];
+  if (cat) {
+  return {
+  categoryCode: cat.code,
+  categoryL1: cat.l1,
+  categoryL2: cat.l2,
+  confidence: 0.8,
+  reason: `商户模糊匹配: ${merchantName} → ${merchant}`,
+  };
   }
-
-  return null;
-}
+  }
+  }
+    // **新增 Layer 1d: 模糊子串匹配（不依赖后缀剥离）**
+  for (const [merchant, code] of Object.entries(MERCHANT_DICT)) {
+  if (merchantName.includes(merchant)) {
+  const cat = CATEGORY_MAP[code];
+  if (cat) {
+  return {
+  categoryCode: cat.code,
+  categoryL1: cat.l1,
+  categoryL2: cat.l2,
+  confidence: 0.85,
+  reason: `商户模糊子串匹配: ${merchantName} 包含 ${merchant}`,
+  };
+  }
+  }
+  }
+    return null;
+  }
 
 /** 去掉商户名中的常见后缀词，提取核心名称 */
 function stripMerchantSuffix(name: string): string {

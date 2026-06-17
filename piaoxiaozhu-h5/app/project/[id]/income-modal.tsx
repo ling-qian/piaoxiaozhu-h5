@@ -6,7 +6,7 @@ interface IncomeModalProps {
   projectId: string;
   onClosed: () => void;
   onSuccess: () => void;
-  showToast: (msg: string, type: string) => void;
+  showToast: (msg: string, type: "success" | "error" | "info") => void;
 }
 
 /** 添加收入弹窗 */

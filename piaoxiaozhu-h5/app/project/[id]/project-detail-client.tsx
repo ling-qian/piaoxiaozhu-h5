@@ -80,7 +80,7 @@ export default function ProjectDetailClient({
     return true;
   });
 
-  const hasActiveFilter = filterCategory || filterDirection || filterDateFrom || filterDateTo || searchQuery;
+  const hasActiveFilter = Boolean(filterCategory || filterDirection || filterDateFrom || filterDateTo || searchQuery);
 
   function clearAllFilters() {
     setSearchQuery("");
@@ -142,7 +142,7 @@ export default function ProjectDetailClient({
   }
 
   return (
-    <div className="pb-16">
+    <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader
         title={stats.projectName}
         showBack
@@ -358,6 +358,7 @@ function CostCategoryChart({ categories }: { categories: { code: string; name: s
 
 /** 上传/添加收入按钮 */
 function ActionButtons({ projectId, onAddIncome }: { projectId: string; onAddIncome: () => void }) {
+  const router = useRouter();
   return (
     <div className="flex gap-2 animate-fade-in-up stagger-2">
       <button

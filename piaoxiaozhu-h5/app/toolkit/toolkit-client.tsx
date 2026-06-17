@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import PageHeader from "@/components/page-header";
+import TabBar from "@/components/tab-bar";
 
 interface ContentItem {
   id: string;
@@ -80,7 +81,7 @@ export default function ToolkitClient() {
   );
 
   return (
-    <div className="pb-16">
+    <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="工具箱" showBack />
       <div className="px-4 -mt-4 space-y-3">
         <p className="text-xs text-[#999999] animate-fade-in">
@@ -150,6 +151,7 @@ export default function ToolkitClient() {
           })}
         </div>
       </div>
+      <TabBar />
     </div>
   );
 }

@@ -278,18 +278,20 @@ function UploadContent() {
       <div className="px-4 -mt-4 space-y-4">
         {!urlProjectId && projects.length > 0 && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
-            <label className="text-sm text-[#666666] mb-1.5 block">选择项目</label>
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm bg-white text-[#333333] focus:border-brand focus:outline-none"
-            >
+            <label className="text-sm text-[#666666] mb-2 block">选择项目</label>
+            <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {projects.map((p) => (
-                <option key={p.id} value={p.id}>
+                <button
+                  key={p.id}
+                  onClick={() => setProjectId(p.id)}
+                  className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                    projectId === p.id ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+                  }`}
+                >
                   {p.name}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
         )}
 
@@ -308,7 +310,7 @@ function UploadContent() {
         {/* 图片列表 */}
         {batchItems.length > 0 && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-[#666666]">
                 已选 {batchItems.length} 张 {doneCount > 0 && `(完成 ${doneCount})`}
               </span>
@@ -318,6 +320,25 @@ function UploadContent() {
                 </button>
               )}
             </div>
+            {/* 批量进度总览 */}
+            {processing && (
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-brand font-medium">
+                    识别进度 {doneCount}/{batchItems.length}
+                  </span>
+                  <span className="text-xs text-[#999999]">
+                    {Math.round((doneCount / batchItems.length) * 100)}%
+                  </span>
+                </div>
+                <div className="h-2 bg-[#F5F5F5] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-brand rounded-full transition-all duration-300"
+                    style={{ width: `${(doneCount / batchItems.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3">
               {batchItems.map((item) => (
                 <div key={item.id} className="relative aspect-square rounded-lg overflow-hidden bg-gray-50">

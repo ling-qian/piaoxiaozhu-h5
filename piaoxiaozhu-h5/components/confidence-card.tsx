@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { getConfidenceColor, getConfidenceHint } from "@/lib/utils";
 
 interface ConfidenceCardProps {

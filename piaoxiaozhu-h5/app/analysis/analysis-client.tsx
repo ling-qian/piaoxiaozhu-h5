@@ -274,9 +274,29 @@ export default function AnalysisClient({
         )}
 
         {/* 无数据提示 */}
-        {!analysis && !loading && (
+        {!analysis && !loading && !summary && (
           <div className="bg-white rounded-md p-8 shadow-card animate-fade-in-up text-center">
             <div className="text-5xl mb-3">📊</div>
+            <h3 className="text-base font-semibold text-[#333333] mb-1">
+              暂无经营数据
+            </h3>
+            <p className="text-sm text-[#999999] leading-relaxed mb-4">
+              先上传票据或添加收入记录，<br />
+              AI 将为您生成深度经营分析报告
+            </p>
+            <button
+              onClick={() => router.push(`/project/${projectId}`)}
+              className="bg-brand text-white px-6 py-2.5 rounded-xl text-sm font-medium btn-press"
+            >
+              去添加记录 →
+            </button>
+          </div>
+        )}
+
+        {/* 有数据但未分析 */}
+        {!analysis && !loading && summary && (
+          <div className="bg-white rounded-md p-8 shadow-card animate-fade-in-up text-center">
+            <div className="text-5xl mb-3">🤖</div>
             <h3 className="text-base font-semibold text-[#333333] mb-1">
               AI 利润分析与经营建议
             </h3>
@@ -285,6 +305,7 @@ export default function AnalysisClient({
               月度趋势、商户集中度等维度深度分析，<br />
               并给出可落地的降本增效建议
             </p>
+            <p className="text-xs text-brand mt-3">点击右上角"开始分析"即可生成报告</p>
           </div>
         )}
       </div>

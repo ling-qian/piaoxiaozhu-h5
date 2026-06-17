@@ -106,24 +106,34 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
     if (!payPlan) return;
     setConfirming(true);
     try {
-      // 只有配置了 Stripe 时才允许手动确认升级（防止无 Stripe 时免费升级）
-      if (!qrConfig?.hasStripe) {
-        showToast("暂未开通在线支付，请联系客服", "error");
-        setShowPayModal(false);
-        return;
-      }
-      const res = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planCode: payPlan.code }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast("升级成功！", "success");
-        setShowPayModal(false);
-        setTimeout(() => window.location.reload(), 1000);
+      if (qrConfig?.hasStripe) {
+        // Stripe 模式：跳转 Stripe 支付页面
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planCode: payPlan.code }),
+        });
+        const data = await res.json();
+        if (data.url) {
+          window.location.href = data.url;
+        } else {
+          showToast(data.error || "升级失败", "error");
+        }
       } else {
-        showToast(data.error || "升级失败", "error");
+        // 二维码模式：手动确认支付，直接升级
+        const res = await fetch("/api/stripe/checkout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ planCode: payPlan.code, manualConfirm: true }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast("升级成功！", "success");
+          setShowPayModal(false);
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          showToast(data.error || "升级失败，请联系客服", "error");
+        }
       }
     } catch {
       showToast("网络错误，请重试", "error");
@@ -135,7 +145,7 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
   const currentQrUrl = payMethod === "wechat" ? qrConfig?.wechatPayQrUrl : qrConfig?.alipayQrUrl;
 
   return (
-    <div className="pb-20">
+    <div className="pb-20 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="会员套餐" showBack onBack={() => history.back()} />
 
       <div className="px-4 -mt-4 space-y-3">

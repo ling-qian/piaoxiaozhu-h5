@@ -266,18 +266,20 @@ function ProjectSelector({
 }) {
   return (
     <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
-      <label className="block text-sm text-[#666666] mb-1">选择项目</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full border border-[#EEEEEE] rounded-lg px-3 py-2.5 text-sm bg-white text-[#333333] focus:border-brand focus:outline-none"
-      >
+      <label className="block text-sm text-[#666666] mb-2">选择项目</label>
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
         {projects.map((p) => (
-          <option key={p.id} value={p.id}>
+          <button
+            key={p.id}
+            onClick={() => onChange(p.id)}
+            className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              value === p.id ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
+            }`}
+          >
             {p.name}
-          </option>
+          </button>
         ))}
-      </select>
+      </div>
     </div>
   );
 }
