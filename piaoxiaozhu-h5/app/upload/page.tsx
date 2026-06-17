@@ -168,9 +168,8 @@ function UploadContent() {
               confidence: visionResult.confidence || 0.9,
             };
 
-            // 如果视觉模型返回了结构化字段，直接用
-            if (visionResult.merchantName || visionResult.totalAmount) {
-              // 保存时把视觉模型的结构化结果也传入
+            // 服务端视觉模型结果优先使用（rawText 非空即视为有效）
+            if (ocrResult.rawText) {
               setBatchItems((prev) =>
                 prev.map((i) => (i.id === item.id ? { ...i, progress: 80 } : i))
               );
