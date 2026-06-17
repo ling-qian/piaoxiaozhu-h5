@@ -220,9 +220,23 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // 提取 JSON
-      const jsonMatch = content.match(/\{[\s\S]*?\}/);
-      if (!jsonMatch) {
+      // 提取 JSON（支持 markdown 代码块包裹和嵌套花括号）
+      let jsonStr: string | null = null;
+
+      // 优先从 ```json ... ``` 代码块中提取
+      const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (codeBlockMatch) {
+        jsonStr = codeBlockMatch[1].trim();
+      } else {
+        // 从第一个 { 到最后一个 } 提取（贪婪匹配，支持嵌套）
+        const firstBrace = content.indexOf("{");
+        const lastBrace = content.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          jsonStr = content.slice(firstBrace, lastBrace + 1);
+        }
+      }
+
+      if (!jsonStr) {
         console.error("[OCR API] 无法从视觉模型回复中提取 JSON:", content.slice(0, 200));
         return NextResponse.json(
           { error: "无法解析视觉模型结果", fallback: true },
@@ -230,7 +244,21 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      const parsed = JSON.parse(jsonMatch[0]);
+      // 容错：移除尾随逗号（LLM 常见问题）
+      const sanitized = jsonStr
+        .replace(/,\s*([}\]])/g, "$1")  // 移除对象/数组末尾的逗号
+        .replace(/,\s*,/g, ",");         // 移除连续逗号
+
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(sanitized);
+      } catch (parseErr) {
+        console.error("[OCR API] JSON 解析失败:", parseErr, "原始内容:", jsonStr.slice(0, 300));
+        return NextResponse.json(
+          { error: "视觉模型返回格式异常", fallback: true },
+          { status: 502 }
+        );
+      }
 
       // 标准化字段
       const invoiceType = parsed.invoiceType || null;
@@ -323,11 +351,12 @@ export async function POST(req: NextRequest) {
       clearTimeout(timeoutId);
     }
   } catch (err) {
-    console.error("[OCR API] 错误:", err);
-    const message =
-      err instanceof DOMException && err.name === "AbortError"
-        ? "视觉模型识别超时"
-        : "视觉模型调用失败";
+    console.error("[OCR API] 错误:", err?.constructor?.name, err instanceof Error ? err.message : String(err), err instanceof Error ? err.stack : "");
+    const isAbort = err instanceof DOMException && err.name === "AbortError"
+      || (err instanceof Error && err.name === "AbortError");
+    const message = isAbort
+      ? "视觉模型识别超时"
+      : `视觉模型调用失败: ${err instanceof Error ? err.message : String(err)}`;
     return NextResponse.json(
       { error: message, fallback: true },
       { status: 502 }
