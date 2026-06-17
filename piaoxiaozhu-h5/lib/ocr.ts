@@ -212,7 +212,8 @@ export async function recognizeImage(
       }
     },
     // 从本地 public/tessdata 加载语言包，避免 CDN 被墙导致乱码
-    langPath: "/tessdata",
+    // 必须使用完整 URL，因为 Web Worker 内 fetch 无法解析相对路径
+    langPath: typeof window !== "undefined" ? `${window.location.origin}/tessdata` : "/tessdata",
     tessedit_pageseg_mode: "6",
     preserve_interword_spaces: "1",
   };
