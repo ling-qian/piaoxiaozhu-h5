@@ -249,7 +249,8 @@ export async function POST(req: NextRequest) {
         .replace(/,\s*([}\]])/g, "$1")  // 移除对象/数组末尾的逗号
         .replace(/,\s*,/g, ",");         // 移除连续逗号
 
-      let parsed: Record<string, unknown>;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let parsed: any;
       try {
         parsed = JSON.parse(sanitized);
       } catch (parseErr) {
