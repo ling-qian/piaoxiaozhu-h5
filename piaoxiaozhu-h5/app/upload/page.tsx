@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { recognizeImage } from "@/lib/ocr";
+// recognizeImage (Tesseract.js) 已移除：中文票据识别效果极差
 import { createRecordFromOcr } from "@/lib/actions/record-actions";
 import { checkQuota } from "@/lib/actions/user-actions";
 import { getProjects } from "@/lib/actions/project-actions";
@@ -203,30 +203,33 @@ function UploadContent() {
               continue; // 跳过 Tesseract 备用流程
             }
           } else {
-            console.warn("[Upload] 视觉模型 OCR 失败，降级到 Tesseract.js");
+            // 服务端返回错误，读取错误信息
+            const errBody = await ocrResponse.json().catch(() => ({}));
+            const errMsg = errBody?.error || "视觉模型识别失败";
+            console.warn("[Upload] 视觉模型 OCR 失败:", errMsg);
+            setBatchItems((prev) =>
+              prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: `${errMsg}，请重试或手动录入` } : i))
+            );
+            failCount++;
+            continue; // 不再降级到 Tesseract.js（中文识别极差）
           }
         } catch (visionErr) {
-          console.warn("[Upload] 视觉模型 OCR 异常，降级到 Tesseract.js:", visionErr);
-        }
-
-        // 备用：Tesseract.js 客户端 OCR（仅图片文件，PDF 不支持）
-        const isPdf = item.file.type === "application/pdf" || item.file.name.toLowerCase().endsWith(".pdf");
-        if (!ocrResult && !isPdf) {
-          ocrResult = await recognizeImage(
-            item.file,
-            (p) => {
-              setBatchItems((prev) =>
-                prev.map((i) => (i.id === item.id ? { ...i, progress: p } : i))
-              );
-            },
-            controller.signal
-          );
-        }
-
-        if (!ocrResult && isPdf) {
+          console.warn("[Upload] 视觉模型 OCR 异常:", visionErr);
+          const errMsg = visionErr instanceof Error ? visionErr.message : "网络异常";
           setBatchItems((prev) =>
-            prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: "PDF识别失败，请尝试截图后上传" } : i))
+            prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: `识别失败：${errMsg}，请重试或手动录入` } : i))
           );
+          failCount++;
+          continue; // 不再降级到 Tesseract.js
+        }
+
+        // Tesseract.js 已移除：中文票据识别效果极差，只会产生乱码
+        // 服务端 OCR 失败时直接提示用户重试或手动录入
+        if (!ocrResult) {
+          setBatchItems((prev) =>
+            prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: "识别失败，请重试或手动录入" } : i))
+          );
+          failCount++;
           continue;
         }
 
