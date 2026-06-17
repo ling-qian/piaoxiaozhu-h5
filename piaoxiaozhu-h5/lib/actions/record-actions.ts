@@ -8,6 +8,41 @@ import { categorizeWithLlm } from "@/lib/categorize";
 import { checkQuota, incrementQuotaUsed } from "@/lib/actions/user-actions";
 import { PAGE_SIZE } from "@/lib/constants";
 
+// 将 Prisma Record 序列化为纯对象（Decimal → number），避免传给 Client Component 时报错
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function serializeRecord(r: any) {
+  return {
+    id: r.id,
+    projectId: r.projectId,
+    userId: r.userId,
+    direction: r.direction,
+    merchantName: r.merchantName,
+    amount: Number(r.amount),
+    taxAmount: r.taxAmount ? Number(r.taxAmount) : null,
+    amountWithoutTax: r.amountWithoutTax ? Number(r.amountWithoutTax) : null,
+    taxRate: r.taxRate ? Number(r.taxRate) : null,
+    invoiceDate: r.invoiceDate,
+    invoiceType: r.invoiceType,
+    invoiceNo: r.invoiceNo,
+    invoiceCode: r.invoiceCode,
+    checkCode: r.checkCode,
+    buyerName: r.buyerName,
+    buyerTaxNo: r.buyerTaxNo,
+    sellerTaxNo: r.sellerTaxNo,
+    items: r.items,
+    categoryCode: r.categoryCode,
+    categoryL1: r.categoryL1,
+    categoryL2: r.categoryL2,
+    confidence: r.confidence != null ? Number(r.confidence) : 0,
+    reason: r.reason,
+    isManualCorrected: r.isManualCorrected,
+    rawText: r.rawText,
+    imageUrl: r.imageUrl,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  };
+}
+
 async function uploadImage(imageFile: File): Promise<string | null> {
   const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
   if (!blobToken) {
@@ -138,10 +173,7 @@ export async function createRecordFromOcr(
   revalidatePath(`/report/${projectId}`);
 
   return {
-    ...record,
-    amount: Number(record.amount),
-    taxAmount: record.taxAmount ? Number(record.taxAmount) : null,
-    amountWithoutTax: record.amountWithoutTax ? Number(record.amountWithoutTax) : null,
+    ...serializeRecord(record),
     _imageUploadFailed: imageUploadFailed,
   };
 }
@@ -190,11 +222,7 @@ export async function createManualRecord(
 
   revalidatePath(`/project/${projectId}`);
   revalidatePath(`/report/${projectId}`);
-  return {
-    ...record,
-    amount: Number(record.amount),
-    taxAmount: record.taxAmount ? Number(record.taxAmount) : null,
-  };
+  return serializeRecord(record);
 }
 
 export async function getRecords(
@@ -228,11 +256,7 @@ export async function getRecords(
   const nextCursor = hasMore ? items[items.length - 1].id : null;
 
   return {
-    items: items.map((r) => ({
-      ...r,
-      amount: Number(r.amount),
-      taxAmount: r.taxAmount ? Number(r.taxAmount) : null,
-    })),
+    items: items.map(serializeRecord),
     nextCursor,
     hasMore,
   };
@@ -245,12 +269,7 @@ export async function getRecord(id: string) {
   const userId = session.user.id;
   const record = await prisma.record.findFirst({ where: { id, userId } });
   if (!record) return null;
-  return {
-    ...record,
-    amount: Number(record.amount),
-    taxAmount: record.taxAmount ? Number(record.taxAmount) : null,
-    amountWithoutTax: record.amountWithoutTax ? Number(record.amountWithoutTax) : null,
-  };
+  return serializeRecord(record);
 }
 
 export async function updateRecord(
@@ -283,11 +302,7 @@ export async function updateRecord(
 
   revalidatePath(`/project/${existing.projectId}`);
   revalidatePath(`/report/${existing.projectId}`);
-  return {
-    ...record,
-    amount: Number(record.amount),
-    taxAmount: record.taxAmount ? Number(record.taxAmount) : null,
-  };
+  return serializeRecord(record);
 }
 
 export async function deleteRecord(id: string) {
@@ -337,11 +352,7 @@ export async function addManualIncome(
 
   revalidatePath(`/project/${projectId}`);
   revalidatePath(`/report/${projectId}`);
-  return {
-    ...record,
-    amount: Number(record.amount),
-    taxAmount: record.taxAmount ? Number(record.taxAmount) : null,
-  };
+  return serializeRecord(record);
 }
 
 export async function getRecordsForReport(projectId: string) {
@@ -353,9 +364,5 @@ export async function getRecordsForReport(projectId: string) {
     where: { projectId, userId },
     orderBy: { invoiceDate: "desc" },
   });
-  return records.map((r) => ({
-    ...r,
-    amount: Number(r.amount),
-    taxAmount: r.taxAmount ? Number(r.taxAmount) : null,
-  }));
+  return records.map(serializeRecord);
 }
