@@ -78,8 +78,9 @@ export default function HomeClient({ projects, isLoggedIn }: { projects: Project
       setNewIndustry("restaurant");
       showToast("项目创建成功", "success");
       router.push(`/project/${project.id}`);
-    } catch {
-      showToast("创建失败，请重试", "error");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "创建失败，请重试";
+      showToast(message, "error");
     } finally {
       setCreating(false);
     }

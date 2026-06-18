@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { STRIPE_SECRET_KEY } from "@/lib/env";
-
-const PLAN_CONFIG: Record<string, { price: number; name: string; quotaTotal: number }> = {
-  pro: { price: 2900, name: "专业版", quotaTotal: 100 },         // 29元 = 2900分
-  enterprise: { price: 9900, name: "企业版", quotaTotal: 999999 }, // 99元 = 9900分
-};
+import { PLANS } from "@/lib/plan-config";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -18,7 +14,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { planCode, payMethod } = body;
 
-  if (!planCode || !PLAN_CONFIG[planCode]) {
+  if (!planCode || !PLANS[planCode] || planCode === "free") {
     return NextResponse.json({ error: "无效的套餐" }, { status: 400 });
   }
 
@@ -28,7 +24,7 @@ export async function POST(req: NextRequest) {
       const { getStripe } = await import("@/lib/stripe");
       const { NEXT_PUBLIC_BASE_URL } = await import("@/lib/env");
 
-      const planConfig = PLAN_CONFIG[planCode];
+      const planConfig = PLANS[planCode];
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) {
         return NextResponse.json({ error: "用户不存在" }, { status: 404 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { checkExportPermission } from "@/lib/plan-config";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -12,6 +13,18 @@ export async function GET(req: NextRequest) {
   const projectId = searchParams.get("projectId");
   if (!projectId) {
     return NextResponse.json({ error: "缺少 projectId" }, { status: 400 });
+  }
+
+  // 检查导出权限
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { planCode: true },
+  });
+  if (!user || !checkExportPermission(user.planCode)) {
+    return NextResponse.json(
+      { error: "数据导出为付费功能，请升级到专业版或企业版" },
+      { status: 403 }
+    );
   }
 
   const project = await prisma.project.findFirst({

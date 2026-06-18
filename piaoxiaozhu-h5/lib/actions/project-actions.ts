@@ -3,6 +3,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { checkProjectLimit } from "@/lib/plan-config";
 
 export async function getProjects() {
   const session = await auth();
@@ -21,6 +22,24 @@ export async function createProject(name: string, industry: string = "restaurant
   if (!session?.user) throw new Error("未登录");
 
   const userId = session.user.id;
+
+  // 检查项目数量限制
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { planCode: true },
+  });
+  if (!user) throw new Error("用户不存在");
+
+  const currentProjectCount = await prisma.project.count({
+    where: { userId, deletedAt: null },
+  });
+
+  const projectCheck = checkProjectLimit(user.planCode, currentProjectCount);
+  if (!projectCheck.allowed) {
+    const limitLabel = projectCheck.limit === -1 ? "无限" : `${projectCheck.limit}`;
+    throw new Error(`项目数量已达上限（${projectCheck.current}/${limitLabel}），请升级套餐`);
+  }
+
   const project = await prisma.project.create({
     data: { name, industry, userId },
   });

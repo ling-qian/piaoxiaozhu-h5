@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { checkQuota } from "@/lib/actions/user-actions";
+import { prisma } from "@/lib/prisma";
+import { checkInvoiceLimit } from "@/lib/plan-config";
 import { LLM_BASE_URL, LLM_API_KEY } from "@/lib/env";
 
 // ─── 简单内存限速（IP + UserID 双维度，每个维度独立限制） ───
@@ -57,16 +58,36 @@ export async function POST(req: NextRequest) {
   }
   const userId = session.user.id;
 
-  // 2. 配额检查
+  // 2. 发票识别次数检查（按套餐限制）
   try {
-    const quota = await checkQuota();
-    if (!quota.available) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { planCode: true },
+    });
+    if (!user) {
+      return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+    }
+
+    // 统计当月已识别发票数
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const invoiceUsedThisMonth = await prisma.record.count({
+      where: {
+        userId,
+        createdAt: { gte: monthStart },
+      },
+    });
+
+    const invoiceCheck = checkInvoiceLimit(user.planCode, invoiceUsedThisMonth);
+    if (!invoiceCheck.allowed) {
+      const limitLabel = invoiceCheck.limit === -1 ? "无限" : `${invoiceCheck.limit}`;
       return NextResponse.json(
-        { error: "识别次数已用完，请升级套餐" },
+        { error: `本月发票识别次数已达上限（${invoiceCheck.used}/${limitLabel}），请升级套餐` },
         { status: 403 }
       );
     }
-  } catch {
+  } catch (err) {
+    if (err instanceof NextResponse) throw err;
     return NextResponse.json(
       { error: "配额检查失败，请重新登录" },
       { status: 401 }

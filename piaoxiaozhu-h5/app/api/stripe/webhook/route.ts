@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getStripe } from "@/lib/stripe";
 import { STRIPE_WEBHOOK_SECRET } from "@/lib/env";
-
-const PLAN_QUOTA: Record<string, number> = {
-  pro: 100,
-  enterprise: 999999,
-};
+import { PLANS } from "@/lib/plan-config";
 
 const FREE_QUOTA_TOTAL = 10;
 
@@ -42,13 +38,12 @@ export async function POST(req: NextRequest) {
         const userId = session.metadata?.userId;
         const planCode = session.metadata?.planCode;
 
-        // mode=payment 时支付成功即升级
-        if (userId && planCode && PLAN_QUOTA[planCode] && session.mode === "payment") {
+        if (userId && planCode && PLANS[planCode] && session.mode === "payment") {
           await prisma.user.update({
             where: { id: userId as string },
             data: {
               planCode: planCode as string,
-              quotaTotal: PLAN_QUOTA[planCode],
+              quotaTotal: PLANS[planCode].aiQuota === -1 ? 999999 : PLANS[planCode].aiQuota,
               quotaUsed: 0,
             },
           });

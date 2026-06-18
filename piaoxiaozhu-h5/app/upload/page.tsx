@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 // recognizeImage (Tesseract.js) 已移除：中文票据识别效果极差
 import { createRecordFromOcr } from "@/lib/actions/record-actions";
-import { checkQuota } from "@/lib/actions/user-actions";
 import { getProjects } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
 import PageHeader from "@/components/page-header";
@@ -116,18 +115,6 @@ function UploadContent() {
       return;
     }
 
-    try {
-      const quota = await checkQuota();
-      if (!quota.available) {
-        showToast("识别次数已用完，请升级套餐", "error");
-        return;
-      }
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "配额检查失败";
-      showToast(message, "error");
-      return;
-    }
-
     setProcessing(true);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -208,8 +195,12 @@ function UploadContent() {
             const errBody = await ocrResponse.json().catch(() => ({}));
             const errMsg = errBody?.error || "视觉模型识别失败";
             console.warn("[Upload] 视觉模型 OCR 失败:", errMsg);
+            // 配额限制错误弹 toast 提示升级
+            if (ocrResponse.status === 403) {
+              showToast(errMsg, "error");
+            }
             setBatchItems((prev) =>
-              prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: `${errMsg}，请重试或手动录入` } : i))
+              prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: ocrResponse.status === 403 ? errMsg : `${errMsg}，请重试或手动录入` } : i))
             );
             failCount++;
             continue; // 不再降级到 Tesseract.js（中文识别极差）

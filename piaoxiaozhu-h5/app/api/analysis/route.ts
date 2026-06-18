@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { LLM_BASE_URL, LLM_API_KEY, LLM_MODEL } from "@/lib/env";
+import { checkAiQuota, getPlanConfig } from "@/lib/plan-config";
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -17,6 +18,42 @@ export async function POST(req: NextRequest) {
     const { projectId } = await req.json();
     if (!projectId) {
       return NextResponse.json({ error: "缺少 projectId" }, { status: 400 });
+    }
+
+    // 检查 AI 分析配额
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { planCode: true, quotaUsed: true },
+    });
+    if (!user) {
+      return NextResponse.json({ error: "用户不存在" }, { status: 404 });
+    }
+
+    const planConfig = getPlanConfig(user.planCode);
+    if (planConfig.aiQuota === 0) {
+      return NextResponse.json(
+        { error: "AI 分析为付费功能，请升级到专业版或企业版" },
+        { status: 403 }
+      );
+    }
+
+    // 统计当月 AI 分析使用次数
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const aiUsedThisMonth = await prisma.project.count({
+      where: {
+        userId: session.user.id,
+        aiAnalysisAt: { gte: monthStart },
+      },
+    });
+
+    const aiCheck = checkAiQuota(user.planCode, aiUsedThisMonth);
+    if (!aiCheck.allowed) {
+      const limitLabel = aiCheck.limit === -1 ? "无限" : `${aiCheck.limit}`;
+      return NextResponse.json(
+        { error: `本月 AI 分析次数已达上限（${aiCheck.used}/${limitLabel}），请升级套餐` },
+        { status: 403 }
+      );
     }
 
     // 获取项目数据

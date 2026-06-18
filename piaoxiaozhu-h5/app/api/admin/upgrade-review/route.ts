@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-
-const PLAN_CONFIG: Record<string, { quotaTotal: number }> = {
-  pro: { quotaTotal: 100 },
-  enterprise: { quotaTotal: 999999 },
-};
+import { PLANS } from "@/lib/plan-config";
 
 /** 管理员：获取所有待审核请求 */
 export async function GET() {
@@ -57,7 +53,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === "approve") {
-    const config = PLAN_CONFIG[request.planCode];
+    const config = PLANS[request.planCode];
     if (!config) {
       return NextResponse.json({ error: "无效套餐" }, { status: 400 });
     }
@@ -77,7 +73,7 @@ export async function POST(req: NextRequest) {
         where: { id: request.userId },
         data: {
           planCode: request.planCode,
-          quotaTotal: config.quotaTotal,
+          quotaTotal: config.aiQuota === -1 ? 999999 : config.aiQuota,
         },
       }),
     ]);
