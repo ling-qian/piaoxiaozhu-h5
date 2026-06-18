@@ -20,6 +20,7 @@ model User {
   stripeCustomerId String?
   projects         Project[]
   records          Record[]
+  upgradeRequests  PlanUpgradeRequest[]
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -78,6 +79,24 @@ model Record {
   @@index([userId])
   @@index([categoryCode])
   @@map("records")
+}
+
+model PlanUpgradeRequest {
+  id          String   @id @default(cuid())
+  userId      String
+  planCode    String   // pro / enterprise
+  payMethod   String   // wechat / alipay
+  status      String   @default("pending") // pending / approved / rejected
+  reviewNote  String?  // 管理员审核备注
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([userId])
+  @@map("plan_upgrade_requests")
 }
 
 model Plan {

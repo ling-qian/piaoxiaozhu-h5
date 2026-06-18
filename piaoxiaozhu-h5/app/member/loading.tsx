@@ -2,7 +2,7 @@ export default function Loading() {
   return (
     <div className="pb-16">
       <div className="h-12 bg-gray-100 animate-pulse" />
-      <div className="px-4 -mt-4 space-y-3">
+      <div className="px-4 pt-1 space-y-3">
         {[1, 2, 3].map((i) => (
           <div key={i} className="bg-white rounded-md p-5 shadow-card animate-pulse">
             <div className="flex items-center justify-between mb-3">

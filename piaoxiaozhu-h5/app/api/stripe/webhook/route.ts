@@ -36,12 +36,14 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
+      // 一次性支付完成 → 立即升级套餐
       case "checkout.session.completed": {
         const session = event.data.object;
         const userId = session.metadata?.userId;
         const planCode = session.metadata?.planCode;
 
-        if (userId && planCode && PLAN_QUOTA[planCode]) {
+        // mode=payment 时支付成功即升级
+        if (userId && planCode && PLAN_QUOTA[planCode] && session.mode === "payment") {
           await prisma.user.update({
             where: { id: userId as string },
             data: {
@@ -50,10 +52,12 @@ export async function POST(req: NextRequest) {
               quotaUsed: 0,
             },
           });
+          console.log(`[Stripe] Payment completed: user=${userId} plan=${planCode}`);
         }
         break;
       }
 
+      // 订阅取消 → 降级到免费版（兼容旧订阅）
       case "customer.subscription.deleted": {
         const subscription = event.data.object;
         const customerId = subscription.customer as string;
@@ -73,68 +77,9 @@ export async function POST(req: NextRequest) {
         }
         break;
       }
-
-      // 发票支付失败 — 降级到免费版
-      case "invoice.payment_failed": {
-        const invoice = event.data.object;
-        const customerId = invoice.customer as string;
-
-        const user = await prisma.user.findFirst({
-          where: { stripeCustomerId: customerId },
-        });
-
-        if (user && user.planCode !== "free") {
-          await prisma.user.update({
-            where: { id: user.id },
-            data: {
-              planCode: "free",
-              quotaTotal: FREE_QUOTA_TOTAL,
-            },
-          });
-        }
-        break;
-      }
-
-      // 订阅信息更新（如 plan 变更）
-      case "customer.subscription.updated": {
-        const subscription = event.data.object;
-        const customerId = subscription.customer as string;
-        const status = subscription.status;
-
-        if (status === "active" || status === "trialing") {
-          // 尝试从 metadata 获取 userId，或从 customer ID 查用户
-          const userId = subscription.metadata?.userId;
-          if (userId) {
-            // 从 price_id 反推 planCode
-            const priceId = subscription.items?.data?.[0]?.price?.id;
-            const { STRIPE_PRO_PRICE_ID, STRIPE_ENTERPRISE_PRICE_ID } = await import("@/lib/env");
-            let planCode = "pro";
-            if (STRIPE_ENTERPRISE_PRICE_ID && priceId === STRIPE_ENTERPRISE_PRICE_ID) {
-              planCode = "enterprise";
-            } else if (STRIPE_PRO_PRICE_ID && priceId === STRIPE_PRO_PRICE_ID) {
-              planCode = "pro";
-            }
-
-            const quota = PLAN_QUOTA[planCode];
-            if (quota) {
-              await prisma.user.update({
-                where: { id: userId },
-                data: {
-                  planCode,
-                  quotaTotal: quota,
-                  quotaUsed: 0,
-                },
-              });
-            }
-          }
-        }
-        break;
-      }
     }
   } catch (err) {
     console.error("[Stripe Webhook] Processing error:", err);
-    // 即使处理失败也返回 200，避免 Stripe 反复重试
-    return NextResponse.json({ received: true });
   }
 
   return NextResponse.json({ received: true });

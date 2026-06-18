@@ -8,6 +8,7 @@ import { generateReport } from "@/lib/report";
 import PageHeader from "@/components/page-header";
 import StatCard from "@/components/stat-card";
 import CostChart from "@/components/cost-chart";
+import TabBar from "@/components/tab-bar";
 import { formatAmount } from "@/lib/utils";
 import { CATEGORY_MAP } from "@/lib/constants";
 import { useExportCsv } from "@/lib/hooks/use-export-csv";
@@ -122,7 +123,7 @@ export default function ReportClient({
     <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="利润报表" />
 
-      <div className="px-4 -mt-4 space-y-4">
+      <div className="px-4 pt-1 space-y-4">
         {projects.length > 1 && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
@@ -333,6 +334,7 @@ export default function ReportClient({
         </>
         )}
       </div>
+      <TabBar />
     </div>
   );
 }

@@ -184,7 +184,7 @@ function ResultContent() {
         onBack={() => router.back()}
       />
 
-      <div className="px-4 -mt-4 space-y-4">
+      <div className="px-4 pt-1 space-y-4">
         {/* 项目选择 */}
         {!projectId && projects.length > 0 && (
           <ProjectSelector

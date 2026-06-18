@@ -74,7 +74,7 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
     <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="我的" />
 
-      <div className="px-4 -mt-4 space-y-4">
+      <div className="px-4 pt-1 space-y-4">
         <div className="bg-white rounded-md p-5 shadow-card flex items-center gap-4 animate-fade-in-up">
           <div className="w-14 h-14 rounded-full bg-brand/10 flex items-center justify-center text-brand text-xl font-bold shrink-0">
             {(user.name || user.email || "U")[0].toUpperCase()}

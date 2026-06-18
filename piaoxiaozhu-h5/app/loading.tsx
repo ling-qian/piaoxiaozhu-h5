@@ -4,7 +4,7 @@ export default function Loading() {
       {/* Header skeleton */}
       <div className="h-12" />
 
-      <div className="px-4 -mt-4 space-y-3">
+      <div className="px-4 pt-1 space-y-3">
         {/* Quick action buttons skeleton */}
         <div className="grid grid-cols-2 gap-3">
           <div className="h-28 bg-gray-100 rounded-xl animate-pulse" />

@@ -10,6 +10,7 @@ import { getProjects } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
 import PageHeader from "@/components/page-header";
 import OcrProgress from "@/components/ocr-progress";
+import TabBar from "@/components/tab-bar";
 
 interface ProjectOption {
   id: string;
@@ -274,10 +275,10 @@ function UploadContent() {
   const allDone = batchItems.length > 0 && doneCount === batchItems.length;
 
   return (
-    <div className="pb-20">
+    <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="票据上传" showBack onBack={() => router.back()} />
 
-      <div className="px-4 -mt-4 space-y-4">
+      <div className="px-4 pt-1 space-y-4">
         {!urlProjectId && projects.length > 0 && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
             <label className="text-sm text-[#666666] mb-2 block">选择项目</label>
@@ -493,6 +494,7 @@ function UploadContent() {
           </p>
         </div>
       </div>
+      <TabBar projectId={urlProjectId || undefined} />
     </div>
   );
 }

@@ -15,6 +15,8 @@
 
 "use client";
 
+import { Fragment } from "react";
+
 interface RenderedLine {
   id: string;
   type: "heading" | "list" | "numberedList" | "codeBlock" | "table" | "paragraph" | "empty" | "th" | "td";
@@ -142,7 +144,7 @@ function parseTableRow(row: string): string[] {
 }
 
 /** 渲染粗体和斜体 */
-function renderInlineFormat(text: string): React.ReactNode[] {
+function renderInlineFormat(text: string): React.ReactNode {
   // 先处理粗体：**text**
   const boldParts = text.split(/(\*\*(.*?)\*\*)/g);
   const result: React.ReactNode[] = [];
@@ -157,12 +159,12 @@ function renderInlineFormat(text: string): React.ReactNode[] {
         </strong>
       );
     } else {
-      // 检查斜体 *text*（排除已被粗体包裹的）
-      result.push(renderInlineCode(part));
+      // 非粗体部分用 Fragment 包裹并加 key，避免 React key 警告
+      result.push(<Fragment key={bi}>{renderInlineCode(part)}</Fragment>);
     }
   }
 
-  return result;
+  return <>{result}</>;
 }
 
 /** 渲染行内代码 */
@@ -184,8 +186,7 @@ function renderInlineCode(text: string): React.ReactNode {
         </code>
       );
     } else {
-      // 检查斜体
-      result.push(...renderItalic(part));
+      result.push(<Fragment key={pi}>{renderItalic(part)}</Fragment>);
     }
   }
   return <>{result}</>;
@@ -303,20 +304,20 @@ function FragmentEntry({ entry }: { entry: RenderedLine }) {
       const level = (entry.props?.level as number) ?? 2;
       if (level === 1) {
         return (
-          <h2 key={entry.id} className="text-base font-bold text-[#333333] mt-4 mb-2">
+          <h2 className="text-base font-bold text-[#333333] mt-4 mb-2">
             {renderInlineFormat(entry.content)}
           </h2>
         );
       }
       if (level === 2) {
         return (
-          <h3 key={entry.id} className="text-sm font-bold text-[#333333] mt-3 mb-1.5">
+          <h3 className="text-sm font-bold text-[#333333] mt-3 mb-1.5">
             {renderInlineFormat(entry.content)}
           </h3>
         );
       }
       return (
-        <h4 key={entry.id} className="text-sm font-semibold text-[#444444] mt-2 mb-1">
+        <h4 className="text-sm font-semibold text-[#444444] mt-2 mb-1">
           {renderInlineFormat(entry.content)}
         </h4>
       );
@@ -324,7 +325,7 @@ function FragmentEntry({ entry }: { entry: RenderedLine }) {
 
     case "list":
       return (
-        <div key={entry.id} className="flex items-start gap-1.5 my-0.5">
+        <div className="flex items-start gap-1.5 my-0.5">
           <span className="text-brand mt-0.5 shrink-0">•</span>
           <span className="text-sm text-[#555555] leading-relaxed">
             {renderInlineFormat(entry.content)}
@@ -335,7 +336,7 @@ function FragmentEntry({ entry }: { entry: RenderedLine }) {
     case "numberedList": {
       const num = (entry.props?.num as string) ?? "";
       return (
-        <div key={entry.id} className="flex items-start gap-1.5 my-0.5">
+        <div className="flex items-start gap-1.5 my-0.5">
           <span className="text-brand font-semibold text-sm shrink-0 min-w-[1.5em]">
             {num}.
           </span>
@@ -353,7 +354,6 @@ function FragmentEntry({ entry }: { entry: RenderedLine }) {
         // 短代码块显示为行内
         return (
           <code
-            key={entry.id}
             className="block bg-[#F5F5F5] text-[#E54545] px-2 py-1 rounded text-xs font-mono my-1 whitespace-pre-wrap break-all"
           >
             {entry.content}
@@ -361,7 +361,7 @@ function FragmentEntry({ entry }: { entry: RenderedLine }) {
         );
       }
       return (
-        <div key={entry.id} className="my-2 -mx-4">
+        <div className="my-2 -mx-4">
           {lang && (
             <div className="bg-[#333333] text-white px-3 py-1 text-xs font-medium rounded-t-md -mx-4">
               {lang}
@@ -379,11 +379,11 @@ function FragmentEntry({ entry }: { entry: RenderedLine }) {
     }
 
     case "empty":
-      return <div key={entry.id} className="h-1" />;
+      return <div className="h-1" />;
 
     default:
       return (
-        <p key={entry.id} className="text-sm text-[#555555] leading-relaxed my-0.5">
+        <p className="text-sm text-[#555555] leading-relaxed my-0.5">
           {renderInlineFormat(entry.content)}
         </p>
       );

@@ -83,7 +83,7 @@ export default function ToolkitClient() {
   return (
     <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="工具箱" showBack />
-      <div className="px-4 -mt-4 space-y-3">
+      <div className="px-4 pt-1 space-y-3">
         <p className="text-xs text-[#999999] animate-fade-in">
           实用财税知识速查
         </p>

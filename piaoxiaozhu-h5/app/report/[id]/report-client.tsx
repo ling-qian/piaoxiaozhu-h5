@@ -59,7 +59,7 @@ export default function ReportClient({
         onBack={() => router.push(`/project/${projectId}`)}
       />
 
-      <div className="px-4 -mt-4 space-y-4">
+      <div className="px-4 pt-1 space-y-4">
         {records.length === 0 ? (
           <div className="bg-white rounded-md p-8 shadow-card text-center animate-fade-in-up">
             <p className="text-4xl mb-3">📊</p>

@@ -89,7 +89,7 @@ export default function HomeClient({ projects, isLoggedIn }: { projects: Project
     <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="票小助" />
 
-      <div className="px-4 -mt-4 space-y-3">
+      <div className="px-4 pt-1 space-y-3">
         {!isLoggedIn ? (
           /* 未登录：品牌介绍 + 登录引导 */
           <div className="space-y-4 animate-fade-in-up">

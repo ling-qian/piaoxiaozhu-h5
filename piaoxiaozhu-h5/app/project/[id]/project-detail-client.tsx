@@ -161,7 +161,7 @@ export default function ProjectDetailClient({
         }
       />
 
-      <div className="px-4 -mt-4 space-y-4">
+      <div className="px-4 pt-1 space-y-4">
         {/* 统计卡片 */}
         <StatRow stats={stats} />
 

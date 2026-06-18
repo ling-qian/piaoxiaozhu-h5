@@ -127,7 +127,7 @@ export default function AnalysisClient({
     <div className="pb-16 min-h-screen bg-[#F5F5F5]">
       <PageHeader title="AI 经营分析" showBack />
 
-      <div className="px-4 -mt-4 space-y-3">
+      <div className="px-4 pt-1 space-y-3">
         {/* 项目信息 */}
         <div className="bg-white rounded-md p-4 shadow-card animate-fade-in">
           <div className="flex items-center justify-between">

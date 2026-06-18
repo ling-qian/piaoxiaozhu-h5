@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getUserInfo } from "@/lib/actions/user-actions";
@@ -10,5 +11,9 @@ export default async function MemberPage() {
   const user = await getUserInfo();
   if (!user) redirect("/auth/login");
 
-  return <MemberClient currentPlan={user.planCode} />;
+  return (
+    <Suspense>
+      <MemberClient currentPlan={user.planCode} />
+    </Suspense>
+  );
 }
