@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { SessionProvider } from "next-auth/react";
 import { Analytics } from "@vercel/analytics/react";
 import { ToastProvider } from "@/components/toast";
+import { I18nProvider } from "@/lib/i18n";
 import ServiceWorkerRegistrar from "@/components/sw-registrar";
 import "./globals.css";
 
@@ -44,13 +45,15 @@ export default function RootLayout({
     <html lang="zh-CN">
       <body>
         <SessionProvider>
-          <ToastProvider>
-            <ServiceWorkerRegistrar />
-            <div className="mx-auto max-w-mobile min-h-screen bg-page relative">
-              {children}
-            </div>
-            <Analytics />
-          </ToastProvider>
+          <I18nProvider>
+            <ToastProvider>
+              <ServiceWorkerRegistrar />
+              <div className="mx-auto max-w-mobile min-h-screen bg-page relative">
+                {children}
+              </div>
+              <Analytics />
+            </ToastProvider>
+          </I18nProvider>
         </SessionProvider>
       </body>
     </html>

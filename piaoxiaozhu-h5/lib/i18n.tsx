@@ -1,3 +1,7 @@
+"use client";
+
+import { createContext, useContext, useState, useCallback, useEffect, ReactNode } from "react";
+
 export type Locale = "zh" | "en";
 
 const translations: Record<Locale, Record<string, string>> = {
@@ -30,6 +34,20 @@ const translations: Record<Locale, Record<string, string>> = {
     "home.newProject": "新建",
     "home.projectName": "项目名称",
     "home.create": "确定",
+    "home.photoScan": "拍照识别",
+    "home.photoScanDesc": "上传票据自动识别",
+    "home.manualEntry": "手动录入",
+    "home.manualEntryDesc": "手动填写票据信息",
+    "home.noProject": "暂无项目，点击上方新建",
+    "home.records": "条记录",
+    "home.newProjectTitle": "新建项目",
+    "home.industryType": "行业类型",
+
+    // 行业
+    "industry.restaurant": "餐饮",
+    "industry.retail": "零售",
+    "industry.service": "服务业",
+    "industry.other": "其他",
 
     // 项目详情
     "project.manualEntry": "手动录入",
@@ -39,6 +57,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "project.date": "日期",
     "project.category": "分类",
     "project.remark": "备注",
+    "project.deleteTitle": "删除项目",
+    "project.deleteConfirm": "确定删除该项目及其所有记录？此操作不可撤销。",
 
     // 分类
     "cat.food_material": "食材采购",
@@ -78,6 +98,24 @@ const translations: Record<Locale, Record<string, string>> = {
     "mine.projects": "个项目",
     "mine.about": "关于票小助",
     "mine.logout": "退出登录",
+    "mine.language": "语言",
+    "mine.plan": "会员套餐",
+    "mine.recommend": "推荐给朋友",
+    "mine.recommendLabel": "赚福利",
+    "mine.usage": "使用统计",
+    "mine.aboutTitle": "关于票小助",
+    "mine.aboutDesc": "餐饮票据智能整理助手",
+    "mine.aboutFeatures": "拍照识别 · 自动分类 · 报表统计",
+    "mine.aboutContact": "如有问题请联系客服",
+    "mine.close": "关闭",
+    "mine.logoutBtn": "退出登录",
+    "mine.loggingOut": "退出中...",
+    "mine.nicknamePlaceholder": "未设置昵称",
+    "mine.editNickname": "修改",
+    "mine.nicknameEmpty": "昵称不能为空",
+    "mine.nicknameUpdated": "昵称已更新",
+    "mine.nicknameSave": "保存",
+    "mine.switchedZh": "已切换为中文",
 
     // 上传
     "upload.title": "上传票据",
@@ -101,11 +139,34 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.hasAccount": "已有账号？",
     "auth.goLogin": "去登录",
     "auth.goRegister": "去注册",
+    "auth.loginBtn": "登录 / 注册",
 
     // 错误
     "error.title": "出了点问题",
     "error.retry": "重新加载",
     "error.default": "页面加载失败，请稍后重试",
+
+    // 看板
+    "dashboard.monthOverview": "本月概览",
+    "dashboard.records": "笔记录",
+    "dashboard.income": "收入",
+    "dashboard.expense": "支出",
+    "dashboard.net": "净额",
+    "dashboard.trend": "收支趋势",
+    "dashboard.category": "支出分类",
+
+    // 未登录首页
+    "home.brandSlogan": "餐饮票据智能整理助手",
+    "home.brandFeatures": "拍照识别 · 自动分类 · 报表统计",
+    "home.featureScan": "拍照识别",
+    "home.featureClassify": "智能分类",
+    "home.featureReport": "报表统计",
+
+    // 删除
+    "common.deleteFail": "删除失败",
+    "common.deleted": "项目已删除",
+    "common.createFail": "创建失败，请重试",
+    "common.created": "项目创建成功",
   },
   en: {
     "app.name": "PiaoXiaoZhu",
@@ -133,6 +194,19 @@ const translations: Record<Locale, Record<string, string>> = {
     "home.newProject": "New",
     "home.projectName": "Project name",
     "home.create": "Create",
+    "home.photoScan": "Scan",
+    "home.photoScanDesc": "Auto-recognize invoices",
+    "home.manualEntry": "Manual",
+    "home.manualEntryDesc": "Enter invoice manually",
+    "home.noProject": "No projects yet, tap New above",
+    "home.records": "records",
+    "home.newProjectTitle": "New Project",
+    "home.industryType": "Industry",
+
+    "industry.restaurant": "Restaurant",
+    "industry.retail": "Retail",
+    "industry.service": "Service",
+    "industry.other": "Other",
 
     "project.manualEntry": "Manual Entry",
     "project.batchUpload": "Batch Upload",
@@ -141,6 +215,8 @@ const translations: Record<Locale, Record<string, string>> = {
     "project.date": "Date",
     "project.category": "Category",
     "project.remark": "Remark",
+    "project.deleteTitle": "Delete Project",
+    "project.deleteConfirm": "Delete this project and all its records? This cannot be undone.",
 
     "cat.food_material": "Food Material",
     "cat.rent": "Rent",
@@ -176,6 +252,24 @@ const translations: Record<Locale, Record<string, string>> = {
     "mine.projects": "projects",
     "mine.about": "About",
     "mine.logout": "Log Out",
+    "mine.language": "Language",
+    "mine.plan": "Plans",
+    "mine.recommend": "Refer a Friend",
+    "mine.recommendLabel": "Rewards",
+    "mine.usage": "Usage",
+    "mine.aboutTitle": "About PiaoXiaoZhu",
+    "mine.aboutDesc": "Smart Invoice Organizer",
+    "mine.aboutFeatures": "Scan · Classify · Report",
+    "mine.aboutContact": "Contact support for help",
+    "mine.close": "Close",
+    "mine.logoutBtn": "Log Out",
+    "mine.loggingOut": "Logging out...",
+    "mine.nicknamePlaceholder": "No nickname",
+    "mine.editNickname": "Edit",
+    "mine.nicknameEmpty": "Nickname cannot be empty",
+    "mine.nicknameUpdated": "Nickname updated",
+    "mine.nicknameSave": "Save",
+    "mine.switchedZh": "Switched to English",
 
     "upload.title": "Upload Invoice",
     "upload.select": "Select Image",
@@ -196,37 +290,82 @@ const translations: Record<Locale, Record<string, string>> = {
     "auth.hasAccount": "Have an account?",
     "auth.goLogin": "Log in",
     "auth.goRegister": "Sign up",
+    "auth.loginBtn": "Log In / Sign Up",
 
     "error.title": "Something went wrong",
     "error.retry": "Retry",
     "error.default": "Failed to load, please try again",
+
+    "dashboard.monthOverview": "This Month",
+    "dashboard.records": "records",
+    "dashboard.income": "Income",
+    "dashboard.expense": "Expense",
+    "dashboard.net": "Net",
+    "dashboard.trend": "Trend",
+    "dashboard.category": "Top Expenses",
+
+    "home.brandSlogan": "Smart Invoice Organizer",
+    "home.brandFeatures": "Scan · Classify · Report",
+    "home.featureScan": "Scan",
+    "home.featureClassify": "Classify",
+    "home.featureReport": "Report",
+
+    "common.deleteFail": "Delete failed",
+    "common.deleted": "Project deleted",
+    "common.createFail": "Create failed, retry",
+    "common.created": "Project created",
   },
 };
 
-let currentLocale: Locale = "zh";
+// --- React Context ---
 
-export function setLocale(locale: Locale) {
-  currentLocale = locale;
-  if (typeof window !== "undefined") {
-    localStorage.setItem("locale", locale);
-  }
+interface I18nContextValue {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: (key: string) => string;
 }
 
-export function getLocale(): Locale {
+const I18nContext = createContext<I18nContextValue>({
+  locale: "zh",
+  setLocale: () => {},
+  t: (key: string) => translations.zh[key] || key,
+});
+
+function getInitialLocale(): Locale {
   if (typeof window !== "undefined") {
-    const saved = localStorage.getItem("locale") as Locale | null;
-    if (saved && (saved === "zh" || saved === "en")) {
-      currentLocale = saved;
+    const saved = localStorage.getItem("locale");
+    if (saved === "zh" || saved === "en") return saved;
+  }
+  return "zh";
+}
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
+
+  const setLocale = useCallback((loc: Locale) => {
+    setLocaleState(loc);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("locale", loc);
     }
-  }
-  return currentLocale;
+  }, []);
+
+  const t = useCallback(
+    (key: string) => translations[locale]?.[key] || translations.zh[key] || key,
+    [locale]
+  );
+
+  return (
+    <I18nContext.Provider value={{ locale, setLocale, t }}>
+      {children}
+    </I18nContext.Provider>
+  );
 }
 
-export function t(key: string, locale?: Locale): string {
-  const loc = locale || currentLocale;
-  return translations[loc]?.[key] || translations.zh[key] || key;
+export function useI18n() {
+  return useContext(I18nContext);
 }
 
-export function useLocale() {
-  return { locale: getLocale(), setLocale, t };
+// 非组件场景的纯函数（用于服务端等）
+export function t(key: string, locale: Locale = "zh"): string {
+  return translations[locale]?.[key] || translations.zh[key] || key;
 }

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 
 const tabs = [
   {
     href: "/",
-    label: "首页",
+    labelKey: "nav.home",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
@@ -17,7 +18,7 @@ const tabs = [
   },
   {
     href: "/upload",
-    label: "上传",
+    labelKey: "upload.title",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
@@ -28,7 +29,7 @@ const tabs = [
   },
   {
     href: "/report",
-    label: "报表",
+    labelKey: "report.title",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
         <line x1="18" y1="20" x2="18" y2="10" />
@@ -40,7 +41,7 @@ const tabs = [
   },
   {
     href: "/toolkit",
-    label: "工具箱",
+    labelKey: "toolkit.title",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
@@ -51,7 +52,7 @@ const tabs = [
   },
   {
     href: "/mine",
-    label: "我的",
+    labelKey: "nav.mine",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
@@ -64,6 +65,7 @@ const tabs = [
 
 export default function TabBar({ projectId }: { projectId?: string }) {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   function isActive(href: string): boolean {
     if (href === "/") return pathname === "/";
@@ -100,7 +102,7 @@ export default function TabBar({ projectId }: { projectId?: string }) {
                 {tab.icon}
               </span>
               <span className={`text-[10px] mt-0.5 transition-all duration-200 ${active ? "font-medium" : ""}`}>
-                {tab.label}
+                {t(tab.labelKey)}
               </span>
             </Link>
           );
