@@ -11,6 +11,7 @@ import { CATEGORIES } from "@/lib/constants";
 import { deleteRecord, getRecords } from "@/lib/actions/record-actions";
 import { deleteProject } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
+import { useI18n } from "@/lib/i18n";
 import { RecordItem } from "@/types/record";
 import CategoryTag from "@/components/category-tag";
 import FilterBar from "./filter-bar";
@@ -42,6 +43,7 @@ export default function ProjectDetailClient({
 }) {
   const router = useRouter();
   const { showToast } = useToast();
+  const { t } = useI18n();
   const [records, setRecords] = useState(initialRecords);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -115,7 +117,7 @@ export default function ProjectDetailClient({
       setRecords((prev) => [...prev, ...result.items]);
       setNextCursor(result.nextCursor);
     } catch {
-      showToast("加载失败", "error");
+      showToast(t("common.loadFail"), "error");
     } finally {
       setLoadingMore(false);
     }
@@ -126,9 +128,9 @@ export default function ProjectDetailClient({
     try {
       await deleteRecord(recordId);
       setRecords((prev) => prev.filter((r) => r.id !== recordId));
-      showToast("记录已删除", "success");
+      showToast(t("common.recordDeleted"), "success");
     } catch {
-      showToast("删除失败", "error");
+      showToast(t("common.deleteFail"), "error");
     } finally {
       setDeletingId(null);
     }
@@ -136,7 +138,7 @@ export default function ProjectDetailClient({
 
   async function handleDeleteProject() {
     await deleteProject(projectId);
-    showToast("项目已删除", "success");
+    showToast(t("common.deleted"), "success");
     router.push("/");
     router.refresh();
   }
@@ -163,21 +165,22 @@ export default function ProjectDetailClient({
 
       <div className="px-4 pt-1 space-y-4">
         {/* 统计卡片 */}
-        <StatRow stats={stats} />
+        <StatRow stats={stats} t={t} />
 
         {/* 成本分类可视化 */}
         {stats.costByCategory && stats.costByCategory.length > 0 && (
-          <CostCategoryChart categories={stats.costByCategory} />
+          <CostCategoryChart categories={stats.costByCategory} t={t} />
         )}
 
         {/* 操作按钮 */}
         <ActionButtons
           projectId={projectId}
           onAddIncome={() => setShowIncomeModal(true)}
+          t={t}
         />
 
         {/* AI 经营分析入口 */}
-        <AnalysisEntry projectId={projectId} />
+        <AnalysisEntry projectId={projectId} t={t} />
 
         {/* 记录头部 — 计数 + 多选/筛选/报表 */}
         <RecordHeader
@@ -191,6 +194,7 @@ export default function ProjectDetailClient({
           }}
           onToggleFilter={() => setShowFilterBar(!showFilterBar)}
           onViewReport={() => router.push(`/report/${projectId}`)}
+          t={t}
         />
 
         {/* 批量操作栏 */}
@@ -212,14 +216,15 @@ export default function ProjectDetailClient({
                 setRecords((prev) => prev.filter((r) => !selectedIds.has(r.id)));
                 setSelectedIds(new Set());
                 setSelectMode(false);
-                showToast(`已删除 ${selectedIds.size} 条记录`, "success");
+                showToast(`${t("common.deleted")} ${selectedIds.size} ${t("report.records")}`, "success");
                 router.refresh();
               } catch {
-                showToast("批量删除失败", "error");
+                showToast(t("common.deleteFail"), "error");
               } finally {
                 setBatchDeleting(false);
               }
             }}
+            t={t}
           />
         )}
 
@@ -244,9 +249,9 @@ export default function ProjectDetailClient({
 
         {/* 记录列表 */}
         {filteredRecords.length === 0 && records.length > 0 ? (
-          <EmptyFiltered onClear={clearAllFilters} />
+          <EmptyFiltered onClear={clearAllFilters} t={t} />
         ) : records.length === 0 ? (
-          <EmptyRecords />
+          <EmptyRecords t={t} />
         ) : (
           <RecordList
             records={filteredRecords}
@@ -269,6 +274,7 @@ export default function ProjectDetailClient({
             onLoadMore={handleLoadMore}
             nextCursor={nextCursor}
             loadingMore={loadingMore}
+            t={t}
           />
         )}
       </div>
@@ -309,13 +315,13 @@ export default function ProjectDetailClient({
 }
 
 /** 统计卡片行 */
-function StatRow({ stats }: { stats: Stats }) {
+function StatRow({ stats, t }: { stats: Stats; t: (key: string) => string }) {
   return (
     <div className="flex gap-2">
-      <StatCard label="总收入" value={`¥${formatAmount(stats.totalIncome)}`} color="#52C41A" />
-      <StatCard label="总支出" value={`¥${formatAmount(stats.totalExpense)}`} color="#FF4D4F" />
+      <StatCard label={t("project.totalIncome")} value={`¥${formatAmount(stats.totalIncome)}`} color="#52C41A" />
+      <StatCard label={t("project.totalExpense")} value={`¥${formatAmount(stats.totalExpense)}`} color="#FF4D4F" />
       <StatCard
-        label="毛利润"
+        label={t("project.grossProfit")}
         value={`¥${formatAmount(stats.grossProfit)}`}
         color={stats.grossProfit >= 0 ? "#52C41A" : "#FF4D4F"}
       />
@@ -324,11 +330,11 @@ function StatRow({ stats }: { stats: Stats }) {
 }
 
 /** 成本分类可视化 */
-function CostCategoryChart({ categories }: { categories: { code: string; name: string; amount: number }[] }) {
+function CostCategoryChart({ categories, t }: { categories: { code: string; name: string; amount: number }[]; t: (key: string) => string }) {
   const maxAmount = categories[0]?.amount || 1;
   return (
     <div className="bg-white rounded-md p-3 shadow-card animate-fade-in-up stagger-1">
-      <h3 className="text-sm font-semibold text-[#333333] mb-2">成本分类</h3>
+      <h3 className="text-sm font-semibold text-[#333333] mb-2">{t("project.costCategory")}</h3>
       <div className="space-y-2">
         {categories.map((cat) => {
           const percent = maxAmount > 0 ? (cat.amount / maxAmount) * 100 : 0;
@@ -357,7 +363,7 @@ function CostCategoryChart({ categories }: { categories: { code: string; name: s
 }
 
 /** 上传/添加收入按钮 */
-function ActionButtons({ projectId, onAddIncome }: { projectId: string; onAddIncome: () => void }) {
+function ActionButtons({ projectId, onAddIncome, t }: { projectId: string; onAddIncome: () => void; t: (key: string) => string }) {
   const router = useRouter();
   return (
     <div className="flex gap-2 animate-fade-in-up stagger-2">
@@ -365,20 +371,20 @@ function ActionButtons({ projectId, onAddIncome }: { projectId: string; onAddInc
         onClick={() => router.push(`/upload?project=${projectId}`)}
         className="flex-1 bg-brand text-white py-2.5 rounded-xl text-sm font-medium btn-press"
       >
-        📷 拍照上传
+        {t("project.photoUpload")}
       </button>
       <button
         onClick={onAddIncome}
         className="flex-1 bg-[#52C41A] text-white py-2.5 rounded-xl text-sm font-medium btn-press"
       >
-        💰 添加收入
+        {t("project.addIncome")}
       </button>
     </div>
   );
 }
 
 /** AI 经营分析入口 */
-function AnalysisEntry({ projectId }: { projectId: string }) {
+function AnalysisEntry({ projectId, t }: { projectId: string; t: (key: string) => string }) {
   const router = useRouter();
   return (
     <button
@@ -389,9 +395,9 @@ function AnalysisEntry({ projectId }: { projectId: string }) {
         <div>
           <div className="flex items-center gap-1.5">
             <span className="text-base">🤖</span>
-            <span className="text-sm font-semibold">AI 经营分析</span>
+            <span className="text-sm font-semibold">{t("project.aiAnalysis")}</span>
           </div>
-          <p className="text-xs opacity-80 mt-0.5">利润分析 · 成本优化 · 经营建议</p>
+          <p className="text-xs opacity-80 mt-0.5">{t("project.aiAnalysisDesc")}</p>
         </div>
         <span className="text-lg">→</span>
       </div>
@@ -408,6 +414,7 @@ function RecordHeader({
   onToggleSelect,
   onToggleFilter,
   onViewReport,
+  t,
 }: {
   count: number;
   total: number;
@@ -416,30 +423,31 @@ function RecordHeader({
   onToggleSelect: () => void;
   onToggleFilter: () => void;
   onViewReport: () => void;
+  t: (key: string) => string;
 }) {
   return (
     <div className="flex items-center justify-between animate-fade-in-up stagger-3">
       <h3 className="text-sm font-semibold text-[#333333]">
-        记录 ({count}{count < total ? `/${total}` : ""})
+        {t("project.records")} ({count}{count < total ? `/${total}` : ""})
       </h3>
       <div className="flex items-center gap-2">
         <button
           onClick={onToggleSelect}
           className={`text-xs px-2 py-1 rounded-full btn-press ${selectMode ? "bg-brand text-white" : "text-brand"}`}
         >
-          {selectMode ? "取消" : "多选"}
+          {selectMode ? t("common.cancel") : t("project.multiSelect")}
         </button>
         <button
           onClick={onToggleFilter}
           className={`text-xs px-2 py-1 rounded-full btn-press ${hasActiveFilter ? "bg-brand text-white" : "text-brand"}`}
         >
-          筛选
+          {t("common.filter")}
         </button>
         <button
           onClick={onViewReport}
           className="text-xs text-brand btn-press"
         >
-          报表 →
+          {t("project.reportLink")}
         </button>
       </div>
     </div>
@@ -453,12 +461,14 @@ function BatchActionBar({
   batchDeleting,
   onToggleSelectAll,
   onDeleteSelected,
+  t,
 }: {
   filteredCount: number;
   selectedCount: number;
   batchDeleting: boolean;
   onToggleSelectAll: () => void;
   onDeleteSelected: () => void;
+  t: (key: string) => string;
 }) {
   return (
     <div className="flex items-center gap-2 animate-fade-in-up">
@@ -466,16 +476,16 @@ function BatchActionBar({
         onClick={onToggleSelectAll}
         className="text-xs text-brand btn-press"
       >
-        {selectedCount === filteredCount ? "取消全选" : "全选"}
+        {selectedCount === filteredCount ? t("project.cancelSelectAll") : t("project.selectAll")}
       </button>
-      <span className="text-xs text-[#999999]">已选 {selectedCount} 条</span>
+      <span className="text-xs text-[#999999]">{t("project.selected")} {selectedCount}</span>
       {selectedCount > 0 && (
         <button
           onClick={onDeleteSelected}
           disabled={batchDeleting}
           className="ml-auto text-xs bg-[#FF4D4F] text-white px-3 py-1 rounded-full btn-press disabled:opacity-50"
         >
-          {batchDeleting ? "删除中..." : `删除 (${selectedCount})`}
+          {batchDeleting ? t("project.deleting") : `${t("common.delete")} (${selectedCount})`}
         </button>
       )}
     </div>
@@ -483,26 +493,26 @@ function BatchActionBar({
 }
 
 /** 无匹配记录提示 */
-function EmptyFiltered({ onClear }: { onClear: () => void }) {
+function EmptyFiltered({ onClear, t }: { onClear: () => void; t: (key: string) => string }) {
   return (
     <div className="bg-white rounded-md p-6 shadow-card text-center animate-fade-in-up">
-      <p className="text-sm text-[#999999]">没有匹配的记录</p>
+      <p className="text-sm text-[#999999]">{t("project.noMatch")}</p>
       <button
         onClick={onClear}
         className="text-xs text-brand mt-2 btn-press"
       >
-        清除筛选
+        {t("project.clearFilter")}
       </button>
     </div>
   );
 }
 
 /** 空记录提示 */
-function EmptyRecords() {
+function EmptyRecords({ t }: { t: (key: string) => string }) {
   return (
     <div className="bg-white rounded-md p-8 shadow-card text-center animate-fade-in-up">
       <p className="text-4xl mb-3">📝</p>
-      <p className="text-sm text-[#999999]">暂无记录，开始上传票据吧</p>
+      <p className="text-sm text-[#999999]">{t("project.noRecords")}</p>
     </div>
   );
 }
@@ -522,6 +532,7 @@ function RecordList({
   onLoadMore,
   nextCursor,
   loadingMore,
+  t,
 }: {
   records: Record[];
   swipedId: string | null;
@@ -536,6 +547,7 @@ function RecordList({
   onLoadMore: () => void;
   nextCursor: string | null;
   loadingMore: boolean;
+  t: (key: string) => string;
 }) {
   const router = useRouter();
   return (
@@ -590,7 +602,7 @@ function RecordList({
                 disabled={deletingId === r.id}
                 className="w-[72px] shrink-0 bg-[#FF4D4F] text-white text-xs flex items-center justify-center"
               >
-                {deletingId === r.id ? "..." : "删除"}
+                {deletingId === r.id ? "..." : t("common.delete")}
               </button>
             </div>
           </div>
@@ -603,7 +615,7 @@ function RecordList({
           disabled={loadingMore}
           className="w-full bg-white text-[#666666] py-3 rounded-xl text-sm shadow-card btn-press disabled:opacity-50"
         >
-          {loadingMore ? "加载中..." : "加载更多"}
+          {loadingMore ? t("common.loading") : t("project.loadMore")}
         </button>
       )}
     </div>

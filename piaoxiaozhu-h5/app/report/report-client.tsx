@@ -12,6 +12,7 @@ import TabBar from "@/components/tab-bar";
 import { formatAmount } from "@/lib/utils";
 import { CATEGORY_MAP } from "@/lib/constants";
 import { useExportCsv } from "@/lib/hooks/use-export-csv";
+import { useI18n } from "@/lib/i18n";
 import { RecordForReport as Record } from "@/types/record";
 import ReportSkeleton from "@/components/report-skeleton";
 
@@ -43,6 +44,7 @@ export default function ReportClient({
   const urlProjectId = searchParams.get("project");
   const activeProjectId = urlProjectId || projectId;
   const { exporting, handleExport } = useExportCsv(activeProjectId);
+  const { t } = useI18n();
 
   const [month, setMonth] = useState("");
   const [direction, setDirection] = useState("all");
@@ -121,7 +123,7 @@ export default function ReportClient({
 
   return (
     <div className="pb-16 min-h-screen bg-[#F5F5F5]">
-      <PageHeader title="利润报表" />
+      <PageHeader title={t("report.profitReport")} />
 
       <div className="px-4 pt-1 space-y-4">
         {projects.length > 1 && (
@@ -145,12 +147,12 @@ export default function ReportClient({
         {records.length === 0 ? (
           <div className="bg-white rounded-md p-8 shadow-card text-center animate-fade-in-up stagger-1">
             <p className="text-4xl mb-3">📊</p>
-            <p className="text-sm text-[#999999]">暂无记录，无法生成报表</p>
+            <p className="text-sm text-[#999999]">{t("report.noRecords")}</p>
             <button
               onClick={() => router.push("/")}
               className="text-sm text-brand mt-3 btn-press"
             >
-              去添加记录 →
+              {t("report.addRecords")}
             </button>
           </div>
         ) : (
@@ -160,18 +162,18 @@ export default function ReportClient({
             <div className="flex gap-2 mb-3">
               <input
                 type="text"
-                placeholder="搜索商户、发票号、关键词..."
+                placeholder={t("report.searchPlaceholder")}
                 value={keyword}
                 onChange={(e) => setKeyword(e.target.value)}
                 className="flex-1 border border-[#EEEEEE] rounded-lg px-3 py-2 text-sm focus:border-brand focus:outline-none"
               />
             </div>
             <div className="flex items-center gap-1.5 mb-2">
-              <span className="text-xs text-[#999999] shrink-0">收支</span>
+              <span className="text-xs text-[#999999] shrink-0">{t("report.incomeExpense")}</span>
               {[
-                { v: "all", l: "全部" },
-                { v: "income", l: "收入" },
-                { v: "out", l: "支出" },
+                { v: "all", l: t("report.all") },
+                { v: "income", l: t("report.income") },
+                { v: "out", l: t("report.expense") },
               ].map((opt) => (
                 <button
                   key={opt.v}
@@ -185,14 +187,14 @@ export default function ReportClient({
               ))}
             </div>
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-              <span className="text-xs text-[#999999] shrink-0">分类</span>
+              <span className="text-xs text-[#999999] shrink-0">{t("project.category")}</span>
               <button
                 onClick={() => setCategory("all")}
                 className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors ${
                   category === "all" ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
                 }`}
               >
-                全部
+                {t("report.all")}
               </button>
               {categories.map((c) => {
                 const cat = CATEGORY_MAP[c];
@@ -209,15 +211,15 @@ export default function ReportClient({
                 );
               })}
             </div>
-            <p className="text-xs text-[#999999] mt-2">{searchResults.length} 条记录</p>
+            <p className="text-xs text-[#999999] mt-2">{searchResults.length} {t("report.records")}</p>
           </div>
 
           {/* 统计卡片 */}
           <div className="flex gap-2 animate-fade-in-up stagger-1">
-            <StatCard label="总收入" value={`¥${formatAmount(report.totalIncome)}`} color="#52C41A" />
-            <StatCard label="总支出" value={`¥${formatAmount(report.totalExpense)}`} color="#FF4D4F" />
+            <StatCard label={t("report.totalIncome")} value={`¥${formatAmount(report.totalIncome)}`} color="#52C41A" />
+            <StatCard label={t("report.totalExpense")} value={`¥${formatAmount(report.totalExpense)}`} color="#FF4D4F" />
             <StatCard
-              label="毛利润"
+              label={t("report.grossProfit")}
               value={`¥${formatAmount(report.grossProfit)}`}
               color={report.grossProfit >= 0 ? "#52C41A" : "#FF4D4F"}
             />
@@ -225,7 +227,7 @@ export default function ReportClient({
 
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-2">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-[#666666]">毛利率</span>
+              <span className="text-sm text-[#666666]">{t("report.grossMargin")}</span>
               <span
                 className="text-lg font-semibold"
                 style={{ color: report.grossMargin >= 0 ? "#52C41A" : "#FF4D4F" }}
@@ -236,7 +238,7 @@ export default function ReportClient({
           </div>
 
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up stagger-3">
-            <label className="block text-sm text-[#666666] mb-2">月份筛选</label>
+            <label className="block text-sm text-[#666666] mb-2">{t("report.monthFilter")}</label>
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               <button
                 onClick={() => setMonth("")}
@@ -244,7 +246,7 @@ export default function ReportClient({
                   month === "" ? "bg-brand text-white" : "bg-gray-100 text-[#666666] hover:bg-gray-200"
                 }`}
               >
-                全部
+                {t("report.all")}
               </button>
               {months.map((m) => (
                 <button
@@ -270,7 +272,7 @@ export default function ReportClient({
               <polyline points="7 10 12 15 17 10" />
               <line x1="12" y1="15" x2="12" y2="3" />
             </svg>
-            {exporting ? "导出中..." : "导出 CSV"}
+            {exporting ? t("report.exporting") : t("report.exportCsv")}
           </button>
 
           <div className="animate-fade-in-up stagger-4">
@@ -289,8 +291,8 @@ export default function ReportClient({
               onClick={() => setShowDetail(!showDetail)}
               className="w-full flex items-center justify-between p-4"
             >
-              <h3 className="text-sm font-medium text-[#333333]">收支明细</h3>
-              <span className="text-xs text-brand">{showDetail ? "收起" : `查看 (${filteredRecords.length}条)`}</span>
+              <h3 className="text-sm font-medium text-[#333333]">{t("report.detail")}</h3>
+              <span className="text-xs text-brand">{showDetail ? t("report.detailCollapse") : `${t("report.viewDetail")} (${filteredRecords.length})`}</span>
             </button>
             {showDetail && (
               <div className="px-4 pb-4">
@@ -298,10 +300,10 @@ export default function ReportClient({
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b border-[#EEEEEE]">
-                        <th className="text-left py-2 text-[#999999] font-normal">日期</th>
-                        <th className="text-left py-2 text-[#999999] font-normal">商户</th>
-                        <th className="text-left py-2 text-[#999999] font-normal">分类</th>
-                        <th className="text-right py-2 text-[#999999] font-normal">金额</th>
+                        <th className="text-left py-2 text-[#999999] font-normal">{t("project.date")}</th>
+                        <th className="text-left py-2 text-[#999999] font-normal">{t("project.merchant")}</th>
+                        <th className="text-left py-2 text-[#999999] font-normal">{t("project.category")}</th>
+                        <th className="text-right py-2 text-[#999999] font-normal">{t("project.amount")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -316,7 +318,7 @@ export default function ReportClient({
                                 className="inline-block px-1.5 py-0.5 rounded text-[10px] text-white"
                                 style={{ backgroundColor: cat?.color || "#999" }}
                               >
-                                {cat?.l1 || "其他"}
+                                {cat?.l1 || t("cat.other")}
                               </span>
                             </td>
                             <td className={`py-2 text-right whitespace-nowrap font-medium ${r.direction === "income" ? "text-success" : "text-error"}`}>

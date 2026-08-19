@@ -72,7 +72,7 @@ function recordFailure(): void {
   if (circuit.failures >= CIRCUIT_THRESHOLD && circuit.state !== "open") {
     circuit.state = "open";
     circuit.openedAt = Date.now();
-    console.warn(`[llmCategorize] 熔断器打开，连续失败 ${circuit.failures} 次，${CIRCUIT_COOLDOWN_MS / 1000}s 后恢复`);
+    // 熔断器已打开
   }
 }
 
@@ -86,7 +86,7 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
       lastErr = err;
       if (attempt < maxRetries) {
         const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-        console.warn(`[llmCategorize] 第 ${attempt + 1} 次重试，等待 ${delay}ms`);
+        // retrying
         await new Promise((r) => setTimeout(r, delay));
       }
     }
@@ -99,7 +99,7 @@ export async function llmCategorize(
   rawText: string
 ): Promise<LlmCategorizeResult | null> {
   if (!LLM_API_KEY) {
-    console.warn("[llmCategorize] LLM_API_KEY 未配置，跳过 LLM 分类");
+    // LLM_API_KEY 未配置
     return null;
   }
 
@@ -111,7 +111,7 @@ export async function llmCategorize(
 
   // 熔断检查
   if (isCircuitOpen()) {
-    console.warn("[llmCategorize] 熔断器打开，跳过 LLM 调用，使用兜底分类");
+    // 熔断器打开，使用兜底分类
     return fallbackCategory(merchantName);
   }
 
@@ -155,7 +155,7 @@ export async function llmCategorize(
         });
 
         if (!response.ok) {
-          console.error(`[llmCategorize] API 返回错误: ${response.status} ${response.statusText}`);
+          // API 返回错误
           throw new Error(`HTTP ${response.status}`);
         }
 
@@ -170,7 +170,7 @@ export async function llmCategorize(
         const categoryCode = parsed.categoryCode || "other";
 
         if (!VALID_CATEGORY_CODES.has(categoryCode)) {
-          console.warn(`[llmCategorize] LLM 返回了无效分类: ${categoryCode}，降级为 other`);
+          // LLM 返回了无效分类，降级为 other
           const fallbackResult: LlmCategorizeResult = {
             categoryCode: "other",
             categoryL1: "其他",
@@ -194,7 +194,7 @@ export async function llmCategorize(
     return result;
   } catch (err) {
     recordFailure();
-    console.error("[llmCategorize] 调用失败:", err);
+    // LLM 调用失败
     return fallbackCategory(merchantName);
   }
 }

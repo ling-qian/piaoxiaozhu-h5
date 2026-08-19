@@ -4,10 +4,12 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
+import { useI18n } from "@/lib/i18n";
 
 export default function LoginPage() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -17,14 +19,14 @@ export default function LoginPage() {
   function validate(): boolean {
     const errs: { email?: string; password?: string } = {};
     if (!email.trim()) {
-      errs.email = "请输入邮箱";
+      errs.email = t("auth.emailRequired");
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errs.email = "邮箱格式不正确";
+      errs.email = t("auth.emailInvalid");
     }
     if (!password) {
-      errs.password = "请输入密码";
+      errs.password = t("auth.passwordRequired");
     } else if (password.length < 6) {
-      errs.password = "密码至少6位";
+      errs.password = t("auth.passwordMinLength");
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -42,14 +44,14 @@ export default function LoginPage() {
         redirect: false,
       });
       if (result?.error) {
-        showToast("邮箱或密码错误", "error");
+        showToast(t("auth.loginFailed"), "error");
       } else {
-        showToast("登录成功", "success");
+        showToast(t("auth.loginSuccess"), "success");
         router.push("/");
         router.refresh();
       }
     } catch {
-      showToast("登录失败，请重试", "error");
+      showToast(t("auth.loginError"), "error");
     } finally {
       setLoading(false);
     }
@@ -58,13 +60,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col justify-center px-8 bg-gradient-to-b from-brand-bg to-white">
       <div className="animate-fade-in-up">
-        <h1 className="text-3xl font-bold text-brand mb-2">票小助</h1>
-        <p className="text-sm text-[#999999] mb-8">AI驱动的餐饮票据整理工具</p>
+        <h1 className="text-3xl font-bold text-brand mb-2">{t("auth.loginTitle")}</h1>
+        <p className="text-sm text-[#999999] mb-8">{t("auth.loginSubtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in-up stagger-2" noValidate>
         <div>
-          <label className="block text-sm text-[#666666] mb-1.5">邮箱</label>
+          <label className="block text-sm text-[#666666] mb-1.5">{t("auth.emailLabel")}</label>
           <input
             type="email"
             value={email}
@@ -72,7 +74,7 @@ export default function LoginPage() {
             className={`w-full border rounded-xl px-4 py-3 text-sm bg-white focus:outline-none transition-colors ${
               errors.email ? "border-[#FF4D4F] focus:border-[#FF4D4F]" : "border-[#EEEEEE] focus:border-brand"
             }`}
-            placeholder="请输入邮箱"
+            placeholder={t("auth.emailPlaceholder")}
             required
           />
           {errors.email && (
@@ -80,7 +82,7 @@ export default function LoginPage() {
           )}
         </div>
         <div>
-          <label className="block text-sm text-[#666666] mb-1.5">密码</label>
+          <label className="block text-sm text-[#666666] mb-1.5">{t("auth.passwordLabel")}</label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -89,7 +91,7 @@ export default function LoginPage() {
               className={`w-full border rounded-xl px-4 py-3 pr-11 text-sm bg-white focus:outline-none transition-colors ${
                 errors.password ? "border-[#FF4D4F] focus:border-[#FF4D4F]" : "border-[#EEEEEE] focus:border-brand"
               }`}
-              placeholder="请输入密码"
+              placeholder={t("auth.passwordPlaceholder")}
               required
             />
             <button
@@ -120,17 +122,17 @@ export default function LoginPage() {
           disabled={loading}
           className="w-full bg-brand text-white py-3 rounded-xl font-medium disabled:opacity-50 btn-press"
         >
-          {loading ? "登录中..." : "登录"}
+          {loading ? t("auth.loggingIn") : t("auth.login")}
         </button>
       </form>
 
       <p className="text-center text-sm text-[#999999] mt-6 animate-fade-in-up stagger-3">
-        还没有账号？
+        {t("auth.noAccountYet")}
         <button
           onClick={() => router.push("/auth/register")}
           className="text-brand font-medium ml-1 btn-press"
         >
-          立即注册
+          {t("auth.registerNow")}
         </button>
       </p>
     </div>

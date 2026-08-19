@@ -4,10 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { registerUser } from "@/lib/actions/user-actions";
 import { useToast } from "@/components/toast";
+import { useI18n } from "@/lib/i18n";
 
 export default function RegisterPage() {
   const router = useRouter();
   const { showToast } = useToast();
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,19 +22,19 @@ export default function RegisterPage() {
   function validate(): boolean {
     const errs: { email?: string; password?: string; confirm?: string } = {};
     if (!email.trim()) {
-      errs.email = "请输入邮箱";
+      errs.email = t("auth.emailRequired");
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errs.email = "邮箱格式不正确";
+      errs.email = t("auth.emailInvalid");
     }
     if (!password) {
-      errs.password = "请输入密码";
+      errs.password = t("auth.passwordRequired");
     } else if (password.length < 6) {
-      errs.password = "密码至少6位";
+      errs.password = t("auth.passwordMinLength");
     }
     if (!confirmPassword) {
-      errs.confirm = "请确认密码";
+      errs.confirm = t("auth.confirmRequired");
     } else if (password !== confirmPassword) {
-      errs.confirm = "两次密码不一致";
+      errs.confirm = t("auth.confirmMismatch");
     }
     setErrors(errs);
     return Object.keys(errs).length === 0;
@@ -45,10 +47,10 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await registerUser(email, password, name || email);
-      showToast("注册成功，请登录", "success");
+      showToast(t("auth.registerSuccess"), "success");
       router.push("/auth/login");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "注册失败";
+      const message = err instanceof Error ? err.message : t("auth.registerFailed");
       showToast(message, "error");
     } finally {
       setLoading(false);
@@ -58,23 +60,23 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex flex-col justify-center px-8 bg-gradient-to-b from-brand-bg to-white">
       <div className="animate-fade-in-up">
-        <h1 className="text-3xl font-bold text-brand mb-2">注册账号</h1>
-        <p className="text-sm text-[#999999] mb-8">创建票小助账号，开始整理票据</p>
+        <h1 className="text-3xl font-bold text-brand mb-2">{t("auth.registerTitle")}</h1>
+        <p className="text-sm text-[#999999] mb-8">{t("auth.registerSubtitle")}</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4 animate-fade-in-up stagger-2" noValidate>
         <div>
-          <label className="block text-sm text-[#666666] mb-1.5">昵称</label>
+          <label className="block text-sm text-[#666666] mb-1.5">{t("auth.nickname")}</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="w-full border border-[#EEEEEE] rounded-xl px-4 py-3 text-sm bg-white focus:border-brand focus:outline-none transition-colors"
-            placeholder="选填"
+            placeholder={t("auth.nicknamePlaceholder")}
           />
         </div>
         <div>
-          <label className="block text-sm text-[#666666] mb-1.5">邮箱</label>
+          <label className="block text-sm text-[#666666] mb-1.5">{t("auth.emailLabel")}</label>
           <input
             type="email"
             value={email}
@@ -82,7 +84,7 @@ export default function RegisterPage() {
             className={`w-full border rounded-xl px-4 py-3 text-sm bg-white focus:outline-none transition-colors ${
               errors.email ? "border-[#FF4D4F] focus:border-[#FF4D4F]" : "border-[#EEEEEE] focus:border-brand"
             }`}
-            placeholder="请输入邮箱"
+            placeholder={t("auth.emailPlaceholder")}
             required
           />
           {errors.email && (
@@ -90,7 +92,7 @@ export default function RegisterPage() {
           )}
         </div>
         <div>
-          <label className="block text-sm text-[#666666] mb-1.5">密码</label>
+          <label className="block text-sm text-[#666666] mb-1.5">{t("auth.passwordLabel")}</label>
           <div className="relative">
             <input
               type={showPassword ? "text" : "password"}
@@ -99,7 +101,7 @@ export default function RegisterPage() {
               className={`w-full border rounded-xl px-4 py-3 pr-11 text-sm bg-white focus:outline-none transition-colors ${
                 errors.password ? "border-[#FF4D4F] focus:border-[#FF4D4F]" : "border-[#EEEEEE] focus:border-brand"
               }`}
-              placeholder="至少6位"
+              placeholder={t("auth.passwordMinLength")}
               required
             />
             <button
@@ -126,7 +128,7 @@ export default function RegisterPage() {
           )}
         </div>
         <div>
-          <label className="block text-sm text-[#666666] mb-1.5">确认密码</label>
+          <label className="block text-sm text-[#666666] mb-1.5">{t("auth.confirmPasswordLabel")}</label>
           <div className="relative">
             <input
               type={showConfirm ? "text" : "password"}
@@ -135,7 +137,7 @@ export default function RegisterPage() {
               className={`w-full border rounded-xl px-4 py-3 pr-11 text-sm bg-white focus:outline-none transition-colors ${
                 errors.confirm ? "border-[#FF4D4F] focus:border-[#FF4D4F]" : "border-[#EEEEEE] focus:border-brand"
               }`}
-              placeholder="再次输入密码"
+              placeholder={t("auth.confirmPasswordPlaceholder")}
               required
             />
             <button
@@ -166,17 +168,17 @@ export default function RegisterPage() {
           disabled={loading}
           className="w-full bg-brand text-white py-3 rounded-xl font-medium disabled:opacity-50 btn-press"
         >
-          {loading ? "注册中..." : "注册"}
+          {loading ? t("auth.registering") : t("auth.register")}
         </button>
       </form>
 
       <p className="text-center text-sm text-[#999999] mt-6 animate-fade-in-up stagger-3">
-        已有账号？
+        {t("auth.hasAccount")}
         <button
           onClick={() => router.push("/auth/login")}
           className="text-brand font-medium ml-1 btn-press"
         >
-          立即登录
+          {t("auth.loginNow")}
         </button>
       </p>
     </div>

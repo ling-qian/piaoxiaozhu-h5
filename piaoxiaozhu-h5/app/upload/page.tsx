@@ -7,6 +7,7 @@ import Image from "next/image";
 import { createRecordFromOcr } from "@/lib/actions/record-actions";
 import { getProjects } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
+import { useI18n } from "@/lib/i18n";
 import PageHeader from "@/components/page-header";
 import OcrProgress from "@/components/ocr-progress";
 import TabBar from "@/components/tab-bar";
@@ -33,6 +34,7 @@ function UploadContent() {
   const searchParams = useSearchParams();
   const urlProjectId = searchParams.get("project") || "";
   const { showToast } = useToast();
+  const { t } = useI18n();
 
   const [projectId, setProjectId] = useState(urlProjectId);
   const [projects, setProjects] = useState<ProjectOption[]>([]);
@@ -58,7 +60,7 @@ function UploadContent() {
     const fileArray = Array.from(files);
 
     if (batchItems.length + fileArray.length > MAX_FILES) {
-      showToast(`最多支持 ${MAX_FILES} 张图片`, "error");
+      showToast(`${t("upload.maxFiles").replace("{n}", String(MAX_FILES))}`, "error");
       return;
     }
 
@@ -67,11 +69,11 @@ function UploadContent() {
       const isImage = f.type.startsWith("image/");
       const isPdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
       if (!isImage && !isPdf) {
-        showToast(`"${f.name}" 不是图片或PDF文件，已跳过`, "error");
+        showToast(`"${f.name}" ${t("upload.notImage")}`, "error");
         continue;
       }
       if (f.size > MAX_FILE_SIZE) {
-        showToast(`"${f.name}" 超过 20MB，已跳过`, "error");
+        showToast(`"${f.name}" ${t("upload.overSize")}`, "error");
         continue;
       }
       newItems.push({
@@ -111,7 +113,7 @@ function UploadContent() {
   async function handleBatchRecognize() {
     if (batchItems.length === 0) return;
     if (!projectId) {
-      showToast("请先选择项目", "error");
+      showToast(t("upload.pleaseSelectProject"), "error");
       return;
     }
 
@@ -193,23 +195,23 @@ function UploadContent() {
           } else {
             // 服务端返回错误，读取错误信息
             const errBody = await ocrResponse.json().catch(() => ({}));
-            const errMsg = errBody?.error || "视觉模型识别失败";
-            console.warn("[Upload] 视觉模型 OCR 失败:", errMsg);
+            const errMsg = errBody?.error || t("upload.failed");
+            // 视觉模型 OCR 失败
             // 配额限制错误弹 toast 提示升级
             if (ocrResponse.status === 403) {
               showToast(errMsg, "error");
             }
             setBatchItems((prev) =>
-              prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: ocrResponse.status === 403 ? errMsg : `${errMsg}，请重试或手动录入` } : i))
+              prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: ocrResponse.status === 403 ? errMsg : `${errMsg} ${t("upload.retryOrManual")}` } : i))
             );
             failCount++;
             continue; // 不再降级到 Tesseract.js（中文识别极差）
           }
         } catch (visionErr) {
-          console.warn("[Upload] 视觉模型 OCR 异常:", visionErr);
-          const errMsg = visionErr instanceof Error ? visionErr.message : "网络异常";
+          // 视觉模型 OCR 异常
+          const errMsg = visionErr instanceof Error ? visionErr.message : t("upload.networkError");
           setBatchItems((prev) =>
-            prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: `识别失败：${errMsg}，请重试或手动录入` } : i))
+            prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: `${t("upload.failed")}：${errMsg} ${t("upload.retryOrManual")}` } : i))
           );
           failCount++;
           continue; // 不再降级到 Tesseract.js
@@ -219,7 +221,7 @@ function UploadContent() {
         // 服务端 OCR 失败时直接提示用户重试或手动录入
         if (!ocrResult) {
           setBatchItems((prev) =>
-            prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: "识别失败，请重试或手动录入" } : i))
+            prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: t("upload.recognizeFailed") } : i))
           );
           failCount++;
           continue;
@@ -241,7 +243,7 @@ function UploadContent() {
         );
         successCount++;
       } catch (err: unknown) {
-        const message = controller.signal.aborted ? "已取消" : (err instanceof Error ? err.message : "识别失败");
+        const message = controller.signal.aborted ? t("common.cancelled") : (err instanceof Error ? err.message : t("upload.failed"));
         setBatchItems((prev) =>
           prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: message } : i))
         );
@@ -253,11 +255,11 @@ function UploadContent() {
     abortRef.current = null;
 
     if (controller.signal.aborted) {
-      showToast("批量识别已取消", "info");
+      showToast(t("upload.batchCancelled"), "info");
     } else if (failCount === 0) {
-      showToast(`${successCount} 张票据识别完成`, "success");
+      showToast(`${successCount}${t("upload.batchComplete")}`, "success");
     } else {
-      showToast(`完成 ${successCount} 张，失败 ${failCount} 张`, "info");
+      showToast(t("upload.batchResult").replace("{ok}", String(successCount)).replace("{fail}", String(failCount)), "info");
     }
   }
 
@@ -267,12 +269,12 @@ function UploadContent() {
 
   return (
     <div className="pb-16 min-h-screen bg-[#F5F5F5]">
-      <PageHeader title="票据上传" showBack onBack={() => router.back()} />
+      <PageHeader title={t("upload.title")} showBack onBack={() => router.back()} />
 
       <div className="px-4 pt-1 space-y-4">
         {!urlProjectId && projects.length > 0 && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
-            <label className="text-sm text-[#666666] mb-2 block">选择项目</label>
+            <label className="text-sm text-[#666666] mb-2 block">{t("upload.selectProject")}</label>
             <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
               {projects.map((p) => (
                 <button
@@ -291,12 +293,12 @@ function UploadContent() {
 
         {!urlProjectId && projects.length === 0 && (
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up text-center">
-            <p className="text-sm text-[#999999]">暂无项目，请先创建项目</p>
+            <p className="text-sm text-[#999999]">{t("upload.noProject")}</p>
             <button
               onClick={() => router.push("/")}
               className="text-sm text-brand mt-2 btn-press"
             >
-              去创建 →
+              {t("upload.goCreate")}
             </button>
           </div>
         )}
@@ -306,11 +308,11 @@ function UploadContent() {
           <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-[#666666]">
-                已选 {batchItems.length} 张 {doneCount > 0 && `(完成 ${doneCount})`}
+                {t("upload.selected")} {batchItems.length} 张 {doneCount > 0 && `(${t("upload.done")} ${doneCount})`}
               </span>
               {!processing && (
                 <button onClick={clearAll} className="text-xs text-error btn-press">
-                  清空
+                  {t("upload.clear")}
                 </button>
               )}
             </div>
@@ -319,7 +321,7 @@ function UploadContent() {
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-brand font-medium">
-                    识别进度 {doneCount}/{batchItems.length}
+                    {t("upload.progress")} {doneCount}/{batchItems.length}
                   </span>
                   <span className="text-xs text-[#999999]">
                     {Math.round((doneCount / batchItems.length) * 100)}%
@@ -339,7 +341,7 @@ function UploadContent() {
                   {item.preview ? (
                     <Image
                       src={item.preview}
-                      alt="预览"
+                      alt={t("upload.select")}
                       fill
                       className="object-cover"
                       unoptimized
@@ -359,7 +361,7 @@ function UploadContent() {
                   )}
                   {item.status === "saving" && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <span className="text-white text-xs font-medium">保存中...</span>
+                      <span className="text-white text-xs font-medium">{t("upload.saving")}</span>
                     </div>
                   )}
                   {item.status === "done" && (
@@ -396,7 +398,7 @@ function UploadContent() {
                   className="aspect-square border-2 border-dashed border-[#DDDDDD] rounded-lg flex flex-col items-center justify-center active:border-brand active:bg-brand-bg transition-colors"
                 >
                   <span className="text-2xl text-[#CCCCCC]">+</span>
-                  <span className="text-[10px] text-[#CCCCCC] mt-0.5">添加</span>
+                  <span className="text-[10px] text-[#CCCCCC] mt-0.5">{t("upload.add")}</span>
                 </button>
               )}
             </div>
@@ -428,9 +430,9 @@ function UploadContent() {
                 <circle cx="12" cy="13" r="4" />
               </svg>
               <p className={`text-sm transition-colors ${dragOver ? "text-brand" : "text-[#999999]"}`}>
-                {dragOver ? "松开即可上传" : "点击拍照、选择图片或PDF"}
+                {dragOver ? t("upload.dragRelease") : t("upload.clickUpload")}
               </p>
-              <p className="text-xs text-[#CCCCCC] mt-1">支持多选，JPG/PNG/PDF，单文件不超过 20MB</p>
+              <p className="text-xs text-[#CCCCCC] mt-1">{t("upload.uploadHint")}</p>
             </div>
           </div>
         )}
@@ -452,21 +454,21 @@ function UploadContent() {
               onClick={() => inputRef.current?.click()}
               className="flex-1 bg-brand text-white py-3 rounded-xl font-medium btn-press"
             >
-              拍照/选图
+              {t("upload.takePhoto")}
             </button>
           ) : processing ? (
             <button
               onClick={() => abortRef.current?.abort()}
               className="flex-1 bg-red-500 text-white py-3 rounded-xl font-medium btn-press"
             >
-              取消识别
+              {t("upload.cancelRecognize")}
             </button>
           ) : allDone ? (
             <button
               onClick={() => router.push(`/project/${projectId}`)}
               className="flex-1 bg-brand text-white py-3 rounded-xl font-medium btn-press"
             >
-              查看项目记录
+              {t("upload.viewRecords")}
             </button>
           ) : (
             <button
@@ -474,14 +476,14 @@ function UploadContent() {
               disabled={pendingCount === 0 || !projectId}
               className="flex-1 bg-brand text-white py-3 rounded-xl font-medium disabled:opacity-50 btn-press"
             >
-              开始识别 ({pendingCount} 张)
+              {t("upload.startRecognize")} ({pendingCount} 张)
             </button>
           )}
         </div>
 
         <div className="bg-brand-bg rounded-md p-4 animate-fade-in-up stagger-3">
           <p className="text-xs text-[#666666] leading-relaxed">
-            💡 提示：支持多张票据同时上传。请确保票据清晰可见，避免反光和遮挡。
+            {t("upload.tip")}
           </p>
         </div>
       </div>
