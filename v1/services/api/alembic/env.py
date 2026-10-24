@@ -6,7 +6,7 @@ from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from app.config import settings
-from app.models.database import Base
+from app.models.database import Base, async_connect_args
 from app.models import User, Customer, Project, InvoiceFile, InvoiceRecord, ReportSnapshot, Plan, Order, QuotaLog
 
 config = context.config
@@ -41,6 +41,7 @@ async def run_async_migrations() -> None:
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=async_connect_args(settings.DATABASE_URL),
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

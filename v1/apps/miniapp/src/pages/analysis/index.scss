@@ -1,0 +1,232 @@
+.analysis-page {
+  min-height: 100vh;
+  background: #f5f5f5;
+  padding: 24px 24px 0;
+  box-sizing: border-box;
+}
+
+.hero {
+  background: linear-gradient(135deg, #ff6b35 0%, #ff8f5e 100%);
+  border-radius: 20px;
+  padding: 28px 24px;
+  margin-bottom: 20px;
+
+  .hero-title {
+    display: block;
+    color: #fff;
+    font-size: 36px;
+    font-weight: 600;
+  }
+
+  .hero-sub {
+    display: block;
+    color: rgba(255, 255, 255, 0.92);
+    font-size: 24px;
+    line-height: 1.6;
+    margin-top: 10px;
+  }
+
+  .run-btn {
+    margin-top: 20px;
+    background: #fff;
+    color: #ff6b35;
+    font-size: 28px;
+    font-weight: 600;
+    border-radius: 12px;
+    padding: 0;
+    line-height: 76px;
+    height: 76px;
+
+    &[disabled] {
+      opacity: 0.75;
+      background: #fff;
+      color: #ff6b35;
+    }
+  }
+
+  .hint {
+    display: block;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 22px;
+    margin-top: 12px;
+    text-align: center;
+  }
+}
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+
+  .card-title {
+    display: block;
+    font-size: 28px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 16px;
+  }
+}
+
+.empty-card {
+  text-align: center;
+  padding: 48px 24px;
+
+  .empty-title {
+    display: block;
+    font-size: 28px;
+    color: #666;
+  }
+
+  .empty-sub {
+    display: block;
+    font-size: 24px;
+    color: #999;
+    margin-top: 8px;
+  }
+}
+
+.error-card {
+  .error-text {
+    font-size: 26px;
+    color: #d93025;
+    line-height: 1.6;
+  }
+}
+
+.stat-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  width: calc(50% - 8px);
+  box-sizing: border-box;
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+
+  .stat-label {
+    display: block;
+    font-size: 24px;
+    color: #999;
+  }
+
+  .stat-value {
+    display: block;
+    font-size: 32px;
+    font-weight: 600;
+    color: #333;
+    margin-top: 8px;
+  }
+
+  .income {
+    color: #e54d42;
+  }
+
+  .expense {
+    color: #2ba471;
+  }
+}
+
+.bar-row {
+  margin-bottom: 18px;
+
+  .bar-head {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .bar-name {
+    font-size: 26px;
+    color: #333;
+    max-width: 60%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .bar-num {
+    font-size: 24px;
+    color: #666;
+  }
+
+  .bar-track {
+    height: 14px;
+    background: #f0f0f0;
+    border-radius: 7px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: #ff6b35;
+    border-radius: 7px;
+  }
+
+  .bar-pct {
+    display: block;
+    font-size: 22px;
+    color: #999;
+    margin-top: 6px;
+  }
+}
+
+.month-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #f5f5f5;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .month-label {
+    width: 120px;
+    font-size: 26px;
+    color: #333;
+  }
+
+  .month-detail {
+    flex: 1;
+    font-size: 22px;
+    color: #999;
+  }
+
+  .month-profit {
+    font-size: 26px;
+    font-weight: 600;
+  }
+
+  .income {
+    color: #e54d42;
+  }
+
+  .expense {
+    color: #2ba471;
+  }
+}
+
+.ai-text {
+  display: block;
+  font-size: 26px;
+  line-height: 1.8;
+  color: #444;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ai-disclaimer {
+  display: block;
+  font-size: 22px;
+  color: #bbb;
+  margin-top: 16px;
+}
+
+.bottom-gap {
+  height: 40px;
+}

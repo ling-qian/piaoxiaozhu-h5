@@ -5,7 +5,9 @@ from app.models.user import User
 
 router = APIRouter(prefix="/api/toolkit", tags=["toolkit"])
 
-MOCK_CONTENTS = [
+# 工具包内容的唯一来源。前端不再内嵌副本，改由本接口下发，
+# 否则双份硬编码会各自漂移，且改内容需要发版小程序。
+TOOLKIT_CONTENTS = [
     {
         "id": "tax-1",
         "title": "增值税税率",
@@ -47,4 +49,4 @@ MOCK_CONTENTS = [
 
 @router.get("/contents")
 async def get_toolkit_contents(current_user: User = Depends(get_current_user)):
-    return {"items": MOCK_CONTENTS}
+    return {"items": TOOLKIT_CONTENTS}

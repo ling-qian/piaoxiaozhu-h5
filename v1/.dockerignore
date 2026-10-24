@@ -1,0 +1,58 @@
+# 构建上下文是 v1/ 根目录（这样 Dockerfile 才能拿到 packages/core 共享包）。
+# v1/ 全量约 1.5GB，其中 services/ 的 venv 与 apps/miniapp 的 node_modules 占绝大部分，
+# 必须排除，否则构建上下文传输会慢到不可接受。
+
+# 依赖与虚拟环境
+node_modules
+**/node_modules
+.venv
+venv
+venv2
+**/venv
+**/venv2
+**/.venv
+*.egg-info
+**/*.egg-info
+
+# 构建产物与缓存
+dist
+**/dist
+.next
+**/.next
+__pycache__
+**/__pycache__
+*.pyc
+**/*.pyc
+.pytest_cache
+**/.pytest_cache
+.mypy_cache
+**/.mypy_cache
+*.tsbuildinfo
+.swc
+**/.swc
+.vercel
+**/.vercel
+
+# 运行期数据（绝对不能进镜像）
+uploads
+**/uploads
+pgdata
+**/pgdata
+certs
+**/certs
+*.pem
+**/*.pem
+
+# 配置与密钥（云托管通过环境变量注入，镜像里不带 .env）
+.env
+**/.env
+.env.*
+**/.env.*
+
+# 版本库与系统文件
+.git
+.gitignore
+.DS_Store
+**/.DS_Store
+.vscode
+.idea

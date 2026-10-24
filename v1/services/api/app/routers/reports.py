@@ -9,12 +9,15 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.deps import get_current_user, get_db
 from app.models.invoice import InvoiceRecord
 from app.models.project import Project
 from app.models.report import ReportSnapshot
 from app.models.user import User
 from app.schemas.report import ReportResponse, ShareResponse
+from app.services.plan_config import can_export
+from app.services.subscription import effective_plan_code
 from piaoxiaozhu_core.report import build_restaurant_poc_report, format_cents, format_percent
 from piaoxiaozhu_core.export import export_csv, export_excel, ExportRecord
 
@@ -177,6 +180,16 @@ async def export_report(
 ):
     project = await _verify_project_owner(project_id, current_user.id, db)
 
+    # 数据导出是付费套餐权益（free 的 can_export 为 False）；
+    # 套餐按到期时间惰性判定，过期用户按 free 处理
+    if not can_export(
+        effective_plan_code(current_user.plan_code, current_user.plan_expires_at)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="当前套餐不支持数据导出，请升级套餐",
+        )
+
     records = await _get_project_records(project_id, current_user.id, db)
     if not records:
         raise HTTPException(
@@ -238,14 +251,14 @@ async def share_report(
         )
 
     if latest.share_token:
-        share_url = f"https://app.piaoxiaozhu.com/share/{latest.share_token}"
+        share_url = f"{settings.SHARE_BASE_URL}/share/{latest.share_token}"
         return ShareResponse(share_token=latest.share_token, share_url=share_url)
 
     share_token = uuid.uuid4().hex
     latest.share_token = share_token
     await db.commit()
 
-    share_url = f"https://app.piaoxiaozhu.com/share/{share_token}"
+    share_url = f"{settings.SHARE_BASE_URL}/share/{share_token}"
     return ShareResponse(share_token=share_token, share_url=share_url)
 
 

@@ -248,3 +248,237 @@
     border: none;
   }
 }
+
+/* 查重命中提示。强弱两档视觉区分：强=红（基本可断定），弱=橙黄（疑似） */
+.dup-card {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-left: 8px solid #FF4D4F;
+}
+
+.dup-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dup-badge {
+  font-size: 22px;
+  color: #ffffff;
+  padding: 4px 16px;
+  border-radius: 20px;
+
+  &--strong {
+    background: #FF4D4F;
+  }
+
+  &--weak {
+    background: #FAAD14;
+  }
+}
+
+.dup-title {
+  font-size: 30px;
+  font-weight: 600;
+  color: $color-text-primary;
+}
+
+.dup-desc {
+  display: block;
+  font-size: 24px;
+  color: $color-text-secondary;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.dup-detail {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+
+.dup-detail-text {
+  font-size: 24px;
+  color: $color-text-primary;
+  flex: 1;
+  margin-right: 16px;
+}
+
+.dup-link {
+  flex-shrink: 0;
+  padding: 8px 20px;
+  border-radius: 20px;
+  background: $color-brand-bg;
+}
+
+.dup-link-text {
+  font-size: 22px;
+  color: $color-brand;
+  font-weight: 500;
+}
+
+.dup-hint {
+  display: block;
+  font-size: 22px;
+  color: $color-text-hint;
+}
+
+/* 票面自检卡片 */
+.verify-card {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 28px;
+  margin-top: 24px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.verify-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid $color-border;
+}
+
+.verify-verdict {
+  display: block;
+  font-size: 30px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.verify-note {
+  display: block;
+  font-size: 22px;
+  color: $color-text-hint;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.verify-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 16px 0;
+  border-bottom: 1px solid $color-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.verify-item-icon {
+  font-size: 28px;
+  font-weight: 700;
+  width: 40px;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
+.verify-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.verify-item-label {
+  display: block;
+  font-size: 26px;
+  color: $color-text-primary;
+  margin-bottom: 4px;
+}
+
+.verify-item-detail {
+  display: block;
+  font-size: 22px;
+  color: $color-text-hint;
+  line-height: 1.5;
+}
+
+.verify-official {
+  background: $color-bg-page;
+  border-radius: $radius-md;
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.verify-official-title {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  color: $color-text-primary;
+  margin-bottom: 12px;
+}
+
+.verify-official-line {
+  display: block;
+  font-size: 22px;
+  color: $color-text-secondary;
+  line-height: 1.8;
+}
+
+.verify-official-tip {
+  display: block;
+  font-size: 22px;
+  color: $color-text-hint;
+  line-height: 1.5;
+  margin-top: 12px;
+}
+
+.verify-copy-btn {
+  margin-top: 16px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: $radius-md;
+  background: $color-brand-bg;
+}
+
+.verify-copy-text {
+  font-size: 24px;
+  color: $color-brand;
+  font-weight: 500;
+}
+
+.verify-disclaimer {
+  display: block;
+  font-size: 20px;
+  color: $color-text-hint;
+  line-height: 1.6;
+  margin-top: 16px;
+}
+
+.verify-disclaimer-strong {
+  color: $color-error;
+  font-weight: 600;
+}
+
+/* 非票据提示：识别出来的文字不像发票时，置顶警示。
+   不阻断流程——用户仍可保存（有些收据确实长得不像标准发票）。 */
+.not-invoice-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 16px 24px 0;
+  padding: 20px 22px;
+  background: #fff7e8;
+  border: 1px solid #fde6b8;
+  border-radius: 16px;
+
+  .not-invoice-icon { font-size: 30px; }
+
+  .not-invoice-text {
+    flex: 1;
+    font-size: 25px;
+    line-height: 1.5;
+    color: #78350f;
+  }
+}

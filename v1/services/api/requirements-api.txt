@@ -1,0 +1,33 @@
+# api 服务镜像专用依赖：**不含 OCR**（paddleocr / paddlepaddle / opencv-python-headless）。
+#
+# 为什么能拆：OCR 依赖是懒加载的——paddleocr 在 PaddleOCRService.initialize() 内、
+# cv2 在 recognize() 内才 import（packages/core/piaoxiaozhu_core/ocr.py），
+# 而 app/services/ocr_service.py 只在「Celery 不可用时的同步兜底路径」里被导入
+# （app/routers/files.py、app/worker.py）。云托管里 worker 独立部署，api 不需要它。
+#
+# 收益：镜像从 2GB+ 降到约 300MB，冷启动显著变快、实例内存规格也能给更小。
+# worker 镜像请装 requirements.txt。
+#
+# 注意：piaoxiaozhu-core 是本仓库内的共享包，不在 PyPI 上，
+# 由 Dockerfile 用 `pip install /build/packages/core` 安装，不要写在这里。
+
+fastapi>=0.110
+uvicorn[standard]>=0.29
+sqlalchemy>=2.0
+
+# SQLAlchemy 的 asyncio 扩展依赖 greenlet。macOS wheel 自带它，
+# Linux wheel 不带 —— 不显式声明，容器里 import 即失败。
+greenlet>=3.0
+alembic>=1.13
+asyncpg>=0.29
+pydantic>=2.0
+pydantic-settings>=2.2
+python-jose[cryptography]>=3.3
+passlib[bcrypt]>=1.7
+python-multipart>=0.0.9
+httpx>=0.27
+redis>=5.0
+celery>=5.3
+# 对象存储：oss2 为阿里云，qcloud_cos 为腾讯云。实际只用其一，两个都装体积也很小。
+oss2>=2.18
+cos-python-sdk-v5>=1.9

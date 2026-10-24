@@ -9,15 +9,18 @@
 .index-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 48px 0 32px;
+  align-items: flex-start;
+  padding: 48px 24px 36px;
   background: linear-gradient(135deg, $color-brand, $color-brand-light);
   margin: 0 -24px;
-  padding-left: 24px;
-  padding-right: 24px;
 }
 
+/* 问候语与签到胶囊之间留出间距，避免挤在一起 */
 .greeting {
+  flex: 1;
+  min-width: 0;
+  padding-right: 20px;
+
   .greeting-text {
     display: block;
     font-size: 36px;
@@ -308,4 +311,131 @@
 .member-arrow {
   font-size: 36px;
   color: $color-brand;
+}
+
+/* ===== 首页改版：签到胶囊 / 主 CTA / 积分条 / 快捷三格 ===== */
+
+.checkin-pill {
+  flex-shrink: 0;
+  align-self: flex-start;
+  padding: 10px 24px;
+  border-radius: 999px;
+  background: $color-brand;
+}
+
+.checkin-pill--done {
+  background: $color-brand-bg;
+}
+
+.checkin-text {
+  font-size: 22px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.checkin-pill--done .checkin-text {
+  color: $color-brand-dark;
+}
+
+.hero-upload {
+  display: flex;
+  align-items: center;
+  margin: 0 24px 24px;
+  padding: 36px 28px;
+  border-radius: $radius-lg;
+  background: linear-gradient(135deg, $color-brand 0%, $color-brand-light 100%);
+  box-shadow: 0 6px 16px rgba(255, 107, 53, 0.25);
+}
+
+.hero-icon {
+  font-size: 56px;
+  margin-right: 24px;
+}
+
+.hero-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-title {
+  display: block;
+  font-size: 34px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.hero-desc {
+  display: block;
+  font-size: 22px;
+  color: rgba(255, 255, 255, 0.92);
+  margin-top: 4px;
+}
+
+.hero-cta {
+  flex-shrink: 0;
+  font-size: 24px;
+  color: #ffffff;
+  font-weight: 500;
+  margin-left: 20px;
+}
+
+.points-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 24px 16px;
+  padding: 20px 24px;
+  background: $color-bg-card;
+  border-radius: $radius-md;
+}
+
+.strip-text {
+  font-size: 24px;
+  color: $color-text-secondary;
+}
+
+.strip-num {
+  font-size: 30px;
+  font-weight: 600;
+  color: $color-brand;
+}
+
+.strip-link {
+  font-size: 22px;
+  color: $color-brand;
+}
+
+.points-warning {
+  display: block;
+  margin: 0 24px 12px;
+  font-size: 22px;
+  color: $color-warning;
+}
+
+.quick-grid {
+  /* 4 个入口放一行会挤到换行，改成 2×2：点击区域更大，也更耐看 */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 20px 24px 24px;
+}
+
+.quick-item {
+  flex: 0 0 calc(50% - 8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px 12px;
+  background: $color-bg-card;
+  border-radius: $radius-md;
+}
+
+.quick-icon {
+  font-size: 40px;
+}
+
+.quick-text {
+  font-size: 22px;
+  color: $color-text-secondary;
+  margin-top: 6px;
 }

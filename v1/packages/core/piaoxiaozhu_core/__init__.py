@@ -9,7 +9,7 @@ from piaoxiaozhu_core.report import (
 )
 from piaoxiaozhu_core.export import export_csv, export_excel
 from piaoxiaozhu_core.ocr import PaddleOCRService, OCRResult
-from piaoxiaozhu_core.llm import LLMClassifier
+from piaoxiaozhu_core.llm import FieldCorrection, LLMClassifier, LLMFieldCorrector
 from piaoxiaozhu_core.field_extractor import ExtractedFields, extract_fields
 from piaoxiaozhu_core.templates import IndustryTemplate
 from piaoxiaozhu_core.templates.restaurant import RESTAURANT_TEMPLATE
@@ -29,6 +29,8 @@ __all__ = [
     "PaddleOCRService",
     "OCRResult",
     "LLMClassifier",
+    "LLMFieldCorrector",
+    "FieldCorrection",
     "ExtractedFields",
     "extract_fields",
     "IndustryTemplate",

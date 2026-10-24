@@ -1,0 +1,72 @@
+@import '@/assets/styles/variables.scss';
+
+.privacy-page {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding: 24px 24px 60px;
+}
+
+.privacy-header {
+  padding: 16px 8px 24px;
+}
+
+.privacy-title {
+  display: block;
+  font-size: 40px;
+  font-weight: 700;
+  color: $color-text-primary;
+}
+
+.privacy-updated {
+  display: block;
+  margin-top: 12px;
+  font-size: 24px;
+  color: $color-text-hint;
+}
+
+.privacy-intro {
+  display: block;
+  padding: 24px;
+  margin-bottom: 24px;
+  font-size: 27px;
+  line-height: 1.8;
+  color: $color-text-secondary;
+  background: $color-bg-card;
+  border-radius: $radius-md;
+}
+
+.privacy-section {
+  padding: 24px;
+  margin-bottom: 20px;
+  background: $color-bg-card;
+  border-radius: $radius-md;
+}
+
+.section-title {
+  display: block;
+  margin-bottom: 16px;
+  font-size: 30px;
+  font-weight: 600;
+  color: $color-text-primary;
+}
+
+.section-text {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 26px;
+  line-height: 1.8;
+  color: $color-text-secondary;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.privacy-footer {
+  display: block;
+  margin-top: 8px;
+  padding: 0 8px;
+  font-size: 24px;
+  line-height: 1.7;
+  color: $color-text-hint;
+}

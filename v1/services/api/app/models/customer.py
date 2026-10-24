@@ -2,7 +2,7 @@ import uuid
 from typing import Optional
 
 from sqlalchemy import String, Text, DateTime, ForeignKey, func
-from sqlalchemy.dialects.postgresql import UUID
+from app.models.types import GUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.database import Base
@@ -11,8 +11,8 @@ from app.models.database import Base
 class Customer(Base):
     __tablename__ = "customers"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    id: Mapped[uuid.UUID] = mapped_column(GUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(GUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(256), nullable=False)
     industry: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     contact_name: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)

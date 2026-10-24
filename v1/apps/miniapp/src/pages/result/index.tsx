@@ -1,7 +1,7 @@
 import { View, Text, Button, Input, Picker } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useState, useMemo, useRef } from 'react';
-import { recordApi, projectApi, fileApi } from '../../services/api';
+import { recordApi, fileApi } from '../../services/api';
 import { useStore } from '../../store';
 import CategoryTag from '../../components/CategoryTag';
 import './index.scss';
@@ -17,6 +17,38 @@ const CATEGORIES = [
   { code: 'other', name: '其他', l1: '其他', l2: '其他' },
 ];
 
+interface VerifyCheckItem {
+  key: string;
+  label: string;
+  level: string;
+  detail: string;
+}
+
+interface VerifyDetail {
+  checks?: VerifyCheckItem[];
+  official?: {
+    elements?: {
+      invoice_code?: string | null;
+      invoice_no?: string | null;
+      invoice_date?: string | null;
+      amount_without_tax?: string | null;
+    };
+    complete?: boolean;
+    url?: string;
+    missing?: string[];
+  };
+}
+
+interface DuplicateDetail {
+  id: string;
+  project_id: string;
+  merchant_name: string | null;
+  amount: number | null;
+  invoice_date: string | null;
+  invoice_no: string | null;
+  created_at: string | null;
+}
+
 interface RecordData {
   id: string;
   merchant_name: string;
@@ -28,7 +60,67 @@ interface RecordData {
   category_l2: string;
   confidence: number;
   file_id?: string;
+  /** 销方纳税人识别号，票面自检要用 */
+  tax_no?: string | null;
+  invoice_code?: string | null;
+  invoice_no?: string | null;
+  /** 命中的重复记录 id；只标记不自动删 */
+  duplicate_of?: string | null;
+  is_duplicate?: boolean;
+  /** strong（有发票号码，可靠）/ weak（仅销方+日期+金额，需人工确认） */
+  fingerprint_strength?: string | null;
+  /** pass / attention / suspect / insufficient */
+  verify_status?: string | null;
+  verify_detail?: VerifyDetail | null;
+  verify_checked_at?: string | null;
+  /** 仅详情接口会带出，用于展示「和哪条重复」 */
+  duplicate_detail?: DuplicateDetail | null;
+  /** 识别解释：分类理由，或「看起来不像发票」这类提示 */
+  reason?: string | null;
 }
+
+/**
+ * 票面自检的四态文案。措辞必须守住边界：这是**本地结构校验**，
+ * 不是税局真伪查验结果，任何一处都不能写成「已验真」。
+ */
+const VERDICT_TEXT: Record<string, string> = {
+  pass: '票面自检通过',
+  attention: '票面有需留意项',
+  suspect: '票面存在疑点',
+  insufficient: '信息不足，无法自检',
+};
+
+const VERDICT_COLOR: Record<string, string> = {
+  pass: '#52C41A',
+  attention: '#FAAD14',
+  suspect: '#FF4D4F',
+  insufficient: '#999999',
+};
+
+const VERDICT_NOTE: Record<string, string> = {
+  pass: '金额、税额、号码位数等结构未发现矛盾；真伪请到官方查验平台确认',
+  attention: '以下项目建议人工核对后保存',
+  suspect: '以下项目不符合常见票面规则，请核对是否录入有误',
+  insufficient: '缺少发票号码、开票日期或金额，无法做结构自检',
+};
+
+const CHECK_LEVEL_ICON: Record<string, string> = {
+  ok: '✓',
+  warn: '!',
+  fail: '✕',
+};
+
+const CHECK_LEVEL_COLOR: Record<string, string> = {
+  ok: '#52C41A',
+  warn: '#FAAD14',
+  fail: '#FF4D4F',
+};
+
+/**
+ * 国家税务总局全国增值税发票查验平台入口。小程序内不能直接打开外部网页
+ * （web-view 需配置业务域名），因此只做展示 + 复制，由用户自行前往查验。
+ */
+const OFFICIAL_VERIFY_URL = 'https://inv-veri.chinatax.gov.cn';
 
 interface ProjectItem {
   id: string;
@@ -102,9 +194,12 @@ export default function Result() {
           if (idx >= 0) setSelectedProjectIdx(idx);
         }
       });
-    } else if (!initialRecord && params.id && !loadedByIdRef.current) {
+    } else if (params.id && !loadedByIdRef.current) {
       loadedByIdRef.current = true;
-      setLoadingRecord(true);
+      // 即使页面参数里带了记录快照也再拉一次详情：上传返回的快照里没有
+      // 查重命中（duplicate_of/duplicate_detail）与票面自检（verify_detail），
+      // 不拉详情这两块永远空着。有快照时先渲染，详情到了再覆盖。
+      setLoadingRecord(!initialRecord);
       recordApi.getDetail(params.id).then((res: any) => {
         const r = res as RecordData;
         setRecord(r);
@@ -120,6 +215,7 @@ export default function Result() {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [reRecognizing, setReRecognizing] = useState(false);
+  const [reVerifying, setReVerifying] = useState(false);
 
   const { projects, fetchProjects } = useStore();
   const [projectList, setProjectList] = useState<ProjectItem[]>(projects || []);
@@ -129,6 +225,9 @@ export default function Result() {
     amount: '',
     tax_amount: '',
     invoice_date: '',
+    invoice_code: '',
+    invoice_no: '',
+    tax_no: '',
   });
   const [manualCategoryIdx, setManualCategoryIdx] = useState(0);
   const [manualDirection, setManualDirection] = useState<'out' | 'income'>('out');
@@ -158,9 +257,12 @@ export default function Result() {
     try {
       await recordApi.update(record.id, {
         merchant_name: record.merchant_name,
+        tax_no: record.tax_no || undefined,
         amount: record.amount,
         tax_amount: record.tax_amount,
         invoice_date: record.invoice_date,
+        invoice_code: record.invoice_code || undefined,
+        invoice_no: record.invoice_no || undefined,
         category_code: record.category_code,
         category_l1: record.category_l1,
         category_l2: record.category_l2,
@@ -251,6 +353,42 @@ export default function Result() {
     setSelectedProjectIdx(Number(e.detail.value));
   };
 
+  /**
+   * 重跑票面自检。注意后端是按**库里已保存的字段**算的，
+   * 页面上改了还没保存的号码/金额不会计入。
+   */
+  const handleReVerify = async () => {
+    if (!record) return;
+    setReVerifying(true);
+    try {
+      const res = await recordApi.verify(record.id);
+      setRecord((prev) =>
+        prev
+          ? {
+              ...prev,
+              verify_status: res.status,
+              verify_detail: { checks: res.checks, official: res.official },
+              verify_checked_at: res.checked_at,
+            }
+          : prev,
+      );
+      Taro.showToast({ title: '自检完成', icon: 'success' });
+    } catch {
+      Taro.showToast({ title: '自检失败，请重试', icon: 'none' });
+    } finally {
+      setReVerifying(false);
+    }
+  };
+
+  const handleCopyVerifyUrl = () => {
+    const url = record?.verify_detail?.official?.url || OFFICIAL_VERIFY_URL;
+    Taro.setClipboardData({ data: url });
+  };
+
+  const handleViewOriginal = (originalId: string) => {
+    Taro.navigateTo({ url: `/pages/result/index?id=${originalId}` });
+  };
+
   const handleFormInput = (field: keyof typeof form, value: string) => {
     setForm({ ...form, [field]: value });
   };
@@ -279,6 +417,10 @@ export default function Result() {
         amount: parseAmountInput(form.amount),
         tax_amount: parseAmountInput(form.tax_amount),
         invoice_date: form.invoice_date,
+        // 号码/税号留空时不传，交给后端按「无身份字段不查重」处理
+        invoice_code: form.invoice_code.trim() || undefined,
+        invoice_no: form.invoice_no.trim() || undefined,
+        tax_no: form.tax_no.trim() || undefined,
         category_code: cat.code,
         category_l1: cat.l1,
         category_l2: cat.l2,
@@ -379,6 +521,37 @@ export default function Result() {
             </Picker>
           </View>
 
+          {/* 录入号码/税号后，后端才能做查重与票面自检；不填则不查重。 */}
+          <View className='field-item'>
+            <Text className='field-label'>发票号码</Text>
+            <Input
+              className='field-input'
+              value={form.invoice_no}
+              onInput={(e) => handleFormInput('invoice_no', e.detail.value)}
+              placeholder='数电票 20 位，可不填'
+            />
+          </View>
+
+          <View className='field-item'>
+            <Text className='field-label'>发票代码</Text>
+            <Input
+              className='field-input'
+              value={form.invoice_code}
+              onInput={(e) => handleFormInput('invoice_code', e.detail.value)}
+              placeholder='数电票无此项，可不填'
+            />
+          </View>
+
+          <View className='field-item'>
+            <Text className='field-label'>销方税号</Text>
+            <Input
+              className='field-input'
+              value={form.tax_no}
+              onInput={(e) => handleFormInput('tax_no', e.detail.value)}
+              placeholder='销售方纳税人识别号'
+            />
+          </View>
+
           <View className='field-item'>
             <Text className='field-label'>分类</Text>
             <Picker
@@ -415,11 +588,26 @@ export default function Result() {
   const confidencePct = (record.confidence * 100).toFixed(0);
   const confColor = getConfidenceColor(record.confidence);
 
+  const verdict = record.verify_status || '';
+  const verdictText = VERDICT_TEXT[verdict] || '';
+  const verifyChecks = record.verify_detail?.checks || [];
+  const official = record.verify_detail?.official;
+  const duplicateDetail = record.duplicate_detail;
+  // 弱指纹只是「疑似」：销方+日期+金额相同可能本来就存在同日同店同额的多张票
+  const duplicateIsWeak = record.fingerprint_strength === 'weak';
+
   return (
     <View className='result-page'>
       <View className='page-header'>
         <Text className='page-header-title'>识别结果</Text>
       </View>
+
+      {record.reason && record.reason.indexOf('不像发票') >= 0 && (
+        <View className='not-invoice-banner'>
+          <Text className='not-invoice-icon'>⚠️</Text>
+          <Text className='not-invoice-text'>{record.reason}</Text>
+        </View>
+      )}
 
       <View className='confidence-bar'>
         <View className='confidence-info'>
@@ -441,6 +629,40 @@ export default function Result() {
           {getConfidenceHint(record.confidence)}
         </Text>
       </View>
+
+      {record.is_duplicate && (
+        <View className='dup-card'>
+          <View className='dup-header'>
+            <Text className={`dup-badge ${duplicateIsWeak ? 'dup-badge--weak' : 'dup-badge--strong'}`}>
+              {duplicateIsWeak ? '疑似重复' : '重复票据'}
+            </Text>
+            <Text className='dup-title'>
+              {duplicateIsWeak ? '疑似与已有记录重复' : '与已有记录重复'}
+            </Text>
+          </View>
+          <Text className='dup-desc'>
+            {duplicateIsWeak
+              ? '销方税号、开票日期与价税合计都相同。同日同店的同额票据本就可能存在，请人工确认为同一张票。'
+              : '发票号码相同，基本可断定是同一张票。'}
+          </Text>
+          {duplicateDetail && (
+            <View className='dup-detail'>
+              <Text className='dup-detail-text'>
+                {`原件：${duplicateDetail.invoice_date || '日期未知'} · ￥${formatAmount(
+                  duplicateDetail.amount ?? 0,
+                )}${duplicateDetail.merchant_name ? ` · ${duplicateDetail.merchant_name}` : ''}`}
+              </Text>
+              <View
+                className='dup-link'
+                onClick={() => handleViewOriginal(duplicateDetail.id)}
+              >
+                <Text className='dup-link-text'>查看原件</Text>
+              </View>
+            </View>
+          )}
+          <Text className='dup-hint'>系统只做标记，不会自动删除，请确认真实性后自行处理。</Text>
+        </View>
+      )}
 
       <View className='result-card'>
         <View className='card-header'>
@@ -498,6 +720,37 @@ export default function Result() {
           </Picker>
         </View>
 
+        {/* 号码可改：OCR 读错时改这里，保存后后端会重算查重指纹与票面自检 */}
+        <View className='field-item'>
+          <Text className='field-label'>发票号码</Text>
+          <Input
+            className='field-input'
+            value={record.invoice_no || ''}
+            onInput={(e) => updateField('invoice_no', e.detail.value)}
+            placeholder='未识别到'
+          />
+        </View>
+
+        <View className='field-item'>
+          <Text className='field-label'>发票代码</Text>
+          <Input
+            className='field-input'
+            value={record.invoice_code || ''}
+            onInput={(e) => updateField('invoice_code', e.detail.value)}
+            placeholder='未识别到'
+          />
+        </View>
+
+        <View className='field-item'>
+          <Text className='field-label'>销方税号</Text>
+          <Input
+            className='field-input'
+            value={record.tax_no || ''}
+            onInput={(e) => updateField('tax_no', e.detail.value)}
+            placeholder='未识别到'
+          />
+        </View>
+
         <View className='field-item'>
           <Text className='field-label'>分类</Text>
           <Picker
@@ -513,6 +766,70 @@ export default function Result() {
           </Picker>
         </View>
       </View>
+
+      {verdictText && (
+        <View className='verify-card'>
+          <View className='verify-header'>
+            <Text className='card-title'>票面自检</Text>
+            <View className='re-recognize-btn' onClick={reVerifying ? undefined : handleReVerify}>
+              <Text className={`re-recognize-text ${reVerifying ? 'disabled' : ''}`}>
+                {reVerifying ? '自检中...' : '重新自检'}
+              </Text>
+            </View>
+          </View>
+
+          <Text className='verify-verdict' style={{ color: VERDICT_COLOR[verdict] || '#999999' }}>
+            {verdictText}
+          </Text>
+          <Text className='verify-note'>{VERDICT_NOTE[verdict] || ''}</Text>
+
+          {verifyChecks.map((c) => (
+            <View className='verify-item' key={c.key}>
+              <Text
+                className='verify-item-icon'
+                style={{ color: CHECK_LEVEL_COLOR[c.level] || '#999999' }}
+              >
+                {CHECK_LEVEL_ICON[c.level] || '·'}
+              </Text>
+              <View className='verify-item-body'>
+                <Text className='verify-item-label'>{c.label}</Text>
+                <Text className='verify-item-detail'>{c.detail}</Text>
+              </View>
+            </View>
+          ))}
+
+          {official?.elements && (
+            <View className='verify-official'>
+              <Text className='verify-official-title'>官方查验要素</Text>
+              <Text className='verify-official-line'>
+                发票代码：{official.elements.invoice_code || '（数电票无此项）'}
+              </Text>
+              <Text className='verify-official-line'>
+                发票号码：{official.elements.invoice_no || '—'}
+              </Text>
+              <Text className='verify-official-line'>
+                开票日期：{official.elements.invoice_date || '—'}
+              </Text>
+              <Text className='verify-official-line'>
+                不含税金额：{official.elements.amount_without_tax || '—'}
+              </Text>
+              <Text className='verify-official-tip'>
+                {official.complete
+                  ? '可带以上要素到国家税务总局查验平台核对真伪'
+                  : '要素不全，补全号码、日期与金额后再去查验'}
+              </Text>
+              <View className='verify-copy-btn' onClick={handleCopyVerifyUrl}>
+                <Text className='verify-copy-text'>复制查验平台网址</Text>
+              </View>
+            </View>
+          )}
+
+          <Text className='verify-disclaimer'>
+            自检在本机完成，只校验票面结构是否自相矛盾，<Text className='verify-disclaimer-strong'>不是</Text>
+            税局真伪查验结果。
+          </Text>
+        </View>
+      )}
 
       <View className='action-bar'>
         <Button className='btn-primary' onClick={handleSave} loading={saving}>

@@ -149,3 +149,53 @@ def test_largest_number_fallback():
     )
     result = extract_fields(text)
     assert result.total_amount == 4500
+
+
+def test_vat_invoice_merchant_prefers_seller():
+    """真实版式：购买方在前、销售方在后，且「销售方信息」是独立一行、不带冒号。
+
+    回归点：兜底的「名称：」曾先命中购买方，把客户名当成供应商名。
+    """
+    text = (
+        "增值税电子普通发票\n"
+        "购买方信息\n"
+        "名称：张三科技有限公司\n"
+        "纳税人识别号：91310000MA1FL0XXXX\n"
+        "销售方信息\n"
+        "名称：老王烧烤店\n"
+        "纳税人识别号：91310101MA1FP0YYYY\n"
+        "开票日期：2026年10月01日\n"
+    )
+    result = extract_fields(text)
+    assert result.merchant_name == "老王烧烤店"
+
+
+def test_tax_computed_from_rate_when_header_only():
+    """表格式发票里「税额」只是列头，明细中的数字没有标签可挂。
+
+    回归点：原实现只看「税额：」标签，导致税额恒为 None；
+    现按价内税公式「价税合计 ÷ (1+税率) × 税率」反推。
+    """
+    text = (
+        "增值税电子普通发票\n"
+        "项目名称 金额 税率 税额\n"
+        "餐饮服务 124.76 3% 3.74\n"
+        "（小写）¥128.50\n"
+    )
+    result = extract_fields(text)
+    assert result.total_amount == 12850
+    assert result.tax_amount == 374
+
+
+def test_tax_computed_when_item_row_glued():
+    """OCR 把明细三列并成一个框时，会得到 "124.763%3.74" 这样的粘连文本。"""
+    text = (
+        "项目名称\n"
+        "金额税率税额\n"
+        "餐饮服务\n"
+        "124.763%3.74\n"
+        "（小写）￥128.50\n"
+    )
+    result = extract_fields(text)
+    assert result.total_amount == 12850
+    assert result.tax_amount == 374

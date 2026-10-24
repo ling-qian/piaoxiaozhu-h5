@@ -1,0 +1,60 @@
+# 票小助 Pro OCR worker 镜像（Celery + PaddleOCR，微信云托管 / 本地 compose 通用）
+#
+# 构建上下文必须是 v1/ 根目录：
+#   cd v1 && docker build -f services/api/Dockerfile.worker -t piaoxiaozhu-worker .
+#
+# 微信云托管服务配置：
+#   构建目录   = v1
+#   Dockerfile = services/api/Dockerfile.worker
+#   服务端口   = 无（worker 不监听 HTTP，创建服务时选「无端口/后台服务」）
+#   实例规格   = 建议 2 核 4GiB 起（PaddleOCR CPU 推理很吃内存）
+#   副本数     = 1（先跑通，再按队列积压情况扩容）
+#
+# 与 api 镜像的差别：包含 paddleocr + paddlepaddle + opencv-python-headless，
+# 并在构建期把 OCR 模型预热进镜像。
+
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TZ=Asia/Shanghai
+
+WORKDIR /app
+
+# OCR 运行需要 libgl / libglib（opencv 依赖）与 fonts（部分票据字体渲染）
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        tzdata \
+        postgresql-client \
+        libgl1 \
+        libglib2.0-0 \
+        libgomp1 \
+        libsm6 \
+        libxext6 \
+        libxrender1 \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
+# requirements.txt 含 OCR 依赖（paddleocr 不会自动带 paddlepaddle，必须在文件里显式声明）
+COPY services/api/requirements.txt ./requirements.txt
+RUN pip install -r requirements.txt
+
+COPY packages/core ./packages/core
+RUN pip install ./packages/core
+
+COPY services/api/ ./
+
+# 构建期预热 OCR 模型（约 200MB+），固化进镜像后冷启动不必再下载。
+# 采用非致命写法：预热失败只警告不中断构建，避免一次网络抖动卡住发版；
+# 但若日志里出现下面的警告，首次识别会明显变慢，建议重跑一次构建。
+RUN python -c "\
+from piaoxiaozhu_core.ocr import PaddleOCRService; \
+PaddleOCRService(lang='ch').initialize(); \
+print('[build] OCR 模型预热完成')" \
+    || echo "[build] 警告：OCR 模型预热失败，模型将在首次识别时现场下载（首图会很慢）"
+
+RUN chmod +x /app/docker/entrypoint-worker.sh
+
+ENTRYPOINT ["/app/docker/entrypoint-worker.sh"]

@@ -282,3 +282,142 @@
   font-size: 28px;
   font-weight: 500;
 }
+
+.ai-entry {
+  margin-top: 16px;
+  background: #fff;
+  border: 1px solid #ffd9c4;
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.ai-entry-text {
+  font-size: 26px;
+  font-weight: 600;
+  color: #ff6b35;
+}
+
+/* ---------------- 账目体检 ----------------
+   定位：辅助信息，视觉权重低于利润卡，但高危项要一眼看见。
+   颜色语义：红=需立即确认，橙=建议核对，灰=仅供参考。 */
+.findings-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 24px 24px 8px;
+  margin: 0 0 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.findings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.findings-title {
+  font-size: 30px;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.findings-count {
+  font-size: 24px;
+  color: #8a919c;
+}
+
+.finding {
+  padding: 16px 0;
+  border-top: 1px solid #f2f3f5;
+
+  &-title-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  &-dot {
+    font-size: 18px;
+    line-height: 1.5;
+    flex-shrink: 0;
+  }
+
+  &-title {
+    font-size: 27px;
+    font-weight: 600;
+    color: #1f2329;
+    flex: 1;
+  }
+
+  &-detail {
+    display: block;
+    margin-top: 6px;
+    padding-left: 26px;
+    font-size: 24px;
+    line-height: 1.55;
+    color: #4e5560;
+  }
+
+  &--high &-dot { color: #e54d42; }
+  &--high &-title { color: #b91c1c; }
+  &--medium &-dot { color: #fa8c16; }
+  &--low &-dot { color: #8a919c; }
+}
+
+/* 问账入口：放在体检卡之前，作为报表的「自然语言替代入口」 */
+.ask-entry {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, #fff4ee, #ffe9de);
+  border: 1px solid #ffd9c4;
+  border-radius: 20px;
+  padding: 24px 26px;
+  margin: 0 0 24px;
+
+  &-icon { font-size: 36px; }
+
+  &-body { flex: 1; }
+
+  &-title {
+    display: block;
+    font-size: 29px;
+    font-weight: 600;
+    color: #9a3412;
+  }
+
+  &-desc {
+    display: block;
+    margin-top: 4px;
+    font-size: 23px;
+    color: #b45309;
+  }
+
+  &-arrow {
+    font-size: 36px;
+    color: #c2410c;
+  }
+}
+
+/* 审核意见：模型写的一段结论，放在发现列表之前 —— 先看结论再看细节 */
+.findings-advice {
+  background: #f7f8fa;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 8px;
+
+  &-label {
+    display: block;
+    font-size: 23px;
+    color: #8a919c;
+    margin-bottom: 8px;
+  }
+
+  &-text {
+    font-size: 26px;
+    line-height: 1.6;
+    color: #1f2329;
+  }
+}

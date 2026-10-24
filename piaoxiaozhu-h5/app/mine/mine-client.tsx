@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { logout } from "@/lib/actions/auth-actions";
 import { updateUserName } from "@/lib/actions/user-actions";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/lib/i18n";
@@ -62,7 +62,9 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
   async function handleLogout() {
     setLoggingOut(true);
     try {
-      await signOut({ callbackUrl: "/auth/login" });
+      await logout();
+      router.push("/auth/login");
+      router.refresh();
     } catch {
       showToast(t("common.error"), "error");
       setLoggingOut(false);

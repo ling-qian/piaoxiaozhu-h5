@@ -112,6 +112,21 @@
   }
 }
 
+/* 数电票原件入口独占一行：XML/OFD 不是图片，和拍照/相册并列容易误点 */
+.doc-btn {
+  margin-top: 24px;
+  height: 110px;
+  flex-direction: row;
+  gap: 12px;
+  border-color: #d9d9d9;
+  background: #fafafa;
+}
+
+.doc-btn .action-icon {
+  font-size: 40px;
+  margin-bottom: 0;
+}
+
 .action-icon {
   font-size: 48px;
   margin-bottom: 12px;
@@ -156,6 +171,17 @@
   flex-shrink: 0;
   margin-right: 20px;
   background: $color-bg-page;
+}
+
+.task-thumb--doc {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid $color-border;
+}
+
+.task-thumb-icon {
+  font-size: 40px;
 }
 
 .task-info {

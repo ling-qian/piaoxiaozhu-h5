@@ -1,7 +1,8 @@
 import { View, Text, Picker } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import { useState, useMemo } from 'react';
-import { projectApi, reportApi } from '../../services/api';
+import { projectApi, reportApi , insightsApi, type AnomalyFinding } from '../../services/api';
+import { SHARE_ENABLED } from '../../config/features';
 import { useStore } from '../../store';
 import CategoryTag from '../../components/CategoryTag';
 import './index.scss';
@@ -72,10 +73,12 @@ function getMonthLabel(month: string): string {
 }
 
 export default function Report() {
-  const { projects, currentProject } = useStore();
+  const { currentProject, quota, fetchQuota } = useStore();
   const [project, setProject] = useState<ProjectInfo | null>(null);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [findings, setFindings] = useState<AnomalyFinding[]>([]);
+  const [advice, setAdvice] = useState('');
 
   const months = useMemo(() => generateMonths(), []);
   const [monthIdx, setMonthIdx] = useState(0);
@@ -83,6 +86,7 @@ export default function Report() {
   const projectId = Taro.getCurrentInstance().router?.params?.projectId || currentProject?.id || '';
 
   Taro.useDidShow(() => {
+    fetchQuota();
     if (projectId) {
       loadData(projectId, months[monthIdx]);
     }
@@ -91,10 +95,15 @@ export default function Report() {
   const loadData = async (pid: string, month?: string) => {
     setLoading(true);
     try {
-      const [projectRes, reportRes] = await Promise.all([
+      // 体检与报表并行；它失败不该挡住报表（辅助信息，不能成为单点故障）
+      const [projectRes, reportRes, anomalyRes] = await Promise.all([
         projectApi.getDetail(pid),
         reportApi.getProjectReport(pid, month),
+        insightsApi.auditReport(pid).catch(() => ({ findings: [] as AnomalyFinding[], advice: '' })),
       ]);
+      // 审单报告一次返回发现 + 审核意见，比单查体检多一段结论，成本相同
+      setFindings((anomalyRes as any)?.findings || []);
+      setAdvice((anomalyRes as any)?.advice || '');
       setProject(projectRes as unknown as ProjectInfo);
       const raw = reportRes as any;
       let detail: any = {};
@@ -131,6 +140,20 @@ export default function Report() {
 
   const handleExportCsv = async () => {
     if (!projectId) return;
+    // 数据导出是付费权益，免费版直接引导升级
+    if (quota && quota.can_export === false) {
+      Taro.showModal({
+        title: '需要升级套餐',
+        content: '数据导出是专业版及以上套餐的权益，是否前往会员中心？',
+        confirmText: '去升级',
+        success: (res) => {
+          if (res.confirm) {
+            Taro.navigateTo({ url: '/pages/member/index' });
+          }
+        },
+      });
+      return;
+    }
     try {
       Taro.showLoading({ title: '导出中...' });
       const token = Taro.getStorageSync('token');
@@ -144,7 +167,12 @@ export default function Report() {
             Taro.openDocument({
               filePath: downloadRes.tempFilePath,
               showMenu: true,
+              fail: () => {
+                Taro.showToast({ title: '文件已下载，请用表格软件打开', icon: 'none' });
+              },
             });
+          } else if (downloadRes.statusCode === 403) {
+            Taro.showToast({ title: '当前套餐不支持导出，请升级套餐', icon: 'none' });
           } else {
             Taro.showToast({ title: '导出失败', icon: 'none' });
           }
@@ -228,6 +256,12 @@ export default function Report() {
             </View>
           </Picker>
         </View>
+        <View
+          className='ai-entry'
+          onClick={() => Taro.navigateTo({ url: `/pages/analysis/index?projectId=${projectId}` })}
+        >
+          <Text className='ai-entry-text'>AI 经营分析 ›</Text>
+        </View>
       </View>
 
       <View className='profit-card'>
@@ -290,15 +324,51 @@ export default function Report() {
         </View>
       )}
 
+      <View className='ask-entry' onClick={() => Taro.navigateTo({ url: '/pages/ask/index' })}>
+        <Text className='ask-entry-icon'>💬</Text>
+        <View className='ask-entry-body'>
+          <Text className='ask-entry-title'>问一句</Text>
+          <Text className='ask-entry-desc'>「上个月食材花了多少」——直接问，不用翻</Text>
+        </View>
+        <Text className='ask-entry-arrow'>›</Text>
+      </View>
+
+      {(findings.length > 0 || advice) && (
+        <View className='findings-card'>
+          <View className='findings-head'>
+            <Text className='findings-title'>🔍 账目体检</Text>
+            <Text className='findings-count'>{findings.length} 项待确认</Text>
+          </View>
+          {advice && (
+            <View className='findings-advice'>
+              <Text className='findings-advice-label'>审核意见</Text>
+              <Text className='findings-advice-text'>{advice}</Text>
+            </View>
+          )}
+          {findings.map((f, idx) => (
+            <View key={`${f.code}-${idx}`} className={`finding finding--${f.severity}`}>
+              <View className='finding-title-row'>
+                <Text className='finding-dot'>{f.severity === 'high' ? '●' : f.severity === 'medium' ? '●' : '○'}</Text>
+                <Text className='finding-title'>{f.title}</Text>
+              </View>
+              <Text className='finding-detail'>{f.detail}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       <View className='action-bar'>
         <View className='action-btn export' onClick={handleExportCsv}>
           <Text className='action-icon'>📄</Text>
           <Text className='action-text'>导出 CSV</Text>
         </View>
-        <View className='action-btn share' onClick={handleShare}>
-          <Text className='action-icon'>🔗</Text>
-          <Text className='action-text'>分享报表</Text>
-        </View>
+        {/* 分享链接指向 H5 域名，未部署时是死链，故由 SHARE_ENABLED 控制显隐 */}
+        {SHARE_ENABLED && (
+          <View className='action-btn share' onClick={handleShare}>
+            <Text className='action-icon'>🔗</Text>
+            <Text className='action-text'>分享报表</Text>
+          </View>
+        )}
       </View>
     </View>
   );

@@ -89,6 +89,11 @@ export default function Project() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  // 筛选状态：服务端分页，所以筛选必须带回后端，不能只过滤已加载的那一页
+  const [keyword, setKeyword] = useState('');
+  const [direction, setDirection] = useState('all');
+  const [categoryL1, setCategoryL1] = useState('all');
+  const keywordTimer = useRef<any>(null);
   const [showIncomeModal, setShowIncomeModal] = useState(false);
   const [incomeMonth, setIncomeMonth] = useState(0);
   const [incomeAmount, setIncomeAmount] = useState('');
@@ -132,14 +137,27 @@ export default function Project() {
     }
   };
 
-  const loadRecords = async (id: string, pageNum: number, append = false) => {
+  const loadRecords = async (
+    id: string,
+    pageNum: number,
+    append = false,
+    filters?: { keyword: string; direction: string; categoryL1: string },
+  ) => {
     if (pageNum === 1) {
       setLoading(true);
     } else {
       setLoadingMore(true);
     }
+    // 显式传入 filters 而不是读 state：setState 是异步的，刚改完筛选立刻请求会拿到旧值
+    const f = filters || { keyword, direction, categoryL1 };
     try {
-      const res = await recordApi.getList(id, { page: pageNum, size: PAGE_SIZE }) as any;
+      const res = await recordApi.getList(id, {
+        page: pageNum,
+        size: PAGE_SIZE,
+        keyword: f.keyword.trim() || undefined,
+        direction: f.direction === 'all' ? undefined : f.direction,
+        category_l1: f.categoryL1 === 'all' ? undefined : f.categoryL1,
+      }) as any;
       const items: RecordItem[] = res.items || res.data?.items || [];
       const total: number = res.total || res.data?.total || 0;
       if (append) {
@@ -156,6 +174,36 @@ export default function Project() {
       setLoadingMore(false);
     }
   };
+
+  /** 统一的筛选变更入口：更新 state 并立刻按新条件从第 1 页重查 */
+  const applyFilter = (patch: { keyword?: string; direction?: string; categoryL1?: string }) => {
+    const next = {
+      keyword: patch.keyword ?? keyword,
+      direction: patch.direction ?? direction,
+      categoryL1: patch.categoryL1 ?? categoryL1,
+    };
+    setKeyword(next.keyword);
+    setDirection(next.direction);
+    setCategoryL1(next.categoryL1);
+    setRecords([]);
+    setPage(1);
+    loadRecords(projectIdRef.current, 1, false, next);
+  };
+
+  /** 搜索框 400ms 防抖，避免每敲一个字都打一次接口 */
+  const handleKeywordInput = (e: any) => {
+    const value = e?.detail?.value ?? '';
+    setKeyword(value);
+    if (keywordTimer.current) clearTimeout(keywordTimer.current);
+    keywordTimer.current = setTimeout(() => applyFilter({ keyword: value }), 400);
+  };
+
+  const filterActive = keyword.trim() !== '' || direction !== 'all' || categoryL1 !== 'all';
+
+  // stats 里的 cost_by_category[].category_l2 实际存的是一级分类名（见 projects.py）
+  const categoryOptions = Array.from(
+    new Set((stats?.cost_by_category || []).map((c) => c.category_l2).filter(Boolean)),
+  );
 
   const handleLoadMore = useCallback(() => {
     if (loadingMore || !projectIdRef.current) return;
@@ -343,6 +391,51 @@ export default function Project() {
           <Text className='records-count'>共 {recordsTotal} 条</Text>
         </View>
 
+        <View className='filter-bar'>
+          <Input
+            className='filter-input'
+            placeholder='搜索商户或分类'
+            value={keyword}
+            onInput={handleKeywordInput}
+            confirmType='search'
+          />
+          <View className='filter-chips'>
+            {[
+              { v: 'all', l: '全部' },
+              { v: 'out', l: '支出' },
+              { v: 'in', l: '收入' },
+            ].map((o) => (
+              <Text
+                key={o.v}
+                className={`filter-chip ${direction === o.v ? 'filter-chip--active' : ''}`}
+                onClick={() => applyFilter({ direction: o.v })}
+              >
+                {o.l}
+              </Text>
+            ))}
+          </View>
+          {categoryOptions.length > 0 && (
+            <ScrollView scrollX className='filter-chips filter-chips--scroll'>
+              <Text
+                className={`filter-chip ${categoryL1 === 'all' ? 'filter-chip--active' : ''}`}
+                onClick={() => applyFilter({ categoryL1: 'all' })}
+              >
+                全部分类
+              </Text>
+              {categoryOptions.map((c) => (
+                <Text
+                  key={c}
+                  className={`filter-chip ${categoryL1 === c ? 'filter-chip--active' : ''}`}
+                  onClick={() => applyFilter({ categoryL1: c })}
+                >
+                  {c}
+                </Text>
+              ))}
+            </ScrollView>
+          )}
+          {filterActive && <Text className='filter-summary'>筛选结果 {recordsTotal} 条</Text>}
+        </View>
+
         {records.length > 0 ? (
           <View className='records-list'>
             {records.map((record) => (
@@ -378,7 +471,17 @@ export default function Project() {
         ) : !loading ? (
           <View className='empty-state'>
             <Text className='empty-icon'>📋</Text>
-            <Text className='empty-text'>暂无票据记录</Text>
+            <Text className='empty-text'>
+              {filterActive ? '没有符合条件的记录' : '暂无票据记录'}
+            </Text>
+            {filterActive && (
+              <Text
+                className='empty-reset'
+                onClick={() => applyFilter({ keyword: '', direction: 'all', categoryL1: 'all' })}
+              >
+                清除筛选条件
+              </Text>
+            )}
           </View>
         ) : null}
       </View>

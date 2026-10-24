@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>票小助 · LLM 用量与商业化设计审计</title>
+<style>
+  :root { --accent:#FF6B35; --accent-soft:#FFF1EA; --ink:#1F2329; --ink-2:#4E5560; --ink-3:#8A919C; --line:#E7E9ED; --bg:#F6F7F9; --card:#FFFFFF; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); font-size:14px; line-height:1.7; }
+  .page { max-width:920px; margin:0 auto; padding:40px 24px 64px; }
+  header.hero { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px; margin-bottom:20px; }
+  .hero h1 { font-size:21px; font-weight:600; }
+  .hero .meta { color:var(--ink-3); font-size:12.5px; margin-top:6px; }
+  .stats { display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; }
+  .stat { flex:1; min-width:130px; background:#FAFBFC; border:1px solid var(--line); border-radius:10px; padding:12px 16px; }
+  .stat .n { font-size:22px; font-weight:600; color:var(--accent); line-height:1.2; }
+  .stat .l { font-size:12.5px; color:var(--ink-2); margin-top:2px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px 28px; margin-bottom:20px; }
+  h2 { font-size:16px; font-weight:600; margin-bottom:14px; padding-left:10px; border-left:3px solid var(--accent); }
+  h3 { font-size:14px; font-weight:600; margin:18px 0 8px; }
+  p { margin-bottom:10px; color:var(--ink-2); }
+  table { width:100%; border-collapse:collapse; margin:10px 0 14px; font-size:12.5px; }
+  th { text-align:left; background:#FAFBFC; color:var(--ink-2); font-weight:600; padding:8px 10px; border:1px solid var(--line); }
+  td { padding:8px 10px; border:1px solid var(--line); color:var(--ink-2); vertical-align:top; }
+  code { font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; background:#F2F3F5; border-radius:4px; padding:1px 5px; color:#B1451F; }
+  .pill { display:inline-block; font-size:11px; font-weight:600; border-radius:5px; padding:1px 8px; white-space:nowrap; }
+  .yes { background:#ECFDF3; color:#15803D; border:1px solid #BBF0CE; }
+  .no { background:#FEF2F2; color:#B91C1C; border:1px solid #FECACA; }
+  .part { background:#FFF7E8; color:#A16207; border:1px solid #FDE6B8; }
+  .note { background:var(--accent-soft); border:1px solid #FFD9C4; border-radius:10px; padding:12px 16px; font-size:13px; color:#7C3A10; margin:12px 0; }
+  .ok { background:#ECFDF3; border:1px solid #BBF0CE; border-radius:10px; padding:12px 16px; font-size:13px; color:#14532D; margin:12px 0; }
+  .warn { background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:12px 16px; font-size:13px; color:#991B1B; margin:12px 0; }
+  ul.plain { margin:6px 0 10px 18px; color:var(--ink-2); font-size:13px; }
+  ul.plain li { margin-bottom:6px; }
+  footer { color:var(--ink-3); font-size:12px; text-align:center; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="hero">
+  <h1>票小助 · LLM 用量与商业化设计审计</h1>
+  <div class="meta">六个问题逐条核对代码 · 2026-10-19</div>
+  <div class="stats">
+    <div class="stat"><div class="n">2</div><div class="l">LLM 调用点</div></div>
+    <div class="stat"><div class="n">3</div><div class="l">套餐档位</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">积分/签到代码</div></div>
+    <div class="stat"><div class="n">1</div><div class="l">支持的付费周期（月）</div></div>
+  </div>
+</header>
+
+<section>
+  <h2>1. 先给结论：六个问题里只有两个是清楚的</h2>
+  <table>
+    <tr><th style="width:250px">问题</th><th style="width:90px">状态</th><th>实际情况</th></tr>
+    <tr><td>有调用 LLM 吗？用来干嘛</td><td><span class="pill yes">有</span></td><td>两个调用点：票据分类兜底、AI 经营分析</td></tr>
+    <tr><td>调用有次数限制吗</td><td><span class="pill part">只限了一半</span></td><td>发票张数、项目数有限制；<b>LLM / AI 分析本身没有配额</b></td></tr>
+    <tr><td>有普通/会员/VIP 等级吗</td><td><span class="pill part">有套餐，无等级</span></td><td><code>free / pro / enterprise</code> 三档 + 到期时间；没有独立等级体系或成长值</td></tr>
+    <tr><td>签到领积分、积分调 LLM</td><td><span class="pill no">没有</span></td><td>全仓 grep <code>积分/签到/points/credit</code> <b>0 命中</b></td></tr>
+    <tr><td>包月 / 包季 / 包年</td><td><span class="pill part">只有包月</span></td><td><code>Order.period_months</code> 字段已就绪，但下单写死 <code>1</code>（<code>payments.py:164</code>）</td></tr>
+    <tr><td>折扣 / 优惠券</td><td><span class="pill no">没有</span></td><td>无 <code>coupon/discount</code> 相关代码</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>2. LLM 现在怎么用（两个调用点）</h2>
+  <table>
+    <tr><th style="width:170px">场景</th><th style="width:210px">位置与触发条件</th><th>消耗</th></tr>
+    <tr>
+      <td><b>票据分类兜底</b></td>
+      <td><code>ocr_service.py:60</code> 注入分类器；<br><code>ocr_service.py:71</code>：<b>规则分类置信度 &lt; 0.7</b> 且有 Key 时才调</td>
+      <td>每张票最多 1 次，输入含商户名+识别文本，数百 tokens</td>
+    </tr>
+    <tr>
+      <td><b>AI 经营分析</b></td>
+      <td><code>routers/analysis.py</code>：用户点「开始分析」时触发，聚合项目数据后一次调用</td>
+      <td><b>实测 13–21 秒、输出约 900 tokens</b>（已定 max_tokens=900、超时 45s）</td>
+    </tr>
+  </table>
+  <div class="note">
+    <b>成本口径提示：</b>分类是「按票」计价（用户识别越多越贵），分析是「按点击」计价（可以反复点）。
+    两者要分开设限，不能用一个数字覆盖。
+  </div>
+</section>
+
+<section>
+  <h2>3. 次数限制的现状</h2>
+  <table>
+    <tr><th>能力</th><th style="width:80px">free</th><th style="width:80px">pro</th><th style="width:110px">enterprise</th><th style="width:150px">实现位置</th></tr>
+    <tr><td>每月发票识别</td><td>5</td><td>200</td><td>无限</td><td><code>plan_config.py</code></td></tr>
+    <tr><td>项目数</td><td>1</td><td>10</td><td>无限</td><td>同上</td></tr>
+    <tr><td>数据导出</td><td><span class="pill no">不支持</span></td><td><span class="pill yes">支持</span></td><td><span class="pill yes">支持</span></td><td>同上 + <code>files/reports</code> 403 拦截</td></tr>
+    <tr><td><b>AI 经营分析</b></td><td colspan="3" style="background:#FEF2F2;color:#B91C1C"><b>三档都没有限制——可以无限点</b></td><td><span class="pill no">未实现</span></td></tr>
+    <tr><td>LLM 分类调用</td><td colspan="3">不单独计数，但间接受「每月发票张数」约束（每票最多 1 次）</td><td>间接</td></tr>
+  </table>
+  <div class="warn">
+    <b>这是当前唯一的成本敞口：</b>AI 分析每次约 900 tokens 输出 + 数百 tokens 输入，用户可无限次点击。
+    绝对金额不大（单次成本很低），但<b>无上限</b>，且没有审计流水，事后无法回答「谁用了多少」。
+  </div>
+</section>
+
+<section>
+  <h2>4. 一个好消息：积分账本其实已经有雏形</h2>
+  <p><code>QuotaLog</code>（<code>models/plan.py</code>）的字段是：</p>
+  <table>
+    <tr><th style="width:130px">字段</th><th>含义</th></tr>
+    <tr><td><code>action</code></td><td>动作类型，如 <code>invoice_ocr</code></td></tr>
+    <tr><td><code>delta</code></td><td>变动量（正=发放/充值，负=消耗）</td></tr>
+    <tr><td><code>reason</code></td><td>原因（可写「签到」「购买月度包」「AI 分析」）</td></tr>
+  </table>
+  <div class="ok">
+    <b>这就是一张标准的流水账本</b>——做积分体系不需要另建表，只需：① 加一个「积分余额」的读取口径
+    （<code>SUM(delta) WHERE user_id=?</code>），② 定义每种 action 的发放/消耗规则。改动量远小于从零设计。
+  </div>
+</section>
+
+<section>
+  <h2>5. 购买与折扣的现状</h2>
+  <table>
+    <tr><th style="width:170px">项</th><th style="width:90px">状态</th><th>细节</th></tr>
+    <tr>
+      <td>包月</td><td><span class="pill yes">已实现</span></td>
+      <td>下单写入 <code>order.period_months</code>；续费用它算新到期时间（<code>payments.py:120</code> → <code>renewal_expiry</code>）；未到期续费会在原到期日上<b>顺延</b>，不损失剩余时长</td>
+    </tr>
+    <tr>
+      <td>包季 / 包年</td><td><span class="pill no">未实现</span></td>
+      <td><code>payments.py:164</code> 写死 <code>period_months=DEFAULT_PERIOD_MONTHS</code>(=1)；<code>/api/plans</code> 也只返回单一价格，没有周期选项</td>
+    </tr>
+    <tr>
+      <td>折扣 / 优惠券</td><td><span class="pill no">未实现</span></td>
+      <td>没有券、没有折扣码、没有阶梯价</td>
+    </tr>
+    <tr>
+      <td>到期提醒</td><td><span class="pill yes">已实现</span></td>
+      <td>迁移里有 <code>add_subscription_reminder_tracking</code>；<code>days_until()</code> 统一了口径</td>
+    </tr>
+    <tr>
+      <td>支付通道</td><td><span class="pill no">未开通</span></td>
+      <td>无商户号、无回调地址（<code>.env</code> 6 项全空），<code>PAYMENT_ENABLED=false</code></td>
+    </tr>
+  </table>
+  <div class="note">
+    <b>现实约束：</b>支付没通之前，做「购买积分 / 包季包年 / 折扣」都收不到钱。
+    所以这些设计可以先定，但落地必须等支付通道。
+  </div>
+</section>
+
+<section>
+  <h2>6. 建议的两步走（Step 1 现在就能做）</h2>
+
+  <h3>Step 1 · 先补成本护栏（不依赖支付，1 小时量级）</h3>
+  <ul class="plain">
+    <li>给 AI 分析加<b>按月次数配额</b>：free 3 次 / pro 30 次 / enterprise 无限</li>
+    <li>记账复用 <code>quota_logs</code>：<code>action='ai_analysis'</code>、<code>delta=-1</code></li>
+    <li>超限返回 403 + 明确文案「本月 AI 分析次数已用完，升级套餐可增加」</li>
+    <li>好处：成本有上限、有流水可审计，且不用碰积分体系</li>
+  </ul>
+
+  <h3>Step 2 · 支付通了之后再做售卖（需要你拍板）</h3>
+  <table>
+    <tr><th style="width:150px">设计项</th><th>建议</th><th style="width:90px">理由</th></tr>
+    <tr>
+      <td>计量单位</td>
+      <td><b>积分</b>（1 积分 = 1 次 AI 分析或 1 张票识别），而不是「次数」</td>
+      <td>同一套账本能装下两种消耗，也方便后面调价</td>
+    </tr>
+    <tr>
+      <td>积分来源</td>
+      <td>① 套餐每月固定发放 ② 单独购买积分包 ③ 签到（可选）</td>
+      <td>签到只做「小额日活激励」，别让它成为主要来源，否则等于白送成本</td>
+    </tr>
+    <tr>
+      <td>消耗口径</td>
+      <td>AI 分析 10 积分/次；票据识别 1 积分/张</td>
+      <td>按实测 token 成本反推，让「一次分析 ≈ 十张票」的比值合理</td>
+    </tr>
+    <tr>
+      <td>周期与折扣</td>
+      <td>包月原价；<b>包季 9 折、包年 8 折</b>，折扣写在下单时的 <code>amount_cents</code>，不引入优惠券</td>
+      <td>券要发券/核销/过期/叠加规则，复杂度高；阶梯价 3 行代码即可</td>
+    </tr>
+    <tr>
+      <td>积分过期</td>
+      <td>购买的积分 12 个月过期；赠送的积分当月有效</td>
+      <td>避免长期负债无限累积（这是财务口径问题，不只是技术）</td>
+    </tr>
+  </table>
+  <div class="warn">
+    <b>不建议同时上「套餐额度 + 积分」两套计量：</b>它们解决同一个问题（控成本），双轨会让
+    「用户到底还剩多少」变得难解释，客服成本高。建议二选一：内测期用套餐额度，放量后再切积分。
+  </div>
+</section>
+
+<section>
+  <h2>7. 需要你拍板的三个决策</h2>
+  <table>
+    <tr><th style="width:40px">#</th><th>决策</th><th style="width:290px">我的建议</th></tr>
+    <tr><td>1</td><td>计量用「套餐次数」还是「积分」</td><td>内测期用套餐次数（Step 1），支付通了再上积分</td></tr>
+    <tr><td>2</td><td>AI 分析免费给多少次</td><td>free 3 次/月（够体验，不至于被刷）</td></tr>
+    <tr><td>3</td><td>包季/包年的折扣率</td><td>季度 9 折、年度 8 折；先不做优惠券</td></tr>
+  </table>
+  <div class="note">
+    这三个定了，我就能把 Step 1 直接实现（配额 + 记账 + 403 文案），
+    Step 2 等支付通道就绪后再动，届时只需扩 <code>period_months</code> 与计价表。
+  </div>
+</section>
+
+<footer>本报告基于 2026-10-19 的代码核对（plan_config / subscription / payments / plans / quota_logs / analysis / categorize）生成</footer>
+
+</div>
+</body>
+</html>

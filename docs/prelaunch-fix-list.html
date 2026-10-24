@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>票小助 · 上线前修复清单（个人主体 · 暂不上支付）</title>
+<style>
+  :root {
+    --accent: #FF6B35;
+    --accent-soft: #FFF1EA;
+    --ink: #1F2329;
+    --ink-2: #4E5560;
+    --ink-3: #8A919C;
+    --line: #E7E9ED;
+    --bg: #F6F7F9;
+    --card: #FFFFFF;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.7;
+  }
+  .page { max-width: 900px; margin: 0 auto; padding: 40px 24px 64px; }
+  header.hero { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 28px; margin-bottom: 20px; }
+  .hero h1 { font-size: 21px; font-weight: 600; }
+  .hero .meta { color: var(--ink-3); font-size: 12.5px; margin-top: 6px; }
+  .stats { display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 150px; background: #FAFBFC; border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+  .stat .n { font-size: 22px; font-weight: 600; color: var(--accent); line-height: 1.2; }
+  .stat .l { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px 28px; margin-bottom: 20px; }
+  h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; padding-left: 10px; border-left: 3px solid var(--accent); }
+  p { margin-bottom: 10px; color: var(--ink-2); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 12.5px; }
+  th { text-align: left; background: #FAFBFC; color: var(--ink-2); font-weight: 600; padding: 8px 10px; border: 1px solid var(--line); }
+  td { padding: 8px 10px; border: 1px solid var(--line); color: var(--ink-2); vertical-align: top; }
+  td b { color: var(--ink); font-weight: 600; }
+  code { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; background: #F2F3F5; border-radius: 4px; padding: 1px 5px; color: #B1451F; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; border-radius: 5px; padding: 1px 8px; white-space: nowrap; }
+  .p0 { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+  .p1 { background: #FFF7E8; color: #A16207; border: 1px solid #FDE6B8; }
+  .p2 { background: #EFF6FE; color: #1D4ED8; border: 1px solid #C9DCFB; }
+  .done { background: #ECFDF3; color: #15803D; border: 1px solid #BBF0CE; }
+  .note { background: var(--accent-soft); border: 1px solid #FFD9C4; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #7C3A10; margin: 12px 0; }
+  .warn { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #991B1B; margin: 12px 0; }
+  .ok { background: #ECFDF3; border: 1px solid #BBF0CE; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #14532D; margin: 12px 0; }
+  ul.check { list-style: none; margin: 6px 0 4px; }
+  ul.check li { padding-left: 22px; position: relative; color: var(--ink-2); font-size: 13px; margin-bottom: 6px; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; color: var(--ink-3); }
+  ol.route { margin: 8px 0 4px 20px; color: var(--ink-2); }
+  ol.route li { margin-bottom: 8px; }
+  footer { color: var(--ink-3); font-size: 12px; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="hero">
+  <h1>票小助 · 上线前修复清单</h1>
+  <div class="meta">前提：小程序主体为<b>个人</b>（后续改企业）· 支付板块先不上 · 生成时间 2026-10-13</div>
+  <div class="stats">
+    <div class="stat"><div class="n">6</div><div class="l">本轮已修复（含 2 个 P0）</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">需你决策</div></div>
+    <div class="stat"><div class="n">4</div><div class="l">待开发补齐</div></div>
+    <div class="stat"><div class="n">5</div><div class="l">平台后台配置动作</div></div>
+  </div>
+</header>
+
+<section>
+  <h2>1. 本轮已修复（均已验证）</h2>
+  <table>
+    <tr><th style="width:52px">级别</th><th style="width:150px">问题</th><th>位置与原因</th><th style="width:230px">处理方式</th></tr>
+    <tr>
+      <td><span class="pill p0">P0 安全</span></td>
+      <td>开发后门登录</td>
+      <td><code>app/routers/auth.py:76</code> —— <code>code.startswith("dev_")</code> 无条件放行，任何人都能用 <code>dev_任意值</code> 跳过微信校验换到 access_token；且 WX 凭据缺失时静默生成假 openid，等于关掉鉴权</td>
+      <td>新增 <code>ALLOW_DEV_LOGIN</code> 开关（默认 false）；<code>dev_</code> 码必须显式开启才放行；凭据缺失改为 <b>503 显式失败</b>（fail-closed）</td>
+    </tr>
+    <tr>
+      <td><span class="pill p0">P0 功能</span></td>
+      <td>手机号开关与主体冲突</td>
+      <td><code>src/config/features.ts:10</code> —— 注释已写明「个人主体调用会直接报 fail no permission」，但开关是 <code>true</code>，个人资料页会显示手机号行并弹出授权，必然失败</td>
+      <td><code>PHONE_BIND_ENABLED</code> 改为 <b>false</b>，入口整体隐藏；注释补充恢复条件（改企业主体后）</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1 合规</span></td>
+      <td>隐私政策声明不符（收集项）</td>
+      <td><code>src/pages/privacy/index.tsx:21</code> —— 已关闭手机号仍声明「收集手机号」</td>
+      <td>文案改为随 <code>PHONE_BIND_ENABLED</code> 联动，并自动重排后续序号</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1 合规</span></td>
+      <td>隐私政策声明不符（对外提供）</td>
+      <td>同文件「三、信息如何对外提供」—— 声明「购买套餐时通过微信支付完成收款」，但支付已关闭</td>
+      <td>改为随 <code>PAYMENT_ENABLED</code> 联动</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1 合规</span></td>
+      <td>隐私政策声明不符（用户权利）</td>
+      <td>同文件「五、您的权利」—— 提及「并完成手机号绑定」</td>
+      <td>同上，随开关联动</td>
+    </tr>
+    <tr>
+      <td><span class="pill p2">P2 运维</span></td>
+      <td>联调开关未在示例中登记</td>
+      <td><code>v1/.env.example</code></td>
+      <td>补充 <code>ALLOW_DEV_LOGIN=false</code> 及风险说明</td>
+    </tr>
+  </table>
+  <div class="ok"><b>验证结果：</b>Python 侧 <code>py_compile</code> 通过；Taro 小程序侧 <code>tsc --noEmit</code> 在 <code>src/</code> 下 <b>0 错误</b>（输出中 77 行报错全部来自 <code>node_modules</code> 中 Taro 3.6 与 TS 5.3 的预存在类型冲突，与本次改动无关）。</div>
+</section>
+
+<section>
+  <h2>2. 需要你决策的两件事</h2>
+  <table>
+    <tr><th style="width:190px">事项</th><th>背景</th><th style="width:300px">可选方案</th></tr>
+    <tr>
+      <td><b>无支付期间用户无法升级</b></td>
+      <td>后端只有微信支付一条开通通道，没有人工开通路径 ⇒ 支付关闭后所有用户永久停留在 free（10 张/月）。注意 H5 侧有 <code>PlanUpgradeRequest</code> 模型，v1 侧没有</td>
+      <td>A. 接受现状，全员免费额度运行<br>B. 加「申请开通」轻通道（客服/表单提交 → 后台改 <code>plan_code</code>），改动量小</td>
+    </tr>
+    <tr>
+      <td><b>报表分享链接的域名</b></td>
+      <td><code>app/config.py:28</code> 默认 <code>https://app.piaoxiaozhu.com</code>，分享链接由 <code>reports.py:250</code> 拼出。该域名若未部署/未备案，用户复制到的就是死链</td>
+      <td>A. 把 H5 分享页部署到该域名（需 ICP 备案）<br>B. 暂时隐藏分享入口，避免产生死链</td>
+    </tr>
+  </table>
+  <div class="note"><b>补充说明（合规上没问题）：</b>个人主体不能在小程序内用 web-view 加载外链，而当前分享实现是 <code>report/index.tsx:192</code> 复制链接到剪贴板、<b>不在小程序内加载网页</b>，这一点是合规的；问题只在于链接落地的 H5 域名是否真实可用。</div>
+</section>
+
+<section>
+  <h2>3. 必须补齐（开发项，与主体无关）</h2>
+  <table>
+    <tr><th style="width:52px">级别</th><th style="width:150px">项目</th><th>说明</th></tr>
+    <tr>
+      <td><span class="pill p0">P0</span></td>
+      <td>内容安全接口缺失</td>
+      <td>全仓检索无 <code>imgSecCheck</code> / <code>msgSecCheck</code> 调用。用户上传票据图片、OCR 文本均属 UGC，提审必查、上线后有处罚风险，需接入微信内容安全接口（图片 + 文本各一）</td>
+    </tr>
+    <tr>
+      <td><span class="pill p0">P0</span></td>
+      <td>用户隐私保护指引</td>
+      <td>需在 mp 后台「设置 → 服务内容声明 → 用户隐私保护指引」声明实际收集项（openid、昵称头像、票据图片），并与刚改完的 <code>privacy</code> 页面保持一致；代码侧可选加 <code>__usePrivacyCheck__</code>（<code>app.config.ts</code> 目前无此字段）</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1</span></td>
+      <td>LLM 配置缺失与不一致</td>
+      <td><code>config.py:31</code> 中 <code>LLM_API_KEY</code> 默认为空 ⇒ OCR 分类的后处理会失败；且默认模型 <code>step-1-8k</code> 与 <code>.env.example</code> 的 <code>agnes-2.0-flash</code> 不一致，需统一</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1</span></td>
+      <td>对象存储未配置会丢文件</td>
+      <td><code>files.py:38</code> 的 OSS 开关：未配置 OSS 时图片写入容器本地 <code>uploads/</code>，云托管重启即丢。上云必须配对象存储或挂存储卷</td>
+    </tr>
+  </table>
+  <div class="warn"><b>另有 1 处审核风险（未改动，属产品决策）：</b>会员页仍在渲染完整价目表与「¥xx/月」（<code>src/pages/member/index.tsx:110-151</code>），按钮虽已禁用为「即将开放」，但个人主体审核员看到收费类目内容可能判定涉及交易。建议 <code>PAYMENT_ENABLED=false</code> 时隐藏价格与套餐列表，仅保留「当前免费版 + 敬请期待」。</div>
+</section>
+
+<section>
+  <h2>4. 平台后台动作（mp 后台，非代码）</h2>
+  <ol class="route">
+    <li><b>类目选择</b>：个人主体只能选工具类目，建议「工具 &gt; 效率」。<b>规避用词</b>：小程序名称、简介、页面文案中避免出现「记账 / 财税 / 报销 / 税务」等可能被判为金融类的表述，统一定位为「票据识别与整理工具」。</li>
+    <li><b>避免「AI 生成内容」表述</b>：个人主体无法通过深度合成 / AI 生成类相关审核。产品里 LLM 只做分类抽取，对外描述为「识别 / 整理」即可，不要写成「AI 生成报表文案」。</li>
+    <li><b>服务器域名</b>：把后端 HTTPS 域名加入 request 合法域名；<b>该域名须已 ICP 备案</b>（云托管默认域名不能配到这里，官方明确其仅限测试）。</li>
+    <li><b>用户隐私保护指引 + 客服配置</b>：与代码侧 <code>privacy</code> 页面逐条对齐。</li>
+    <li><b>个人主体做不了、不要规划</b>：微信支付、手机号快速验证组件、web-view 加载外链、流量主广告。</li>
+  </ol>
+</section>
+
+<section>
+  <h2>5. 提审前自测清单</h2>
+  <ul class="check">
+    <li>首次进入自动登录（<code>store.autoLogin → Taro.login</code>）走通，换账号不串数据</li>
+    <li>真机跑通：上传票据 → OCR 识别 → 结果确认 → 报表生成</li>
+    <li>分享 / 导出功能确认落地域名可达（或已按决策隐藏入口）</li>
+    <li>注销账号后数据确实清除，且可重新注册</li>
+    <li>全站无支付残留：会员页文案、按钮、隐私政策一致</li>
+    <li>环境变量核对：<code>ALLOW_DEV_LOGIN=false</code>、<code>PAYMENT_MOCK_ENABLED=false</code>、<code>JWT_SECRET</code> 非默认值、<code>LLM_API_KEY</code> 已配</li>
+    <li>按最新源码重新构建 <code>dist</code>（<code>npm run build:weapp</code>），再用开发者工具上传体验版</li>
+  </ul>
+</section>
+
+<footer>本清单基于 2026-10-13 对 v1 目录的代码扫描与实测（py_compile / tsc）生成 · 所有结论附文件级证据</footer>
+
+</div>
+</body>
+</html>

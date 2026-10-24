@@ -165,6 +165,123 @@
   margin-top: 8px;
 }
 
+/* 本月积分消耗提示条 */
+.usage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 24px 16px;
+  padding: 16px 20px;
+  background: $color-bg-card;
+  border-radius: $radius-md;
+}
+
+.usage-text {
+  flex: 1;
+  font-size: 22px;
+  color: $color-text-secondary;
+  line-height: 1.6;
+}
+
+.usage-num {
+  color: $color-brand;
+  font-weight: 600;
+}
+
+.usage-arrow {
+  flex-shrink: 0;
+  margin-left: 12px;
+  font-size: 28px;
+  color: $color-text-hint;
+}
+
+/* 积分卡 */
+.points-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 24px 16px;
+  padding: 24px;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.points-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.points-label {
+  font-size: 24px;
+  color: $color-text-secondary;
+}
+
+.points-value {
+  font-size: 44px;
+  font-weight: 600;
+  color: $color-brand;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.points-btn {
+  margin: 0;
+  padding: 0 28px;
+  height: 60px;
+  line-height: 60px;
+  font-size: 24px;
+  font-weight: 500;
+  color: #ffffff;
+  background: $color-brand;
+  border-radius: 999px;
+}
+
+.points-btn--done,
+.points-btn[disabled] {
+  background: #f0f0f0;
+  color: $color-text-hint;
+}
+
+/* 未绑定手机号时的引导条 */
+.phone-tip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 24px 16px;
+  padding: 20px;
+  background: $color-brand-bg;
+  border: 1px solid #ffd9c4;
+  border-radius: $radius-md;
+}
+
+.phone-tip-left {
+  flex: 1;
+  min-width: 0;
+}
+
+.phone-tip-title {
+  display: block;
+  font-size: 26px;
+  font-weight: 600;
+  color: $color-brand-dark;
+}
+
+.phone-tip-desc {
+  display: block;
+  font-size: 22px;
+  color: $color-text-secondary;
+  margin-top: 4px;
+}
+
+.phone-tip-action {
+  flex-shrink: 0;
+  font-size: 24px;
+  font-weight: 500;
+  color: $color-brand;
+  margin-left: 12px;
+}
+
 .menu-list {
   margin: 0 24px;
   background: $color-bg-card;
@@ -187,6 +304,30 @@
   &:active {
     background: #F5F5F5;
   }
+}
+
+// openType='contact' 必须用 Button 才能唤起客服会话，这里把它还原成普通菜单项外观
+.menu-item-btn {
+  width: 100%;
+  background: $color-bg-card;
+  border-radius: 0;
+  line-height: normal;
+  font-size: 28px;
+  color: $color-text-primary;
+  text-align: left;
+  margin: 0;
+
+  &::after {
+    border: none;
+  }
+}
+
+.danger-list {
+  margin-top: 24px;
+}
+
+.danger-title {
+  color: $color-error;
 }
 
 .menu-left {

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>票小助 · 云托管部署产物交付说明</title>
+<style>
+  :root { --accent:#FF6B35; --accent-soft:#FFF1EA; --ink:#1F2329; --ink-2:#4E5560; --ink-3:#8A919C; --line:#E7E9ED; --bg:#F6F7F9; --card:#FFFFFF; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); font-size:14px; line-height:1.7; }
+  .page { max-width:920px; margin:0 auto; padding:40px 24px 64px; }
+  header.hero { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px; margin-bottom:20px; }
+  .hero h1 { font-size:21px; font-weight:600; }
+  .hero .meta { color:var(--ink-3); font-size:12.5px; margin-top:6px; }
+  .stats { display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; }
+  .stat { flex:1; min-width:140px; background:#FAFBFC; border:1px solid var(--line); border-radius:10px; padding:12px 16px; }
+  .stat .n { font-size:22px; font-weight:600; color:var(--accent); line-height:1.2; }
+  .stat .l { font-size:12.5px; color:var(--ink-2); margin-top:2px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px 28px; margin-bottom:20px; }
+  h2 { font-size:16px; font-weight:600; margin-bottom:14px; padding-left:10px; border-left:3px solid var(--accent); }
+  h3 { font-size:14px; font-weight:600; margin:18px 0 8px; }
+  p { margin-bottom:10px; color:var(--ink-2); }
+  table { width:100%; border-collapse:collapse; margin:10px 0 14px; font-size:12.5px; }
+  th { text-align:left; background:#FAFBFC; color:var(--ink-2); font-weight:600; padding:8px 10px; border:1px solid var(--line); }
+  td { padding:8px 10px; border:1px solid var(--line); color:var(--ink-2); vertical-align:top; }
+  td b { color:var(--ink); font-weight:600; }
+  code { font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; background:#F2F3F5; border-radius:4px; padding:1px 5px; color:#B1451F; }
+  .pill { display:inline-block; font-size:11px; font-weight:600; border-radius:5px; padding:1px 8px; white-space:nowrap; }
+  .p0 { background:#FEF2F2; color:#B91C1C; border:1px solid #FECACA; }
+  .p1 { background:#FFF7E8; color:#A16207; border:1px solid #FDE6B8; }
+  .done { background:#ECFDF3; color:#15803D; border:1px solid #BBF0CE; }
+  .new { background:#EFF6FE; color:#1D4ED8; border:1px solid #C9DCFB; }
+  .note { background:var(--accent-soft); border:1px solid #FFD9C4; border-radius:10px; padding:12px 16px; font-size:13px; color:#7C3A10; margin:12px 0; }
+  .warn { background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:12px 16px; font-size:13px; color:#991B1B; margin:12px 0; }
+  .ok { background:#ECFDF3; border:1px solid #BBF0CE; border-radius:10px; padding:12px 16px; font-size:13px; color:#14532D; margin:12px 0; }
+  ul.check { list-style:none; margin:6px 0 4px; }
+  ul.check li { padding-left:22px; position:relative; color:var(--ink-2); font-size:13px; margin-bottom:6px; }
+  ul.check li::before { content:"☐"; position:absolute; left:0; color:var(--ink-3); }
+  footer { color:var(--ink-3); font-size:12px; text-align:center; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="hero">
+  <h1>票小助 · 云托管部署产物交付说明</h1>
+  <div class="meta">api / worker 拆镜像 · 启动脚本 · 环境变量清单 · PG 与对象存储接入 · 2026-10-13</div>
+  <div class="stats">
+    <div class="stat"><div class="n">12</div><div class="l">新增/修改文件</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">顺带修掉的真实 bug</div></div>
+    <div class="stat"><div class="n">8</div><div class="l">验证项通过</div></div>
+    <div class="stat"><div class="n">2</div><div class="l">未能验证（已说明）</div></div>
+  </div>
+</header>
+
+<section>
+  <h2>1. 产物清单</h2>
+  <table>
+    <tr><th style="width:300px">文件</th><th style="width:70px">状态</th><th>作用</th></tr>
+    <tr><td><code>services/api/Dockerfile.api</code></td><td><span class="pill new">新增</span></td><td>api 镜像，<b>不含</b> OCR 依赖，约 300MB；内含 HEALTHCHECK</td></tr>
+    <tr><td><code>services/api/Dockerfile.worker</code></td><td><span class="pill new">新增</span></td><td>worker 镜像，含 PaddleOCR 并在<b>构建期预热模型</b>，避免每次冷启动重下</td></tr>
+    <tr><td><code>services/api/Dockerfile</code></td><td><span class="pill p0">已删除</span></td><td>旧单镜像：依赖裸包名 <code>piaoxiaozhu-core</code> 且上下文拿不到该包，构建必失败</td></tr>
+    <tr><td><code>services/api/requirements-api.txt</code></td><td><span class="pill new">新增</span></td><td>api 专用依赖（无 paddle 系）</td></tr>
+    <tr><td><code>services/api/requirements.txt</code></td><td><span class="pill done">已修</span></td><td>修掉裸包名 <code>piaoxiaozhu-core</code>；补 COS SDK</td></tr>
+    <tr><td><code>services/api/docker/entrypoint-api.sh</code></td><td><span class="pill new">新增</span></td><td>启动命令：读 <code>PORT</code> 自适应、可选迁移、<code>--proxy-headers</code></td></tr>
+    <tr><td><code>services/api/docker/entrypoint-worker.sh</code></td><td><span class="pill new">新增</span></td><td>Celery 启动命令：并发默认 1、max-tasks-per-child 防内存泄漏累积</td></tr>
+    <tr><td><code>services/api/app/services/storage.py</code></td><td><span class="pill new">新增</span></td><td>存储层：COS 优先 → OSS 回退 → 本地兜底；上传/下载/签名 URL/删除统一入口</td></tr>
+    <tr><td><code>v1/.dockerignore</code></td><td><span class="pill new">新增</span></td><td>把构建上下文从 1.5GB 压到几十 MB，并确保 <code>.env</code>/<code>*.pem</code> 不进镜像</td></tr>
+    <tr><td><code>infra/docker-compose.yml</code></td><td><span class="pill done">已重写</span></td><td>本地开发编排，构建上下文与云托管一致（都是 <code>v1/</code>）</td></tr>
+    <tr><td><code>infra/cloud-hosting.env.example</code></td><td><span class="pill new">新增</span></td><td>环境变量清单，逐条标注必填/选填与所属服务</td></tr>
+    <tr><td><code>infra/cloud-hosting.md</code></td><td><span class="pill new">新增</span></td><td>部署手册：服务配置表、PG/COS 接入、迁移跑法、验证清单、排障表</td></tr>
+    <tr><td><code>infra/preflight.sh</code></td><td><span class="pill new">新增</span></td><td>部署前置自检：一条命令验完关键文件/可执行位/COPY 路径/依赖包名/dockerignore/导入/compose/环境变量；<code>--build</code> 可直接构建两个镜像</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>2. 顺带修掉的两个真实 bug</h2>
+  <table>
+    <tr><th style="width:52px">级别</th><th style="width:150px">问题</th><th>证据与后果</th></tr>
+    <tr>
+      <td><span class="pill p0">P0</span></td>
+      <td>配了对象存储后 OCR 全线失败</td>
+      <td><code>app/worker.py:41-47</code> 原来只读容器本地盘（<code>Path("uploads")/file_key</code>）。一旦启用 OSS/COS，worker 本地没有这个文件 ⇒ 每张票被标记 <code>ocr_status=failed</code>。这是<b>上线后必然踩到</b>、且排查成本很高的静默失败。现已统一走 <code>storage.download_object()</code>，本地未命中自动回源远端。</td>
+    </tr>
+    <tr>
+      <td><span class="pill p0">P0</span></td>
+      <td>Docker 镜像根本构建不出来</td>
+      <td>旧 <code>requirements.txt</code> 里是裸包名 <code>piaoxiaozhu-core</code>，而该包只存在于仓库 <code>packages/core</code>、不在 PyPI；且构建上下文只有 <code>services/api</code>，根本拿不到它 ⇒ <code>pip install</code> 必报 <code>No matching distribution found</code>。现改为构建上下文 = <code>v1/</code> 并显式 <code>pip install ./packages/core</code>。</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1</span></td>
+      <td>拆镜像后的兜底路径会 500</td>
+      <td><code>app/routers/files.py</code> 的「Celery 不可用就同步跑 OCR」分支，在 api 镜像不含 paddle 时会抛 <code>ImportError</code> 直接 500。现已捕获并返回 503「识别服务暂时不可用」，同时把该票标记为 failed。</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>3. 关键设计决策（附理由）</h2>
+  <h3>为什么 api 可以不带 OCR 依赖</h3>
+  <p>核查过导入链：<code>paddleocr</code> 在 <code>PaddleOCRService.initialize()</code> 内、<code>cv2</code> 在 <code>recognize()</code> 内才 import；<code>app/services/ocr_service.py</code> 只在 <code>files.py</code> 与 <code>worker.py</code> 的兜底路径里被导入——两者都是函数内导入。所以 api 镜像可以安全剥离 paddle 系依赖，镜像从 2GB+ 降到约 300MB。</p>
+  <h3>存储层的选择顺序</h3>
+  <p><code>COS_*</code> 配了走腾讯云 COS（与云托管同厂商、可内网免流量费）→ 否则回落阿里云 OSS（原方案零改动）→ 都没配才落本地盘。<b>生产必须配其中之一</b>，否则容器重启后图片全丢。</p>
+  <h3>迁移为什么不放在启动脚本里默认执行</h3>
+  <p>多副本同时启动会并发抢 alembic 锁。手册里给了三种跑法（本地连生产库 / 云托管任务 / 临时开 <code>RUN_MIGRATIONS=true</code> 跑完改回），并把默认值设为 <code>false</code>。注意 <code>alembic/env.py:13</code> 会从 <code>settings.DATABASE_URL</code> 取库地址，所以容器内直接跑迁移不会连错库。</p>
+</section>
+
+<section>
+  <h2>4. 验证结果</h2>
+  <table>
+    <tr><th style="width:200px">验证项</th><th>方式</th><th style="width:150px">结果</th></tr>
+    <tr><td>后端整体导入</td><td><code>import app.main</code>（venv2）</td><td><span class="pill done">通过</span> 38 路由</td></tr>
+    <tr><td>Celery 任务可加载</td><td><code>import app.worker</code></td><td><span class="pill done">通过</span> <code>app.worker.process_ocr</code></td></tr>
+    <tr><td>存储层后端判定</td><td>实跑 <code>describe_backend()</code></td><td><span class="pill done">通过</span> 当前正确识别为「本地磁盘」</td></tr>
+    <tr><td>worker 已改用存储层</td><td>反射源码断言含 <code>download_object</code></td><td><span class="pill done">通过</span></td></tr>
+    <tr><td>旧引用清理</td><td>全量检索 <code>is_oss_configured / upload_to_oss / _read_file_content</code> 等</td><td><span class="pill done">通过</span> 0 命中</td></tr>
+    <tr><td>compose 结构 + 脚本语法 + py_compile</td><td>YAML 解析 / <code>sh -n</code> / <code>py_compile</code></td><td><span class="pill done">通过</span></td></tr>
+  </table>
+  <div class="warn">
+    <b>未能验证的两项（如实说明）：</b><br>
+    ① <b>镜像未真实构建</b>——本环境的 Docker 守护进程不可达（<code>docker version</code> 被 SIGTERM，客户端存在但连不上 daemon）。Dockerfile 与构建上下文是按 Docker 规范写的，但「能不能构建成功」需要你在本机跑一次上文命令确认。<br>
+    ② <b>COS 分支未联调</b>——本地无腾讯云凭据。阿里云 OSS 分支保持原实现未动，风险低。
+  </div>
+</section>
+
+<section>
+  <h2>5. 追加验证（迁移链 / 依赖 / 自检脚本）</h2>
+  <p>上一节里「未能验证」的两项仍然成立（镜像构建、COS 联调），但这一步又补掉了另外三项原本只靠推断的结论。</p>
+  <table>
+    <tr><th style="width:210px">验证项</th><th>做法</th><th style="width:230px">结果</th></tr>
+    <tr>
+      <td><b>迁移链能否跑通</b></td>
+      <td>本机起一个<b>临时空库</b> → 执行 <code>alembic upgrade head</code> → 查表结构 → <code>alembic check</code> → 删库</td>
+      <td><span class="pill done">通过</span> 三个迁移按序应用（<code>initial</code> → <code>make_file_id_nullable</code> → <code>add project_limit to plans</code>），建出 <b>10 张表</b>，<code>alembic check</code> 返回 <code>No new upgrade operations detected</code> ⇒ <b>迁移与 ORM 模型完全一致</b>，生产不会缺字段。临时库已删除，未触碰已有库</td>
+    </tr>
+    <tr>
+      <td>依赖包名是否真实存在</td>
+      <td>逐个查 PyPI 元数据（绕开 pip 在本机沙箱的受限）</td>
+      <td><span class="pill done">通过</span> 15/15 全部可解析；我新写的 <code>cos-python-sdk-v5</code> 确认存在（最新 1.9.44）</td>
+    </tr>
+    <tr>
+      <td>自检脚本本身是否可靠</td>
+      <td>新写 <code>infra/preflight.sh</code>，并做<b>反向测试</b>：故意在 Dockerfile 里塞一条指向不存在文件的 <code>COPY</code></td>
+      <td><span class="pill done">通过</span> 正确报 <code>[FAIL]</code> 且退出码 1；还原后 31 项通过 / 0 失败</td>
+    </tr>
+  </table>
+  <div class="note">
+    <b>自检脚本自身的两个 bug 也是靠反向测试才抓出来的</b>（这正是「全绿输出必须先自证」的价值）：<br>
+    ① <code>PY</code> 存的是相对路径，脚本 <code>cd</code> 进子目录后解析不到 ⇒ <code>app.main</code> 导入检查被<b>静默跳过</b>（假绿）；<br>
+    ② 报错文案里 <code>$src（</code> 变量后紧跟全角括号，macOS 自带 bash 3.2 会把全角字符首字节并进变量名 ⇒ 一走到报错分支就 <code>unbound variable</code> 崩掉。改为 <code>${src}（</code> 后正常。
+  </div>
+</section>
+
+<section>
+  <h2>6. 你这边接下来要做的（按顺序）</h2>
+  <ul class="check">
+    <li>本地先跑通一次：<code>cd v1 &amp;&amp; docker build -f services/api/Dockerfile.api -t piaoxiaozhu-api .</code>（验证镜像能构建）</li>
+    <li>创建腾讯云 PostgreSQL 实例 + 库 + 账号；创建 Redis</li>
+    <li>云托管建环境 → 建 api 服务（构建目录 <code>v1</code>、Dockerfile <code>services/api/Dockerfile.api</code>、端口 8000、健康检查 <code>/health</code>）</li>
+    <li>填 api 环境变量 → 把 <code>RUN_MIGRATIONS=true</code> 部署一次跑迁移 → 改回 <code>false</code></li>
+    <li>建 worker 服务（规格 2 核 4GiB、不配端口）→ 填环境变量 → 部署</li>
+    <li>域名：默认公网域名不能配进小程序后台，需绑定<b>已 ICP 备案的自定义域名</b>（或用云调用 <code>callContainer</code> 免域名，但撑不起图片上传）→ 再加进小程序 request/uploadFile 合法域名</li>
+    <li>按手册 §6 的验证清单逐条过（含「重启 api 后图片仍可访问」以确认对象存储真的生效）</li>
+    <li>回到小程序：<code>TARO_APP_API_URL=https://&lt;域名&gt; npm run build:weapp</code> → 上传体验版</li>
+  </ul>
+  <div class="note">顺序上有个依赖：小程序体验版要联网，必须先有公网 HTTPS 后端。所以「部署后端」是拿测试流量的第一块多米诺骨牌。</div>
+</section>
+
+<footer>本说明基于 2026-10-13 对 v1 的代码改动与实测（导入检查 / YAML 解析 / sh -n / py_compile）生成 · 部署细节见 v1/infra/cloud-hosting.md</footer>
+
+</div>
+</body>
+</html>

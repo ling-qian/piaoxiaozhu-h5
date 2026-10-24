@@ -1,12 +1,12 @@
 {
   "miniprogramRoot": "dist/",
   "projectname": "piaoxiaozhu",
-  "description": "票小助 - 智能票据识别与管理小程序",
-  "appid": "wx88b96f890ba381d9",
+  "description": "AI票小助 - 智能票据识别与管理小程序",
+  "appid": "wx097578daa9dd2a26",
   "setting": {
     "urlCheck": false,
-    "es6": false,
-    "enhance": false,
+    "es6": true,
+    "enhance": true,
     "compileHotReLoad": false,
     "postcss": false,
     "minified": false,

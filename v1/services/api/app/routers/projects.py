@@ -2,13 +2,15 @@ from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.deps import get_current_user, get_db
 from app.models.invoice import InvoiceRecord
 from app.models.project import Project
 from app.models.user import User
+from app.services.plan_config import check_project_limit, limit_label
+from app.services.subscription import effective_plan_code
 
 
 def _validate_uuid(value: str, name: str = "resource"):
@@ -82,10 +84,58 @@ async def list_projects(
     )
     projects = result.scalars().all()
 
+    # 一次聚合查出本页所有项目的统计，避免 N+1。
+    # 原来的写法是每个项目查 3 次（总数/支出/收入），20 个项目就是 60 次往返；
+    # 在跨地域数据库（延迟 200ms+）上会把 200ms 的接口拖成 6 秒以上。
+    stats: dict = {}
+    if projects:
+        ids = [p.id for p in projects]
+        agg = await db.execute(
+            select(
+                InvoiceRecord.project_id,
+                func.count().label("record_count"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (InvoiceRecord.direction == "out", InvoiceRecord.amount),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("total_cost"),
+                func.coalesce(
+                    func.sum(
+                        case(
+                            (InvoiceRecord.direction == "income", InvoiceRecord.amount),
+                            else_=0,
+                        )
+                    ),
+                    0,
+                ).label("total_income"),
+            )
+            .where(InvoiceRecord.project_id.in_(ids))
+            .group_by(InvoiceRecord.project_id)
+        )
+        stats = {row.project_id: row for row in agg.all()}
+
     items = []
     for p in projects:
-        resp = await _build_project_response(p, db)
-        items.append(resp)
+        row = stats.get(p.id)
+        items.append(
+            ProjectResponse(
+                id=p.id,
+                user_id=p.user_id,
+                customer_id=p.customer_id,
+                name=p.name,
+                industry=p.industry,
+                report_month=p.report_month,
+                status=p.status,
+                created_at=p.created_at,
+                record_count=row.record_count if row else 0,
+                total_cost=round(float(row.total_cost or 0), 2) if row else 0.0,
+                total_income=round(float(row.total_income or 0), 2) if row else 0.0,
+            )
+        )
 
     return ProjectListResponse(items=items, total=total)
 
@@ -96,6 +146,22 @@ async def create_project(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    count_result = await db.execute(
+        select(func.count()).select_from(Project).where(Project.user_id == current_user.id)
+    )
+    current_count = count_result.scalar() or 0
+
+    # 套餐按到期时间惰性判定，过期用户按 free 的项目上限计
+    allowed, limit, _ = check_project_limit(
+        effective_plan_code(current_user.plan_code, current_user.plan_expires_at),
+        current_count,
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"项目数量已达上限（{current_count}/{limit_label(limit)}），请升级套餐",
+        )
+
     project = Project(
         user_id=current_user.id,
         customer_id=body.customer_id,

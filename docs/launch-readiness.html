@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>票小助 · 上线就绪报告（目标：尽快拿测试流量）</title>
+<style>
+  :root {
+    --accent: #FF6B35;
+    --accent-soft: #FFF1EA;
+    --ink: #1F2329;
+    --ink-2: #4E5560;
+    --ink-3: #8A919C;
+    --line: #E7E9ED;
+    --bg: #F6F7F9;
+    --card: #FFFFFF;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.7; }
+  .page { max-width: 920px; margin: 0 auto; padding: 40px 24px 64px; }
+  header.hero { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 28px; margin-bottom: 20px; }
+  .hero h1 { font-size: 21px; font-weight: 600; }
+  .hero .meta { color: var(--ink-3); font-size: 12.5px; margin-top: 6px; }
+  .stats { display: flex; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 140px; background: #FAFBFC; border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+  .stat .n { font-size: 22px; font-weight: 600; color: var(--accent); line-height: 1.2; }
+  .stat .l { font-size: 12.5px; color: var(--ink-2); margin-top: 2px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 24px 28px; margin-bottom: 20px; }
+  h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; padding-left: 10px; border-left: 3px solid var(--accent); }
+  h3 { font-size: 14px; font-weight: 600; margin: 18px 0 8px; }
+  p { margin-bottom: 10px; color: var(--ink-2); }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 14px; font-size: 12.5px; }
+  th { text-align: left; background: #FAFBFC; color: var(--ink-2); font-weight: 600; padding: 8px 10px; border: 1px solid var(--line); }
+  td { padding: 8px 10px; border: 1px solid var(--line); color: var(--ink-2); vertical-align: top; }
+  td b { color: var(--ink); font-weight: 600; }
+  code { font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; background: #F2F3F5; border-radius: 4px; padding: 1px 5px; color: #B1451F; }
+  .pill { display: inline-block; font-size: 11px; font-weight: 600; border-radius: 5px; padding: 1px 8px; white-space: nowrap; }
+  .p0 { background: #FEF2F2; color: #B91C1C; border: 1px solid #FECACA; }
+  .p1 { background: #FFF7E8; color: #A16207; border: 1px solid #FDE6B8; }
+  .p2 { background: #EFF6FE; color: #1D4ED8; border: 1px solid #C9DCFB; }
+  .done { background: #ECFDF3; color: #15803D; border: 1px solid #BBF0CE; }
+  .note { background: var(--accent-soft); border: 1px solid #FFD9C4; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #7C3A10; margin: 12px 0; }
+  .warn { background: #FEF2F2; border: 1px solid #FECACA; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #991B1B; margin: 12px 0; }
+  .ok { background: #ECFDF3; border: 1px solid #BBF0CE; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #14532D; margin: 12px 0; }
+  ul.check { list-style: none; margin: 6px 0 4px; }
+  ul.check li { padding-left: 22px; position: relative; color: var(--ink-2); font-size: 13px; margin-bottom: 6px; }
+  ul.check li::before { content: "☐"; position: absolute; left: 0; color: var(--ink-3); }
+  ol.steps { margin: 8px 0 4px 22px; color: var(--ink-2); }
+  ol.steps li { margin-bottom: 10px; }
+  ol.steps b { color: var(--ink); }
+  .flow { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 6px; }
+  .flow .n { flex: 1; min-width: 130px; background: #FAFBFC; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .flow .n .i { font-size: 11px; font-weight: 600; color: var(--accent); }
+  .flow .n .t { font-size: 12.5px; font-weight: 600; color: var(--ink); margin-top: 2px; }
+  .flow .n .d { font-size: 11.5px; color: var(--ink-3); margin-top: 2px; }
+  footer { color: var(--ink-3); font-size: 12px; text-align: center; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="hero">
+  <h1>票小助 · 上线就绪报告</h1>
+  <div class="meta">前提：主体为个人（后续改企业）· 支付暂不上 · 目标：尽快上小程序拿真实测试流量 · 2026-10-13</div>
+  <div class="stats">
+    <div class="stat"><div class="n">10</div><div class="l">问题已全部修复</div></div>
+    <div class="stat"><div class="n">4</div><div class="l">实测项（1 项受沙箱限制）</div></div>
+    <div class="stat"><div class="n">3</div><div class="l">仍需你操作（我无法代做）</div></div>
+    <div class="stat"><div class="n">5</div><div class="l">步到线</div></div>
+  </div>
+</header>
+
+<section>
+  <h2>1. 本轮修复清单（10 项）</h2>
+  <table>
+    <tr><th style="width:52px">级别</th><th style="width:130px">问题</th><th>位置</th><th style="width:250px">处理</th></tr>
+    <tr>
+      <td><span class="pill p0">P0 安全</span></td>
+      <td>开发后门登录</td>
+      <td><code>routers/auth.py:76</code></td>
+      <td>新增 <code>ALLOW_DEV_LOGIN</code>（默认 false）；<code>dev_</code> 码须显式开启；凭据缺失改 503 fail-closed</td>
+    </tr>
+    <tr>
+      <td><span class="pill p0">P0 审核</span></td>
+      <td>内容安全接口缺失</td>
+      <td>新增 <code>services/wx_security.py</code></td>
+      <td>实现 imgSecCheck / msgSecCheck + access_token 进程内缓存；接入票据图片、头像、昵称三处；只有微信明确判违规才拒绝，接口异常只记日志不阻断</td>
+    </tr>
+    <tr>
+      <td><span class="pill p0">P0 部署</span></td>
+      <td>构建期会打进联调地址</td>
+      <td><code>apps/miniapp/config/index.ts</code></td>
+      <td>生产构建若 <code>TARO_APP_API_URL</code> 非 HTTPS 则构建日志大声告警（发现 <code>.env</code> 目前是局域网 <code>http://172.16.20.37:8000</code>）</td>
+    </tr>
+    <tr>
+      <td><span class="pill p0">P0 功能</span></td>
+      <td>手机号开关与个人主体冲突</td>
+      <td><code>src/config/features.ts</code></td>
+      <td><code>PHONE_BIND_ENABLED</code> → false，入口隐藏（个人主体调用必 <code>fail no permission</code>）</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1 审核</span></td>
+      <td>会员页暴露价目表</td>
+      <td><code>pages/member/index.tsx</code> + <code>.scss</code></td>
+      <td>支付关闭时不渲染任何价格与套餐，改为「升级功能即将开放 + 联系客服」；开放支付时自动恢复</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1 合规</span></td>
+      <td>隐私政策与实际不符（3 处）</td>
+      <td><code>pages/privacy/index.tsx</code></td>
+      <td>手机号收集、微信支付收款、手机号绑定三处改为随开关联动并自动重排序号</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1 体验</span></td>
+      <td>分享会产出死链</td>
+      <td><code>pages/report/index.tsx</code> + <code>features.ts</code></td>
+      <td>新增 <code>SHARE_ENABLED</code>（默认 false）隐藏「分享报表」；改为在首页开启小程序原生转发拿新流量</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1 运维</span></td>
+      <td>LLM 配置不一致 + 缺失静默失败</td>
+      <td><code>config.py</code> + <code>main.py</code></td>
+      <td>默认值与 <code>.env.example</code> 对齐；启动体检在 <code>LLM_API_KEY</code> 为空时报错级日志</td>
+    </tr>
+    <tr>
+      <td><span class="pill p1">P1 安全</span></td>
+      <td>JWT_SECRET 默认值可伪造 token</td>
+      <td><code>main.py:INSECURE_JWT_SECRETS</code></td>
+      <td>新增启动体检：默认值 / SQLite / 无 LLM Key 三类问题；<code>APP_ENV=production</code> 时<b>直接拒绝启动</b></td>
+    </tr>
+    <tr>
+      <td><span class="pill p2">P2 运维</span></td>
+      <td>OSS 未配 + CORS 全放开</td>
+      <td><code>main.py</code> + <code>config.py</code></td>
+      <td>OSS 未配置启动告警（图片会落容器本地盘）；新增 <code>CORS_ALLOW_ORIGINS</code> 可配置白名单</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>2. 实测验证（不靠推断）</h2>
+  <table>
+    <tr><th style="width:170px">验证项</th><th>命令 / 方式</th><th style="width:230px">结果</th></tr>
+    <tr>
+      <td>后端全量导入</td>
+      <td><code>venv2/bin/python -c "import app.main"</code></td>
+      <td><span class="pill done">通过</span> 38 条路由注册，无循环引用</td>
+    </tr>
+    <tr>
+      <td>启动配置体检</td>
+      <td>实跑 <code>_check_runtime_config()</code></td>
+      <td><span class="pill done">通过</span> 正确输出 OSS 告警与 LLM 生效配置；<code>.env</code> 的 JWT / DB 已是合规值</td>
+    </tr>
+    <tr>
+      <td>语法检查</td>
+      <td><code>py_compile</code> 全部改动文件</td>
+      <td><span class="pill done">通过</span></td>
+    </tr>
+    <tr>
+      <td>小程序类型检查</td>
+      <td><code>tsc --noEmit</code>（<code>include: src / types / config</code>，<code>noUnusedLocals=true</code>）</td>
+      <td><span class="pill done">通过</span> src 与 config 下 0 错误（输出中报错全部来自 node_modules 的 Taro 3.6 × TS 5.3 预存在冲突）</td>
+    </tr>
+    <tr>
+      <td>小程序构建</td>
+      <td><code>npm run build:weapp</code></td>
+      <td><span class="pill p1">编译通过 / 落盘受阻</span> webpack 完成到 sealing 92%，入口与 10 个页面全部编译、无编译错误；写盘阶段被本机沙箱拦截（非代码问题，详见下方）</td>
+    </tr>
+  </table>
+  <div class="warn">
+    <b>明确未能实测的部分（不夸大）：</b>① 微信内容安全接口无法在本地闭环验证——需要真实 AppID/Secret 且会真的调用微信服务，本次只做到静态与导入级验证，<b>务必在体验版上实测一次违规图片与正常图片</b>；② 微信支付链路与本次无关（未启用）；③ 数据库迁移 / 云托管部署未执行。
+  </div>
+  <div class="ok">
+    <b>构建结果（已定位，非代码缺陷）：</b>连续 3 次构建的<b>编译阶段全部通过</b>——入口 <code>src/app.tsx</code> 与 pages/index、upload、result、project、report、member、toolkit、mine、profile、privacy <b>10 个页面全部正确编译</b>，webpack 推进到 <code>sealing (92%) asset processing</code>，全程无编译错误。失败发生在最后写盘：Taro 对 <code>dist</code> 目录调用不带 <code>recursive</code> 的 <code>mkdir</code>，被本机 node fs 沙箱判为 host-op 并抛 <code>CODEBUDDY_BROKER_DENY</code>（探针实测：同一目标目录下 <code>mkdirSync(p)</code> 被拒、<code>mkdirSync(p,{recursive:true})</code> 正常）。这是<b>本工具沙箱的环境限制，不是项目代码问题</b>。
+  </div>
+  <div class="warn">
+    <b>因此需要你做一件事：</b>本次构建在清空 <code>dist/</code> 后未能写出产物，<b>当前 <code>v1/apps/miniapp/dist/</code> 是不完整的</b>（只剩 <code>project.config.json</code>）。请在你自己的终端跑一次（普通终端无此限制，你 16:54 那次构建就是成功的）：
+    <br><br>
+    <code>TARO_APP_API_URL=https://&lt;你的域名&gt; npm run build:weapp</code>
+    <br><br>
+    反正上传前本来就必须用生产 HTTPS 域名重建，这一步不能省。
+  </div>
+</section>
+
+<section>
+  <h2>3. 仍需你操作的三件事（我无法代做）</h2>
+
+  <h3>A. 公网后端 —— 这是硬前提</h3>
+  <div class="note">小程序上线必须有<b>公网 HTTPS 后端</b>。当前后端只跑在本地/局域网（<code>.env</code> 指向 <code>172.16.20.37:8000</code>），真机与审核都访问不到，这一步不做，后面全部无意义。</div>
+  <table>
+    <tr><th style="width:130px">方案</th><th>要点</th></tr>
+    <tr><td><b>微信云托管</b>（推荐）</td><td><b>注意一处我先前写错、现已更正的前提</b>：云托管的<b>默认公网域名不能配进小程序后台</b>（官方：仅能支持接口测试，请勿用于正式生产）。所以「走公网调用」仍需要<b>自己已 ICP 备案的域名</b>；完全免备案的通道只有云调用 <code>callContainer</code>，而它是 request 型接口、撑不起票据图片上传。另需接腾讯云 PostgreSQL + 对象存储</td></tr>
+    <tr><td>自有服务器</td><td>用现成的 <code>v1/infra/docker-compose.yml</code> + <code>deploy.sh</code> 一键起；但<b>必须有已 ICP 备案的域名</b>才能作为小程序合法域名，备案通常要 1～3 周，与「尽快」冲突</td></tr>
+  </table>
+
+  <h3>B. mp 后台配置（提审前必做）</h3>
+  <ul class="check">
+    <li>服务类目：选「工具 &gt; 效率」；名称 / 简介 / 页面文案规避「记账 / 财税 / 报销 / 税务」等金融类表述，也避免「AI 生成」字样</li>
+    <li>用户隐私保护指引：声明实际收集项（openid、昵称头像、票据图片），与刚改完的 <code>privacy</code> 页面逐条对齐</li>
+    <li>服务器域名：把后端 HTTPS 域名加入 request 合法域名 —— <b>该域名必须已完成 ICP 备案</b>（云托管默认域名不可用于此处）</li>
+    <li>添加体验成员（体验版先跑，不需要审核）</li>
+  </ul>
+
+  <h3>C. 用生产域名重新构建</h3>
+  <p>当前 <code>.env</code> 是联调地址，正式包必须重建：</p>
+  <p><code>TARO_APP_API_URL=https://&lt;你的域名&gt; npm run build:weapp</code></p>
+  <p>若忘记替换，构建日志会出现告警横幅提醒（本轮新加的护栏）。</p>
+</section>
+
+<section>
+  <h2>4. 到线上的最短路径</h2>
+  <div class="flow">
+    <div class="n"><div class="i">STEP 1</div><div class="t">后端上公网</div><div class="d">云托管 → 拿到 HTTPS 域名</div></div>
+    <div class="n"><div class="i">STEP 2</div><div class="t">mp 后台配置</div><div class="d">类目 + 隐私指引 + 域名</div></div>
+    <div class="n"><div class="i">STEP 3</div><div class="t">重建 + 上传</div><div class="d">HTTPS 域名构建 → 上传体验版</div></div>
+    <div class="n"><div class="i">STEP 4</div><div class="t">内测拿反馈</div><div class="d">体验版自测 + 邀请种子用户</div></div>
+    <div class="n"><div class="i">STEP 5</div><div class="t">提审发布</div><div class="d">过审后拿真实流量</div></div>
+  </div>
+  <p>体验版不需要审核，可以先把 STEP 1–3 走通就立刻开始收集可用性反馈；提审并行准备，不互相阻塞。体验版仅对你添加的体验成员可见（有数量上限），因此要拿<b>公开流量</b>最终仍需过审发布。</p>
+</section>
+
+<section>
+  <h2>5. 关于「先看有没有用户使用」——建议的最小观测</h2>
+  <p>不必先上第三方统计 SDK，后端已有数据就够回答第一轮问题：</p>
+  <table>
+    <tr><th style="width:170px">想回答的问题</th><th>用现有数据怎么看</th></tr>
+    <tr><td>有人用吗</td><td><code>users</code> 表新增用户数（按天）</td></tr>
+    <tr><td>用起来了吗</td><td><code>invoice_files</code> 上传数 + <code>ocr_status</code> 成功率（已落库，可直接分组统计）</td></tr>
+    <tr><td>卡在哪一步</td><td>登录 → 建项目 → 上传 → OCR → 报表 的转化；<code>ocr_status=failed</code> 占比是最该盯的指标</td></tr>
+    <tr><td>会不会回来</td><td>7 日内二次上传的用户占比（复访）</td></tr>
+  </table>
+  <p>当前免费额度为 10 张/月且无支付，正好是一次干净的「需求验证」：用户愿意为多少张额度付出多少麻烦，会直接反映在复访与单次上传量上。</p>
+</section>
+
+<section>
+  <h2>6. 已知且有意延后（不算阻塞）</h2>
+  <table>
+    <tr><th style="width:190px">事项</th><th>为何先不做</th></tr>
+    <tr><td>无支付期间的升级通道</td><td>先用会员页「联系客服」承接付费意向，等有真实需求再做人工开通通道</td></tr>
+    <tr><td>H5 报表分享页</td><td>域名未部署，已隐藏入口，避免死链；小程序内转发已可用</td></tr>
+    <tr><td>数据库迁移自动执行</td><td>启动时 <code>seed()</code> 会 <code>create_all</code> 建表，可先跑；后续再接 Alembic 到部署流程</td></tr>
+    <tr><td>内容安全真实联调</td><td>需线上凭据，放到体验版阶段验证</td></tr>
+    <tr><td>云托管部署改造</td><td>属于 STEP 1；产出的镜像/Dockerfile/启动脚本/环境变量清单见 <code>v1/infra/cloud-hosting.md</code> 与 <code>docs/cloud-hosting-artifacts.html</code></td></tr>
+  </table>
+</section>
+
+<footer>本报告基于 2026-10-13 对 v1 目录的代码修改与实测（Python 导入、py_compile、tsc、weapp 构建）生成</footer>
+
+</div>
+</body>
+</html>

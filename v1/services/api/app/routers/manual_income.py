@@ -25,6 +25,14 @@ async def create_manual_income(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # 非法 UUID 直接 404，避免被丢给 PostgreSQL 的 uuid 比较而抛 500
+    try:
+        uuid.UUID(project_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
+
     project_result = await db.execute(
         select(Project).where(
             Project.id == project_id, Project.user_id == current_user.id

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>票小助 · 云托管部署 Runbook（Neon 版）</title>
+<style>
+  :root { --accent:#FF6B35; --accent-soft:#FFF1EA; --ink:#1F2329; --ink-2:#4E5560; --ink-3:#8A919C; --line:#E7E9ED; --bg:#F6F7F9; --card:#FFF; --ok:#15803D; --ok-bg:#ECFDF3; --warn:#A16207; --warn-bg:#FFF7E8; --err:#B91C1C; --err-bg:#FEF2F2; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); font-size:14px; line-height:1.7; }
+  .page { max-width:900px; margin:0 auto; padding:40px 24px 64px; }
+  header { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:26px 28px; margin-bottom:18px; }
+  h1 { font-size:21px; font-weight:600; }
+  .meta { color:var(--ink-3); font-size:12.5px; margin-top:6px; }
+  .flow { display:flex; gap:8px; margin-top:16px; flex-wrap:wrap; font-size:12.5px; }
+  .flow span { background:var(--accent-soft); color:#9A3412; border:1px solid #FFD9C4; border-radius:8px; padding:4px 10px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px 28px; margin-bottom:18px; }
+  h2 { font-size:16px; font-weight:600; margin-bottom:4px; padding-left:10px; border-left:3px solid var(--accent); }
+  .sub { color:var(--ink-3); font-size:12.5px; margin:6px 0 16px; padding-left:12px; }
+  h3 { font-size:13.5px; font-weight:600; margin:18px 0 8px; }
+  ol, ul { padding-left:22px; color:var(--ink-2); }
+  li { margin-bottom:7px; }
+  code { font-family:"SF Mono",ui-monospace,Menlo,monospace; font-size:11.5px; background:#F2F3F5; border-radius:4px; padding:1px 5px; color:#B1451F; }
+  pre { background:#1F2329; color:#E6E8EB; border-radius:10px; padding:14px 16px; overflow:auto; font-size:12px; line-height:1.65; margin:10px 0; }
+  pre code { background:none; color:inherit; padding:0; }
+  table { width:100%; border-collapse:collapse; margin:10px 0; font-size:12.5px; }
+  th { text-align:left; background:#FAFBFC; color:var(--ink-2); font-weight:600; padding:8px 10px; border:1px solid var(--line); }
+  td { padding:8px 10px; border:1px solid var(--line); color:var(--ink-2); vertical-align:top; }
+  td b { color:var(--ink); }
+  .trap { background:var(--err-bg); border:1px solid #FECACA; border-radius:10px; padding:12px 16px; margin:12px 0; font-size:13px; color:#7F1D1D; }
+  .tip { background:var(--ok-bg); border:1px solid #BBF0CE; border-radius:10px; padding:12px 16px; margin:12px 0; font-size:13px; color:#14532D; }
+  .warn { background:var(--warn-bg); border:1px solid #FDE6B8; border-radius:10px; padding:12px 16px; margin:12px 0; font-size:13px; color:#78350F; }
+  .chk { list-style:none; padding-left:0; }
+  .chk li { padding-left:24px; position:relative; }
+  .chk li::before { content:"☐"; position:absolute; left:0; color:var(--ink-3); }
+  footer { color:var(--ink-3); font-size:12px; text-align:center; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header>
+  <h1>云托管部署 Runbook · Neon 版</h1>
+  <div class="meta">数据库用 Neon（PostgreSQL，新加坡，¥0）· 无需 VPC / 无需腾讯云 PG · 2026-10-20</div>
+  <div class="flow">
+    <span>① Neon 已就绪</span><span>② 上传代码包</span><span>③ 环境变量</span>
+    <span>④ 验证表结构</span><span>⑤ worker（可选）</span><span>⑥ 延迟验证</span><span>⑦ 域名</span>
+  </div>
+</header>
+
+<section>
+  <h2>先看 3 个坑</h2>
+  <div class="sub">这三条踩了会浪费几小时</div>
+  <div class="trap">
+    <b>1. 支付证书不能用本机路径</b><br>
+    你现在 <code>.env</code> 里是 <code>/Users/tom/cert/.../apiclient_key.pem</code> —— <b>容器里没有这个文件</b>，启动体检会直接失败。
+    必须把 <b>PEM 全文</b>贴进环境变量（代码已支持：值里含 <code>-----BEGIN</code> 就按内容解析）。
+  </div>
+  <div class="warn">
+    <b>2. Neon 从本机访问很慢（1–7 秒），但部署后不一定</b><br>
+    本机（家庭宽带）→ 新加坡实测 <b>1.1–7.5 秒/接口</b>，抖动极大。云托管在广州机房，跨境出口通常好很多，
+    <b>但不保证</b>。部署后第一件事就是测延迟（见 ⑥），不行就把 <code>DATABASE_URL</code> 换成腾讯云 PG
+    （一行改动，代码零修改）。
+  </div>
+  <div class="trap">
+    <b>3. worker 的最小副本不能设 0</b><br>
+    设 0 时没有实例消费 OCR 队列：上传票据后永远停在「识别中」，且不会报错。
+    内测若不想开 worker，需要把 OCR 改成同步（当前默认异步）。
+  </div>
+</section>
+
+<section>
+  <h2>① Neon（已完成 ✅）</h2>
+  <div class="sub">数据库已在 Neon 建好并完成迁移，不用再动</div>
+  <ul class="chk">
+    <li>项目 Region = Singapore（<code>ap-southeast-1</code>）</li>
+    <li>用的是 <b>Pooled</b> 连接串（主机名带 <code>-pooler</code>）</li>
+    <li>已跑 <code>alembic upgrade head</code>，10 张表就绪</li>
+    <li>已导入本地数据（65 用户 / 369 记录 / 31 订单，逐表核对一致）</li>
+    <li>回归 15/15、边界 29/29 通过</li>
+  </ul>
+  <div class="tip">连接串在 <code>services/api/.env</code> 里以注释形式保存（<code># NEON_DATABASE_URL=...</code>），直接复制到云托管环境变量即可。<b>注意去掉 URL 里的 <code>?sslmode=</code> 参数</b>——asyncpg 不认，会 TypeError。</div>
+</section>
+
+<section>
+  <h2>② 上传代码包（已生成 ✅）</h2>
+  <div class="sub">包已打好：<code>/tmp/v1-codebundle.zip</code> · 202K · 132 个文件</div>
+
+  <table>
+    <tr><th style="width:170px">配置项</th><th>值</th></tr>
+    <tr><td>服务名称</td><td><code>api</code></td></tr>
+    <tr><td>构建方式</td><td>新建版本 → 上传代码包</td></tr>
+    <tr><td>目标目录</td><td>留空（包根目录）</td></tr>
+    <tr><td>Dockerfile 路径</td><td><code>services/api/Dockerfile.api</code></td></tr>
+    <tr><td>服务端口</td><td><code>8000</code></td></tr>
+    <tr><td>实例规格</td><td>0.5 核 1GiB（起步）</td></tr>
+    <tr><td>最小副本</td><td><b>1</b></td></tr>
+    <tr><td>健康检查</td><td>路径 <code>/health</code></td></tr>
+  </table>
+
+  <h3>包里有什么 / 没有什么</h3>
+  <table>
+    <tr><th>包含</th><th>已排除</th></tr>
+    <tr>
+      <td><code>services/api</code>（代码 + 两个 Dockerfile）<br><code>packages/core</code><br><code>apps/admin</code>（管理后台）<br><code>infra</code>（脚本与手册）</td>
+      <td><code>.env</code> / <code>*.pem</code> / <code>*.key</code>（<b>0 个</b>）<br><code>node_modules</code> / <code>venv</code>（0 个）<br><code>apps/miniapp</code> / <code>docs</code></td>
+    </tr>
+  </table>
+
+  <h3>如需重新打包</h3>
+  <pre><code>cd v1
+zip -rq /tmp/v1-codebundle.zip . \
+  -x "*/node_modules/*" "*/dist/*" "*/venv/*" "*/venv2/*" "*/uploads/*" \
+     "*.pyc" "*__pycache__*" ".env" "**/.env" "*/.swc/*" "*/.vercel/*" \
+     "apps/miniapp/*" "docs/*" ".workbuddy/*"</code></pre>
+  <div class="tip">打完自查一条：<code>unzip -l /tmp/v1-codebundle.zip | grep -E "\.env$|\.pem$|\.key$"</code> 应该<b>没有输出</b>。</div>
+</section>
+
+<section>
+  <h2>③ 填环境变量</h2>
+  <div class="sub">按 <code>infra/cloud-hosting.env.example</code> 逐条填，只填 api 一个服务（内测期）</div>
+
+  <table>
+    <tr><th style="width:200px">变量</th><th>值 / 说明</th></tr>
+    <tr><td><b>DATABASE_URL</b></td><td>Neon Pooled 串 + <code>postgresql+asyncpg://</code> 前缀，<b>去掉 sslmode 参数</b></td></tr>
+    <tr><td>APP_ENV</td><td><code>production</code>（开启启动强校验）</td></tr>
+    <tr><td>JWT_SECRET</td><td>随机串 ≥32 字节（默认值会被启动体检拒绝）</td></tr>
+    <tr><td>WX_APPID / WX_SECRET</td><td>小程序凭据</td></tr>
+    <tr><td>COS_SECRET_ID / SECRET_KEY</td><td>子账号密钥</td></tr>
+    <tr><td>COS_REGION</td><td><code>ap-guangzhou</code></td></tr>
+    <tr><td>COS_BUCKET_NAME</td><td><code>piaoxiaozhu-1479901036</code></td></tr>
+    <tr><td>ADMIN_TOKEN</td><td>随机串；<b>留空则后台 403</b>。后台地址 <code>https://&lt;域名&gt;/admin</code></td></tr>
+    <tr><td>WX_MCH_ID / WX_API_KEY</td><td>已配好的值</td></tr>
+    <tr><td>WX_CERT_SERIAL_NO</td><td>已配好的值</td></tr>
+    <tr><td><b>WX_PRIVATE_KEY_PATH</b></td><td><b>贴 apiclient_key.pem 全文</b>（不是路径！）</td></tr>
+    <tr><td><b>WX_PLATFORM_CERT_PATH</b></td><td><b>贴 wxp_pub_key.pem 全文</b>（不是路径！）</td></tr>
+    <tr><td>LLM_BASE_URL / LLM_API_KEY</td><td>票据分类兜底（不填则分类降级）</td></tr>
+    <tr><td>LLM_MODEL_NAME</td><td><code>agnes-3.0-flash</code>（<b>别用已下线的 2.0</b>，否则分类静默失效）</td></tr>
+    <tr><td>ALLOW_DEV_LOGIN</td><td><code>false</code>（生产必须）</td></tr>
+    <tr><td>REDIS_URL</td><td>仅在部署 worker（异步 OCR）时需要</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>④ 验证表结构</h2>
+  <div class="sub">Neon 上已经跑过迁移，正常应显示「已在 head」</div>
+  <ul class="chk">
+    <li>云托管 → 任务 → 新建任务 → 镜像选 api 当前版本 → 启动命令 <code>alembic upgrade head</code></li>
+    <li>日志出现 <code>Running upgrade ... -&gt; 650a058d7b32</code> 或「已在最新版本」</li>
+    <li>部署后用后台或 psql 确认 10 张表、65 个用户都在</li>
+  </ul>
+  <div class="warn">迁移只跑一次，别在多个副本上并发跑。</div>
+</section>
+
+<section>
+  <h2>⑤ worker（可选）</h2>
+  <div class="sub">内测期可以选择不开 worker，但需要把 OCR 改同步；当前默认异步</div>
+  <table>
+    <tr><th style="width:170px">配置项</th><th>值</th></tr>
+    <tr><td>Dockerfile</td><td><code>services/api/Dockerfile.worker</code></td></tr>
+    <tr><td>服务端口</td><td><b>不配</b></td></tr>
+    <tr><td>实例规格</td><td><b>2 核 4GiB</b>（PaddleOCR 吃内存）</td></tr>
+    <tr><td>最小副本</td><td><b>1</b>（不能 0）</td></tr>
+    <tr><td>REDIS_URL</td><td>必填</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>⑥ 延迟验证（Neon 的关键一步）</h2>
+  <div class="sub">部署后第一件事，决定 Neon 能不能用</div>
+  <pre><code># 连测 5 次，看中位数
+for i in 1 2 3 4 5; do
+  curl -o /dev/null -s -w "%{time_total}\n" \
+    -H "Authorization: Bearer &lt;token&gt;" \
+    https://&lt;你的域名&gt;/api/me
+done</code></pre>
+  <table>
+    <tr><th>结果</th><th>判断</th><th>动作</th></tr>
+    <tr><td>&lt; 300 ms</td><td>✅ 可用</td><td>继续往下走</td></tr>
+    <tr><td>300–800 ms</td><td>⚠️ 勉强</td><td>先用着，观察</td></tr>
+    <tr><td>&gt; 800 ms</td><td>❌ 体验差</td><td><b>换腾讯云 PG</b>（见下）</td></tr>
+  </table>
+  <h3>换成腾讯云 PG（一行改动）</h3>
+  <pre><code># 只需改云托管环境变量这一个值，代码零改动、不用重新打包
+DATABASE_URL=postgresql+asyncpg://piaoxiaozhu:&lt;密码&gt;@10.x.x.x:5432/piaoxiaozhu</code></pre>
+  <p style="color:var(--ink-2)">前提是买了腾讯云 PostgreSQL 且与云托管同 VPC。数据迁移：<code>pg_dump</code> Neon → <code>psql</code> 腾讯云，量很小。</p>
+</section>
+
+<section>
+  <h2>⑦ 域名与真机</h2>
+  <div class="sub">云托管默认域名不能配进小程序后台</div>
+  <table>
+    <tr><th style="width:150px">路线</th><th>说明</th></tr>
+    <tr><td><b>自定义域名</b></td><td>绑已 ICP 备案域名 + HTTPS 证书 + CNAME。正式发布走这条</td></tr>
+    <tr><td><b>CallContainer</b></td><td>免域名免备案，但无 uploadFile 等价物——<b>本项目已改用 COS 直传，不适用</b></td></tr>
+    <tr><td><b>本机调试</b></td><td>局域网 IP + 开发者工具勾「不校验合法域名」</td></tr>
+  </table>
+  <div class="tip">票据图片已改为<b>小程序直传 COS</b>（预签名 PUT），所以还需要在后台配置 <code>piaoxiaozhu-1479901036.cos.ap-guangzhou.myqcloud.com</code> 到 <b>request 合法域名</b>（走 PUT）。</div>
+</section>
+
+<section>
+  <h2>⑧ 上线前最后一遍</h2>
+  <ul class="chk">
+    <li>日志无 <code>配置体检未通过</code>，有 <code>微信支付配置校验通过</code></li>
+    <li><code>curl https://&lt;域名&gt;/health</code> → ok</li>
+    <li>真机：登录 → 上传票据 → COS 控制台看到对象 → 识别出字段</li>
+    <li>重启一次 api，图片仍可访问（证明 COS 生效）</li>
+    <li>后台 <code>https://&lt;域名&gt;/admin</code> 能登录，用户/订单/积分能看到数据</li>
+    <li>支付 1 分钱 → 回调日志出现「已开通套餐」</li>
+  </ul>
+</section>
+
+<footer>配套：<code>infra/cloud-hosting.md</code>（完整手册）· <code>infra/cloud-hosting.env.example</code>（环境变量清单）</footer>
+
+</div>
+</body>
+</html>

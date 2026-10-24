@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { SessionProvider } from "next-auth/react";
 import { Analytics } from "@vercel/analytics/react";
 import { ToastProvider } from "@/components/toast";
 import { I18nProvider } from "@/lib/i18n";
@@ -44,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <SessionProvider>
+        
           <I18nProvider>
             <ToastProvider>
               <ServiceWorkerRegistrar />
@@ -54,7 +53,7 @@ export default function RootLayout({
               <Analytics />
             </ToastProvider>
           </I18nProvider>
-        </SessionProvider>
+        
       </body>
     </html>
   );

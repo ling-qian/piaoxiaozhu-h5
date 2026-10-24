@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "piaoxiaozhu-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "piaoxiaozhu",
+      "database_id": "<运行 wrangler d1 create piaoxiaozhu 后填这里>"
+    }
+  ],
+
+  "observability": { "enabled": true },
+
+  "vars": {
+    "APP_ENV": "production",
+    "JWT_ALGORITHM": "HS256",
+    "LLM_BASE_URL": "https://apihub.agnes-ai.com/v1",
+    "LLM_MODEL_NAME": "agnes-2.0-flash"
+  }
+}

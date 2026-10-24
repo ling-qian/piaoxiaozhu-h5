@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { login } from "@/lib/actions/auth-actions";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/lib/i18n";
@@ -38,13 +38,9 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const result = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
-      });
-      if (result?.error) {
-        showToast(t("auth.loginFailed"), "error");
+      const result = await login(email, password);
+      if (!result.ok) {
+        showToast(result.error || t("auth.loginFailed"), "error");
       } else {
         showToast(t("auth.loginSuccess"), "success");
         router.push("/");

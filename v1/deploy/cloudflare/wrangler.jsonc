@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "piaoxiaozhu-api",
+  "main": "worker.ts",
+  "compatibility_date": "2026-10-01",
+
+  // 容器：直接跑现有的 api 镜像，业务代码零改动
+  // 构建上下文必须是 v1/ 根目录（要装 packages/core），与云托管保持一致
+  "containers": [
+    {
+      "class_name": "ApiContainer",
+      "image": "../../services/api/Dockerfile.api",
+      "image_build_context": "../..",
+      "max_instances": 2,
+      // standard-2 = 1 vCPU / 6 GiB / 12 GB disk
+      // PaddleOCR 加载模型约需 1.5–2 GiB，4 GiB 档容易 OOM，不要往下调
+      "instance_type": "standard-2",
+      // 空闲 10 分钟后休眠；调大会显著增加费用，调小会频繁冷启动
+      "sleep_after": "10m"
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [{ "class_name": "ApiContainer", "name": "API_CONTAINER" }]
+  },
+
+  // Durable Object 迁移（容器必须挂在一个 DO 上）
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ApiContainer"] }],
+
+  "observability": { "enabled": true },
+
+  // 环境变量里放非敏感项；敏感项用 `wrangler secret put` 单独设置
+  "vars": {
+    "APP_ENV": "production",
+    "ALLOW_DEV_LOGIN": "false",
+    "PAYMENT_MOCK_ENABLED": "false",
+    "CONTENT_SECURITY_ENABLED": "true",
+    "WECHAT_OPENAPI_SIDECAR": "false"
+  }
+}

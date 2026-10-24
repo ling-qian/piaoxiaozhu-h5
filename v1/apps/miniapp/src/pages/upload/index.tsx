@@ -5,7 +5,7 @@ import { fileApi } from '../../services/api';
 import { useStore } from '../../store';
 import './index.scss';
 
-type UploadStep = 'idle' | 'uploading' | 'ocr_processing' | 'ocr_done' | 'ocr_failed';
+type UploadStep = 'idle' | 'uploading' | 'ocr_processing' | 'archived' | 'ocr_done' | 'ocr_failed';
 
 interface UploadTask {
   filePath: string;
@@ -14,6 +14,8 @@ interface UploadTask {
   fileId?: string;
   recordId?: string;
   recordData?: any;
+  /** image / xml / ofd。文档类没有缩略图，且不走 OCR 轮询 */
+  contentKind?: string;
 }
 
 export default function Upload() {
@@ -130,7 +132,44 @@ export default function Upload() {
 
       if (!fileId) throw new Error('上传返回无效');
 
-      updateTask(filePath, { progress: 50, fileId });
+      updateTask(filePath, { progress: 50, fileId, contentKind: uploadRes.content_kind });
+
+      // 数电票 XML 在后端上传接口里**同步**解析（不走 Celery），所以上传返回时
+      // 结果就已经定了，再去轮询 OCR 状态只会一直等到超时。
+      if (uploadRes.content_kind !== 'image') {
+        if (uploadRes.quota_exceeded) {
+          updateTask(filePath, { step: 'ocr_failed' });
+          Taro.showToast({ title: '本月识别额度已用完，文件已归档', icon: 'none' });
+          return;
+        }
+        if (uploadRes.content_kind === 'ofd') {
+          // OFD 后端只做归档、不做解析（当前没有 OFD 解析实现）。
+          // 不写成「识别失败」——文件确实已存下来，措辞必须与事实一致。
+          updateTask(filePath, { step: 'archived', progress: 100 });
+          Taro.showToast({ title: 'OFD 原件已归档，暂不支持自动解析', icon: 'none' });
+          return;
+        }
+        if (uploadRes.parse_status !== 'done') {
+          updateTask(filePath, { step: 'ocr_failed' });
+          Taro.showToast({
+            title: uploadRes.message || '文件已归档，但未解析出票据信息',
+            icon: 'none',
+          });
+          return;
+        }
+        updateTask(filePath, { step: 'ocr_done', progress: 100 });
+        const statusRes = await fileApi.getOcrStatus(fileId);
+        const rec = (statusRes.records || [])[0];
+        if (rec) {
+          updateTask(filePath, { step: 'ocr_done', recordId: rec.id, recordData: rec });
+          // 只带 id：结果页会自己拉详情，拿得到查重命中与票面自检
+          Taro.navigateTo({ url: `/pages/result/index?id=${rec.id}` });
+        } else {
+          Taro.showToast({ title: '文件已归档，未解析出票据信息', icon: 'none' });
+        }
+        return;
+      }
+
       await fileApi.triggerOcr(fileId);
       updateTask(filePath, { step: 'ocr_processing', progress: 70 });
       pollOcrStatus(fileId, filePath);
@@ -139,6 +178,16 @@ export default function Upload() {
       Taro.showToast({ title: error.message || '上传失败', icon: 'none' });
     }
   }, [currentProject, projects, updateTask, pollOcrStatus]);
+
+/**
+ * 选图被用户取消是高频操作，不是错误。不写 fail 回调时微信会走全局 fail，
+ * 在控制台留下一条「chooseImage:fail cancel」的未处理 Promise 异常，干扰排错。
+ * 这里显式吞掉 cancel，其余失败才提示。
+ */
+const onChooseImageCancelSafe = (err?: { errMsg?: string }) => {
+  if (err?.errMsg?.includes('cancel')) return;
+  Taro.showToast({ title: '选择图片失败，请重试', icon: 'none' });
+};
 
   const handleCamera = () => {
     if (!getProjectId()) {
@@ -150,6 +199,7 @@ export default function Upload() {
       sizeType: ['compressed'],
       sourceType: ['camera'],
       success: (res) => processFile(res.tempFilePaths[0]),
+      fail: onChooseImageCancelSafe,
     });
   };
 
@@ -163,6 +213,33 @@ export default function Upload() {
       sizeType: ['compressed'],
       sourceType: ['album'],
       success: (res) => res.tempFilePaths.forEach((path) => processFile(path)),
+      fail: onChooseImageCancelSafe,
+    });
+  };
+
+  /**
+   * 选数电票原件（XML / OFD）。
+   *
+   * 只能用 chooseMessageFile：微信小程序拿不到系统文件浏览器，只能从聊天记录里
+   * 选文件。所以提示语里要写清「先把文件发到任意聊天里」，否则用户会找不到入口。
+   */
+  const handleMessageFile = () => {
+    if (!getProjectId()) {
+      Taro.showToast({ title: '请先选择项目', icon: 'none' });
+      return;
+    }
+    if (typeof Taro.chooseMessageFile !== 'function') {
+      Taro.showToast({ title: '当前环境不支持选择文件', icon: 'none' });
+      return;
+    }
+    Taro.chooseMessageFile({
+      count: 1,
+      type: 'file',
+      extension: ['xml', 'ofd'],
+      success: (res) => {
+        const picked = res.tempFiles?.[0];
+        if (picked?.path) processFile(picked.path);
+      },
     });
   };
 
@@ -174,7 +251,8 @@ export default function Upload() {
   const getStepText = (step: UploadStep): string => {
     switch (step) {
       case 'uploading': return '上传中...';
-      case 'ocr_processing': return 'AI 识别中...';
+      case 'ocr_processing': return '识别中...';
+      case 'archived': return '原件已归档';
       case 'ocr_done': return '识别完成';
       case 'ocr_failed': return '识别失败';
       default: return '';
@@ -185,6 +263,7 @@ export default function Upload() {
     switch (task.step) {
       case 'uploading': return task.progress;
       case 'ocr_processing': return 70;
+      case 'archived': return 100;
       case 'ocr_done': return 100;
       case 'ocr_failed': return task.progress;
       default: return 0;
@@ -235,6 +314,14 @@ export default function Upload() {
             <Text className='action-label'>相册选择</Text>
           </View>
         </View>
+
+        <View
+          className={`action-btn doc-btn ${isProcessing ? 'disabled' : ''}`}
+          onClick={isProcessing ? undefined : handleMessageFile}
+        >
+          <Text className='action-icon'>📄</Text>
+          <Text className='action-label'>数电票原件（XML / OFD）</Text>
+        </View>
       </View>
 
       {tasks.length > 0 && (
@@ -242,7 +329,14 @@ export default function Upload() {
           <Text className='task-list-title'>上传记录</Text>
           {tasks.map((task, idx) => (
             <View className='task-item' key={`${task.filePath}-${idx}`}>
-              <Image className='task-thumb' src={task.filePath} mode='aspectFill' />
+              {task.contentKind && task.contentKind !== 'image' ? (
+                // 文档类没有可渲染的缩略图，用图标占位，避免 Image 组件加载失败留白
+                <View className='task-thumb task-thumb--doc'>
+                  <Text className='task-thumb-icon'>📄</Text>
+                </View>
+              ) : (
+                <Image className='task-thumb' src={task.filePath} mode='aspectFill' />
+              )}
               <View className='task-info'>
                 <Text className='task-status'>{getStepText(task.step)}</Text>
                 {(task.step === 'uploading' || task.step === 'ocr_processing') && (
@@ -255,6 +349,9 @@ export default function Upload() {
                 )}
                 {task.step === 'ocr_done' && (
                   <Text className='task-done-text'>点击查看结果</Text>
+                )}
+                {task.step === 'archived' && (
+                  <Text className='task-done-text'>原件已保存，可手工补录</Text>
                 )}
                 {task.step === 'ocr_failed' && (
                   <Text className='task-fail-text'>请重新上传</Text>
@@ -283,7 +380,9 @@ export default function Upload() {
       <View className='upload-tips'>
         <Text className='tips-title'>温馨提示</Text>
         <Text className='tip-item'>• 请确保票据清晰完整，避免模糊或遮挡</Text>
-        <Text className='tip-item'>• 支持 JPG、PNG 格式，单张不超过 10MB</Text>
+        <Text className='tip-item'>• 图片支持 JPG、PNG 格式，单张不超过 10MB</Text>
+        <Text className='tip-item'>• 数电票原件支持 XML（不超过 5MB）与 OFD（不超过 20MB）</Text>
+        <Text className='tip-item'>• 选数电票原件需先从聊天记录中选取，可先转发到任意聊天</Text>
         <Text className='tip-item'>• 相册选择最多支持 9 张图片</Text>
         <Text className='tip-item'>• 识别结果可在历史记录中查看和修改</Text>
       </View>

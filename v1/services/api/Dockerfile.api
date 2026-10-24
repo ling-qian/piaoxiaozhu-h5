@@ -1,0 +1,59 @@
+# 票小助 Pro api 服务镜像（微信云托管 / 本地 compose 通用）
+#
+# 构建上下文必须是 v1/ 根目录，因为要安装 packages/core 共享包：
+#   cd v1 && docker build -f services/api/Dockerfile.api -t piaoxiaozhu-api .
+#
+# 微信云托管服务配置：
+#   构建目录   = v1（仓库里的 v1 目录）
+#   Dockerfile = services/api/Dockerfile.api
+#   服务端口   = 8000（或设为 80，容器会读 PORT 环境变量自适应）
+#
+# 本镜像**不含** OCR 依赖（paddleocr/paddlepaddle/opencv）。原因见
+# requirements-api.txt 顶部注释：OCR 在 api 侧只是 Celery 不可用时的兜底路径，
+# 且为懒加载。去掉后镜像从 2GB+ 降到约 300MB，冷启动与内存规格都受益。
+
+FROM python:3.12-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    TZ=Asia/Shanghai \
+    PORT=8000
+
+WORKDIR /app
+
+# 系统依赖：asyncpg 运行时需要 libpq（postgresql-client 顺带提供 psql 便于排查）、
+# tzdata 让容器内时区为 Asia/Shanghai（报表按自然月统计依赖这个）。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        tzdata \
+        postgresql-client \
+    && ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \
+    && echo $TZ > /etc/timezone \
+    && rm -rf /var/lib/apt/lists/*
+
+# 先装依赖再拷代码，让依赖层可被缓存复用
+COPY services/api/requirements-api.txt ./requirements-api.txt
+RUN pip install -r requirements-api.txt
+
+# 共享核心包：不在 PyPI 上，必须从仓库本地安装
+COPY packages/core ./packages/core
+RUN pip install ./packages/core
+
+# 应用代码（.dockerignore 已排除 .env / venv / uploads / *.pem，不会把密钥与数据带进镜像）
+COPY services/api/ ./
+
+# 管理后台静态页（纯 HTML/JS，无构建产物）。main.py 会挂载到 /admin
+COPY apps/admin ./admin
+
+RUN chmod +x /app/docker/entrypoint-api.sh
+
+EXPOSE 8000
+
+# HEALTHCHECK 供本地 compose 使用；云托管用自己的健康检查配置（路径填 /health）
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import urllib.request,sys,os; \
+url='http://127.0.0.1:'+os.environ.get('PORT','8000')+'/health'; \
+sys.exit(0 if urllib.request.urlopen(url, timeout=3).status == 200 else 1)"
+
+ENTRYPOINT ["/app/docker/entrypoint-api.sh"]

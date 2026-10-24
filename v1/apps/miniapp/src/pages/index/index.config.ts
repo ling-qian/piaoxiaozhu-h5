@@ -1,3 +1,3 @@
 export default definePageConfig({
-  navigationBarTitleText: '票小助',
+  navigationBarTitleText: 'AI票小助',
 });

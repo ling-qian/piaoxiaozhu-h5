@@ -1,0 +1,168 @@
+.points-page {
+  min-height: 100vh;
+  background: $color-bg-page;
+  padding: 24px 24px 0;
+  box-sizing: border-box;
+}
+
+.points-hero {
+  background: linear-gradient(135deg, $color-brand 0%, $color-brand-light 100%);
+  border-radius: $radius-lg;
+  padding: 32px 28px;
+  margin-bottom: 20px;
+}
+
+.hero-label {
+  display: block;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 24px;
+}
+
+.hero-value {
+  display: block;
+  color: #ffffff;
+  font-size: 64px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 6px 0 8px;
+}
+
+.hero-hint {
+  display: block;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 22px;
+  line-height: 1.6;
+}
+
+.log-card {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.log-title {
+  display: block;
+  font-size: 28px;
+  font-weight: 600;
+  color: $color-text-primary;
+  margin-bottom: 8px;
+}
+
+.log-empty {
+  display: block;
+  text-align: center;
+  color: $color-text-hint;
+  font-size: 24px;
+  padding: 40px 0;
+}
+
+.log-row {
+  display: flex;
+  align-items: center;
+  padding: 18px 0;
+  border-bottom: 1px solid #f5f5f5;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.log-icon {
+  width: 48px;
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.log-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.log-label {
+  display: block;
+  font-size: 26px;
+  color: $color-text-primary;
+}
+
+.log-time {
+  display: block;
+  font-size: 22px;
+  color: $color-text-hint;
+  margin-top: 2px;
+}
+
+.log-delta {
+  flex-shrink: 0;
+  font-size: 30px;
+  font-weight: 600;
+}
+
+/* 增加用暖色、消耗用冷色，与报表页收支配色一致 */
+.plus {
+  color: #e54d42;
+}
+
+.minus {
+  color: #2ba471;
+}
+
+.zero {
+  color: $color-text-hint;
+}
+
+.points-foot {
+  padding: 0 4px;
+}
+
+.foot-text {
+  font-size: 22px;
+  color: $color-text-hint;
+  line-height: 1.7;
+}
+
+/* 积分包 */
+.pkg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0;
+  border-bottom: 1px solid #f5f5f5;
+
+  &:last-of-type {
+    border-bottom: none;
+  }
+}
+
+.pkg-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.pkg-label {
+  font-size: 26px;
+  color: $color-text-primary;
+}
+
+.pkg-desc {
+  font-size: 22px;
+  color: $color-text-hint;
+  margin-top: 2px;
+}
+
+.pkg-price {
+  font-size: 30px;
+  font-weight: 600;
+  color: $color-brand;
+}
+
+.pkg-hint {
+  display: block;
+  margin-top: 12px;
+  font-size: 22px;
+  color: $color-text-hint;
+}
+
+.bottom-gap {
+  height: 40px;
+}

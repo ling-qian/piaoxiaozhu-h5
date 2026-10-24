@@ -4,14 +4,7 @@ from sqlalchemy import select
 
 from app.models.database import AsyncSessionLocal, Base, engine
 from app.models.plan import Plan
-
-
-SEED_PLANS = [
-    Plan(code="free", name="免费版", quota=10, price_cents=0, features="每月10张发票,基础报表,基础分类", is_active=True),
-    Plan(code="basic", name="基础版", quota=500, price_cents=2900, features="每月500张发票,高级报表,智能分类", is_active=True),
-    Plan(code="pro", name="专业版", quota=3000, price_cents=9900, features="每月3000张发票,高级报表,智能分类,异常检测,导出PDF", is_active=True),
-    Plan(code="toolkit", name="工具包", quota=0, price_cents=4900, features="税收政策速查,发票操作指南,财税计算工具", is_active=True),
-]
+from app.services.plan_config import PLANS
 
 
 async def seed():
@@ -19,17 +12,35 @@ async def seed():
         await conn.run_sync(Base.metadata.create_all)
 
     async with AsyncSessionLocal() as db:
-        for plan_data in SEED_PLANS:
-            result = await db.execute(select(Plan).where(Plan.code == plan_data.code))
+        for code, config in PLANS.items():
+            result = await db.execute(select(Plan).where(Plan.code == code))
             existing = result.scalar_one_or_none()
+            # features 在库里以逗号分隔的字符串存储
+            features = ",".join(config.features)
             if existing is None:
-                db.add(plan_data)
+                db.add(
+                    Plan(
+                        code=config.code,
+                        name=config.name,
+                        quota=config.invoice_limit,
+                        project_limit=config.project_limit,
+                        price_cents=config.price_cents,
+                        features=features,
+                        is_active=True,
+                    )
+                )
             else:
-                existing.name = plan_data.name
-                existing.quota = plan_data.quota
-                existing.price_cents = plan_data.price_cents
-                existing.features = plan_data.features
-                existing.is_active = plan_data.is_active
+                existing.name = config.name
+                existing.quota = config.invoice_limit
+                existing.project_limit = config.project_limit
+                existing.price_cents = config.price_cents
+                existing.features = features
+                existing.is_active = True
+
+        # 下架已废弃的套餐编码（如历史遗留的 basic / toolkit）
+        stale_result = await db.execute(select(Plan).where(Plan.code.notin_(list(PLANS.keys()))))
+        for stale in stale_result.scalars().all():
+            stale.is_active = False
 
         await db.commit()
         print("Seed data inserted/updated successfully.")

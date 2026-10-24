@@ -1,0 +1,14 @@
+node_modules/
+.wrangler/
+*.tmp.mjs
+py-token.txt
+.tmpbuild/
+buildout/
+*.json.bak
+ts-*.json
+py-*.json
+algos.tmp.mjs
+fields.tmp.mjs
+*.tmp.mts
+.testkeys/
+pay.tmp.mjs

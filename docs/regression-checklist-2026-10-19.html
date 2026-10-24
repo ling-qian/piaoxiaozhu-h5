@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>票小助 · 本轮改动回归测试清单</title>
+<style>
+  :root { --accent:#FF6B35; --accent-soft:#FFF1EA; --ink:#1F2329; --ink-2:#4E5560; --ink-3:#8A919C; --line:#E7E9ED; --bg:#F6F7F9; --card:#FFFFFF; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--ink); font-size:14px; line-height:1.7; }
+  .page { max-width:920px; margin:0 auto; padding:40px 24px 64px; }
+  header.hero { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px; margin-bottom:20px; }
+  .hero h1 { font-size:21px; font-weight:600; }
+  .hero .meta { color:var(--ink-3); font-size:12.5px; margin-top:6px; }
+  .stats { display:flex; gap:12px; margin-top:18px; flex-wrap:wrap; }
+  .stat { flex:1; min-width:130px; background:#FAFBFC; border:1px solid var(--line); border-radius:10px; padding:12px 16px; }
+  .stat .n { font-size:22px; font-weight:600; color:var(--accent); line-height:1.2; }
+  .stat .l { font-size:12.5px; color:var(--ink-2); margin-top:2px; }
+  section { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:24px 28px; margin-bottom:20px; }
+  h2 { font-size:16px; font-weight:600; margin-bottom:14px; padding-left:10px; border-left:3px solid var(--accent); }
+  h3 { font-size:14px; font-weight:600; margin:18px 0 8px; }
+  p { margin-bottom:10px; color:var(--ink-2); }
+  table { width:100%; border-collapse:collapse; margin:10px 0 14px; font-size:12.5px; }
+  th { text-align:left; background:#FAFBFC; color:var(--ink-2); font-weight:600; padding:8px 10px; border:1px solid var(--line); }
+  td { padding:8px 10px; border:1px solid var(--line); color:var(--ink-2); vertical-align:top; }
+  td b { color:var(--ink); font-weight:600; }
+  code { font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace; font-size:11.5px; background:#F2F3F5; border-radius:4px; padding:1px 5px; color:#B1451F; }
+  .pill { display:inline-block; font-size:11px; font-weight:600; border-radius:5px; padding:1px 8px; white-space:nowrap; }
+  .done { background:#ECFDF3; color:#15803D; border:1px solid #BBF0CE; }
+  .warn2 { background:#FFF7E8; color:#A16207; border:1px solid #FDE6B8; }
+  .no { background:#F3F4F6; color:#6B7280; border:1px solid #E5E7EB; }
+  .note { background:var(--accent-soft); border:1px solid #FFD9C4; border-radius:10px; padding:12px 16px; font-size:13px; color:#7C3A10; margin:12px 0; }
+  .ok { background:#ECFDF3; border:1px solid #BBF0CE; border-radius:10px; padding:12px 16px; font-size:13px; color:#14532D; margin:12px 0; }
+  .warn { background:#FEF2F2; border:1px solid #FECACA; border-radius:10px; padding:12px 16px; font-size:13px; color:#991B1B; margin:12px 0; }
+  ul.check { list-style:none; margin:6px 0 10px; }
+  ul.check li { padding-left:24px; position:relative; color:var(--ink-2); font-size:13px; margin-bottom:7px; }
+  ul.check li::before { content:"☐"; position:absolute; left:0; color:var(--ink-3); }
+  footer { color:var(--ink-3); font-size:12px; text-align:center; margin-top:8px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="hero">
+  <h1>票小助 · 本轮改动回归测试清单</h1>
+  <div class="meta">覆盖：积分体系 / 记录搜索筛选 / AI 经营分析 / 手机号 / 首页改版 · 2026-10-19</div>
+  <div class="stats">
+    <div class="stat"><div class="n">15/15</div><div class="l">自动化用例通过</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">TypeScript 错误</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">迁移漂移</div></div>
+    <div class="stat"><div class="n">5</div><div class="l">模块待真机验证</div></div>
+  </div>
+</header>
+
+<section>
+  <h2>1. 使用方式</h2>
+  <p>能脱离真机验证的部分我已跑完（见下表），下面 §2–§7 是**真机**部分。逐条打勾；任何一条不符，**记录「实际现象 + 当时的积分余额」**，这是定位问题最快的线索。</p>
+  <table>
+    <tr><th style="width:230px">已自动验证</th><th style="width:90px">结果</th><th>说明</th></tr>
+    <tr><td>后端存活 /health</td><td><span class="pill done">通过</span></td><td>返回 <code>{"status":"ok"}</code></td></tr>
+    <tr><td>积分接口（余额/单价/签到状态）</td><td><span class="pill done">通过</span></td><td>balance=32，单价 识别 1 / AI 10</td></tr>
+    <tr><td>签到幂等（同日第二次被拦）</td><td><span class="pill done">通过</span></td><td>第二次返回 400「今天已经签过到了」</td></tr>
+    <tr><td>积分流水 / 积分包列表</td><td><span class="pill done">通过</span></td><td>3 档包，单价均高于套餐 0.097 元/分</td></tr>
+    <tr><td>套餐与配额接口为积分口径</td><td><span class="pill done">通过</span></td><td>无 <code>quota</code> 字段，含 3 个周期；旧 <code>quota_*</code> 已移除</td></tr>
+    <tr><td>筛选下推到 SQL（全量/关键词/方向/分类）</td><td><span class="pill done">通过</span></td><td>接口 total 与 SQL 直查逐一相等（300 条项目）</td></tr>
+    <tr><td>AI 分析错误分支（404 / 402）</td><td><span class="pill done">通过</span></td><td>不存在的项目 404；积分不足 402（此前已验证）</td></tr>
+    <tr><td>手机号绑定/登录错误映射</td><td><span class="pill done">通过</span></td><td>无效 code 返回「授权码已失效（有效期 5 分钟且只能用一次）」</td></tr>
+    <tr><td>迁移与模型一致性</td><td><span class="pill done">通过</span></td><td><code>alembic check</code> 无待生成变更</td></tr>
+  </table>
+  <div class="note">
+    <b>本轮回归中修掉的一个真实缺陷：</b>签到原本按 <b>UTC 日界</b>判断，等于北京时间早上 8 点重置——
+    用户 7 点签一次、9 点还能再签一次，白拿积分。已改为按北京时间 00:00 切日界，并验证了 07:00 与 09:00 属同一天。
+  </div>
+</section>
+
+<section>
+  <h2>2. 首页改版</h2>
+  <ul class="check">
+    <li><b>A1</b> 打开小程序进首页：顶部「你好，XXX」右侧出现「签到 +2」胶囊</li>
+    <li><b>A2</b> 点签到 → toast「签到成功，+2 积分」，胶囊变「已签到 ✓」且置灰，积分数字 +2</li>
+    <li><b>A3</b> 再点胶囊 → 无反应（不应重复加分）</li>
+    <li><b>A4</b> 点「上传票据」大卡 → 进入上传页（这是整块卡片都可点，不只是右侧「去上传」）</li>
+    <li><b>A5</b> 点「手动录入」→ 进入录入弹窗/页面</li>
+    <li><b>A6</b> 点「AI 分析」→ <b>有项目</b>时进入分析页；<b>无项目</b>时提示「请先创建一个项目」</li>
+    <li><b>A7</b> 点「报表」→ 同上，无项目时应提示而不是跳进空白页</li>
+    <li><b>A8</b> 点积分条右侧「会员中心 ›」→ 进入会员页</li>
+  </ul>
+  <p><b>不符时看什么：</b>A3 重复加分 → 签到接口没走「查询已签到」；A6/A7 跳空白 → <code>projects[0]</code> 为空但没拦。</p>
+</section>
+
+<section>
+  <h2>3. 积分</h2>
+  <ul class="check">
+    <li><b>B1</b> 「我的」页：积分卡显示余额，且与首页显示<b>一致</b>；未绑手机号时下方还有「绑定手机号」引导条</li>
+    <li><b>B2</b> 点积分卡余额区 → 进入「积分明细」页，列表至少有「注册赠送 +30」，今天签过则还有「每日签到 +2」</li>
+    <li><b>B3</b> 明细页「购买积分」显示 3 档（100/500/1200），底部标注「支付功能即将开放」</li>
+    <li><b>B4</b> 点任意积分包 → 提示「支付功能即将开放」，<b>不应报错或跳走</b></li>
+    <li><b>B5</b> 关掉后端（或飞行模式）再进「我的」→ 页面其它内容正常，只是不显示积分卡（不应整页白屏）</li>
+  </ul>
+  <p><b>预期内的“异常”：</b>明细页最多显示最近 50 条，这是有意的分页上限。</p>
+</section>
+
+<section>
+  <h2>4. 记录搜索 / 筛选</h2>
+  <ul class="check">
+    <li><b>C1</b> 进任一项目页：票据记录上方出现搜索框 + 「全部/支出/收入」+ 分类 chips</li>
+    <li><b>C2</b> 输入「餐饮」（或任意商户名片段）→ 停顿约 0.4 秒后列表刷新；输入过程不应每敲一个字都发请求</li>
+    <li><b>C3</b> 清空搜索框 → 列表恢复全量</li>
+    <li><b>C4</b> 点「支出」/「收入」→ 列表与「共 N 条」同步变化</li>
+    <li><b>C5</b> 点某个分类 chip → 只剩该分类的记录</li>
+    <li><b>C6</b> 组合（点「支出」再点分类）→ 两个条件同时生效</li>
+    <li><b>C7</b> 搜一个不存在的词 → 显示「没有符合条件的记录」+「清除筛选条件」；点它恢复全量</li>
+    <li><b>C8</b> <b>关键</b>：筛选生效时上拉加载更多 → 新加载的条目<b>仍然符合当前筛选</b>（证明是服务端筛选，不是只过滤已加载的那页）</li>
+  </ul>
+  <div class="warn2" style="border-radius:10px;padding:12px 16px;font-size:13px;margin:12px 0">
+    <b>C8 是这轮最该盯的一条。</b>如果上拉后出现不符合筛选的记录，说明筛选被退化成前端过滤，用户会以为数据错乱。
+  </div>
+</section>
+
+<section>
+  <h2>5. AI 经营分析</h2>
+  <ul class="check">
+    <li><b>D1</b> 报表页头部出现「AI 经营分析 ›」入口，点进去是分析页</li>
+    <li><b>D2</b> 点「开始分析」→ 顶部提示「通常需要 10–20 秒，请勿退出」（<b>真机首次可能更慢</b>）</li>
+    <li><b>D3</b> 结果出现四块：收入/支出/毛利/毛利率卡、分类占比条、近 6 月收支、AI 结论文字</li>
+    <li><b>D4</b> 退回首页与我的页看积分：<b>应减少 10 分</b>（首页、积分卡、明细页三处一致）</li>
+    <li><b>D5</b> 把积分消耗到不足 10（可连续分析直到余额 0）→ 再点分析应提示「积分不足：本次分析需 10 积分，当前 X」</li>
+    <li><b>D6</b> 分析失败（中途断网）→ 积分应<b>退回</b>（明细里能看到「AI 分析失败退款」）</li>
+  </ul>
+  <p><b>注意：</b>如果最终走 CallContainer 内测，这个接口同步调用会踩 15 秒上限（实测生成 13–21 秒），需要改成异步轮询或走公网域名。</p>
+</section>
+
+<section>
+  <h2>6. 手机号</h2>
+  <ul class="check">
+    <li><b>E1</b> 我的 → 编辑资料 → 手机号「立即绑定」→ 应弹出<b>微信原生半屏面板</b>（「申请获取并验证你的手机号」那一种）</li>
+    <li><b>E2</b> 点允许 → 绑定成功，页面显示打码号码</li>
+    <li><b>E3</b> 面板上点「不允许」→ 提示「已取消授权」，<b>不扣任何积分</b></li>
+    <li><b>E4</b> 绑定后回「我的」页 → 「绑定手机号」引导条消失</li>
+    <li><b>E5</b> 微信后台「用量统计」→ 手机号快速验证组件累计次数 +1（每成功一次 0.03 元，体验额度 1000 次）</li>
+  </ul>
+</section>
+
+<section>
+  <h2>7. 交叉验证（确认没互相踩到）</h2>
+  <p>这一节是本轮的重点：五个改动都会读写同一份「积分/配额」数据，最容易出现“各页面数字不一致”。</p>
+  <table>
+    <tr><th style="width:250px">操作</th><th>预期一致</th><th style="width:150px">不符说明什么</th></tr>
+    <tr>
+      <td>首页签到 +2</td>
+      <td>切到「我的」页，积分卡数字应 +2；明细页出现「每日签到 +2」</td>
+      <td>首页用了独立状态但没刷新 store → 需调 <code>fetchQuota()</code></td>
+    </tr>
+    <tr>
+      <td>做一次 AI 分析（-10）</td>
+      <td>首页积分条、我的积分卡、明细页三处都应为 <code>原余额-10</code></td>
+      <td>某页没在 <code>useDidShow</code> 重新拉数据</td>
+    </tr>
+    <tr>
+      <td>项目页筛选后切到报表页</td>
+      <td>报表统计<b>不受筛选影响</b>（报表按月份统计全量）</td>
+      <td>筛选状态被提升到了全局 store</td>
+    </tr>
+    <tr>
+      <td>绑定手机号后杀掉小程序重进</td>
+      <td>号码仍在（写库成功）；手机号绑定入口不再出现</td>
+      <td>只改了本地状态没落库</td>
+    </tr>
+    <tr>
+      <td>把 <code>PAYMENT_ENABLED</code> 临时置 true 后进会员页</td>
+      <td>出现「按月 / 按季 9 折 / 按年 8 折」切换；切换后价格与发放积分同步变化</td>
+      <td>周期选择没读到 <code>periods</code></td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>8. 预期内的“异常”（不是 bug）</h2>
+  <table>
+    <tr><th style="width:230px">现象</th><th>原因</th></tr>
+    <tr><td>点购买套餐/积分包返回 503 或提示「即将开放」</td><td>支付未配置（无商户号与回调地址），<code>PAYMENT_ENABLED=false</code></td></tr>
+    <tr><td>会员页看不到价目表与周期切换</td><td>同上，价目区整体被 <code>PAYMENT_ENABLED</code> 关掉（避免展示无法成交的价格）</td></tr>
+    <tr><td>积分明细里出现「历史记录（不计积分）」且金额为 0</td><td>迁移前的 6 条旧流水（原值是发票张数），已归零保留审计痕迹</td></tr>
+    <tr><td>AI 分析偶尔 15 秒以上</td><td>大模型生成耗时 13–21 秒；走 CallContainer 会有 15 秒上限问题</td></tr>
+    <tr><td>老用户余额都是 30</td><td>注册赠送已为历史用户补发（幂等），签到与消耗会在此基础上变化</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>9. 回归通过后、提审前还要做的</h2>
+  <ul class="check">
+    <li>确认云托管环境变量里 <code>LLM_MODEL_NAME=agnes-3.0-flash</code>（旧值 <code>agnes-2.0-flash</code> 已下线，会导致分类静默失败）</li>
+    <li>确认生产 <code>DATABASE_URL</code> 指向 PG、并已跑过 <code>alembic upgrade head</code>（含 <code>650a058d7b32</code> 手机号唯一索引）</li>
+    <li>用生产 HTTPS 域名重建小程序包（<code>bash scripts/sync-api-url.sh</code>），否则真机连的是局域网 IP</li>
+    <li>微信后台确认「手机号快速验证」额度（1000 次体验额度，之后 0.03 元/次）</li>
+  </ul>
+</section>
+
+<footer>自动化部分于 2026-10-19 16:5x 实测（15/15 通过、tsc 0 错误、alembic 无漂移）· 真机部分需在微信开发者工具与手机上逐条勾选</footer>
+
+</div>
+</body>
+</html>

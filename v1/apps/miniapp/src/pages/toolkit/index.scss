@@ -107,3 +107,28 @@
   line-height: 1.8;
   white-space: pre-line;
 }
+
+.toolkit-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120px 48px;
+}
+
+.status-text {
+  font-size: 28px;
+  color: $color-text-secondary;
+  text-align: center;
+}
+
+.status-retry {
+  margin-top: 32px;
+  padding: 16px 48px;
+  border-radius: 32px;
+  background: $color-brand;
+}
+
+.retry-text {
+  font-size: 28px;
+  color: #ffffff;
+}

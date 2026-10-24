@@ -1,0 +1,191 @@
+[
+ {
+  "id": "r0",
+  "amount": 128.5,
+  "invoice_no": "12345678",
+  "invoice_code": "044001900111",
+  "invoice_date": "2026-10-10",
+  "merchant_name": "盒马鲜生",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r1",
+  "amount": 128.5,
+  "invoice_no": "12345678",
+  "invoice_code": "044001900111",
+  "invoice_date": "2026-10-10",
+  "merchant_name": "盒马鲜生",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r2",
+  "amount": 128.5,
+  "invoice_no": "12345678",
+  "invoice_code": "044001900111",
+  "invoice_date": "2026-10-10",
+  "merchant_name": "盒马鲜生",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r10",
+  "amount": 12.8,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-11",
+  "merchant_name": "菜市场",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r11",
+  "amount": 15.2,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-11",
+  "merchant_name": "菜市场",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r12",
+  "amount": 11.5,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-11",
+  "merchant_name": "菜市场",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r13",
+  "amount": 13.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-11",
+  "merchant_name": "菜市场",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r14",
+  "amount": 14.1,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-11",
+  "merchant_name": "菜市场",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r20",
+  "amount": 9999.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-12",
+  "merchant_name": "菜市场",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r30",
+  "amount": 50.0,
+  "invoice_no": "1001",
+  "invoice_code": "044001900222",
+  "invoice_date": "2026-09-01",
+  "merchant_name": "供应商A",
+  "category_l1": "其他"
+ },
+ {
+  "id": "r31",
+  "amount": 50.0,
+  "invoice_no": "1002",
+  "invoice_code": "044001900222",
+  "invoice_date": "2026-09-01",
+  "merchant_name": "供应商A",
+  "category_l1": "其他"
+ },
+ {
+  "id": "r32",
+  "amount": 50.0,
+  "invoice_no": "1003",
+  "invoice_code": "044001900222",
+  "invoice_date": "2026-09-01",
+  "merchant_name": "供应商A",
+  "category_l1": "其他"
+ },
+ {
+  "id": "r33",
+  "amount": 50.0,
+  "invoice_no": "1004",
+  "invoice_code": "044001900222",
+  "invoice_date": "2026-09-01",
+  "merchant_name": "供应商A",
+  "category_l1": "其他"
+ },
+ {
+  "id": "r40",
+  "amount": 100.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-07-05",
+  "merchant_name": "老王烧烤店",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r41",
+  "amount": 120.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-08-05",
+  "merchant_name": "老王烧烤店",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r42",
+  "amount": 110.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-09-05",
+  "merchant_name": "老王烧烤店",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r43",
+  "amount": 800.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-05",
+  "merchant_name": "老王烧烤店",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r50",
+  "amount": 30.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-05",
+  "merchant_name": "中石化",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r51",
+  "amount": 30.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-05",
+  "merchant_name": "中石化",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r52",
+  "amount": 30.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-05",
+  "merchant_name": "中石化",
+  "category_l1": "食材"
+ },
+ {
+  "id": "r53",
+  "amount": 30.0,
+  "invoice_no": null,
+  "invoice_code": null,
+  "invoice_date": "2026-10-06",
+  "merchant_name": "中石化",
+  "category_l1": "房租"
+ }
+]

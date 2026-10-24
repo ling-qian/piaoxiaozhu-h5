@@ -1,68 +1,140 @@
-version: "3.9"
+# 本地开发编排。
+#
+# 构建上下文是 v1/ 根目录（与微信云托管保持一致，都能拿到 packages/core），
+# 所以必须在 v1/infra 目录下执行：  cd v1/infra && docker compose up -d
+#
+# 与生产（云托管）的差异：
+#   - api 连的是容器内的 postgres/redis，不是腾讯云数据库
+#   - 代码目录以 volume 挂载，改代码后 uvicorn --reload 自动生效
+#   - 迁移在容器启动后手动执行一次：docker compose exec api alembic upgrade head
 
 services:
   api:
     build:
-      context: ../services/api
+      context: ..
+      dockerfile: services/api/Dockerfile.api
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@postgres:5432/piaoxiaozhu}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-random-string}
-      - WX_APPID=${WX_APPID}
-      - WX_SECRET=${WX_SECRET}
-      - WX_MCH_ID=${WX_MCH_ID}
-      - WX_API_KEY=${WX_API_KEY}
-      - WX_CERT_PATH=${WX_CERT_PATH}
-      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
-      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
-      - OSS_ENDPOINT=${OSS_ENDPOINT}
-      - OSS_BUCKET_NAME=${OSS_BUCKET_NAME}
-      - LLM_BASE_URL=${LLM_BASE_URL}
-      - LLM_API_KEY=${LLM_API_KEY}
-      - LLM_MODEL_NAME=${LLM_MODEL_NAME}
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/piaoxiaozhu
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      UPLOAD_DIR: /app/uploads
+      # 本地联调可显式打开假登录；生产必须为 false
+      ALLOW_DEV_LOGIN: ${ALLOW_DEV_LOGIN:-false}
+      WX_APPID: ${WX_APPID:-}
+      WX_SECRET: ${WX_SECRET:-}
+      CONTENT_SECURITY_ENABLED: ${CONTENT_SECURITY_ENABLED:-true}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://apihub.agnes-ai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-agnes-2.0-flash}
+      # 固定为 false：联调支付用 mock 通道，不要在这条路径上放开免费升级
+      PAYMENT_MOCK_ENABLED: "false"
+      # 微信支付（真实收款）。WX_PRIVATE_KEY_PATH / WX_PLATFORM_CERT_PATH 可填
+      # PEM 全文，也可填容器内路径；填路径时把证书放进 ./certs 目录（见下方 volume）。
+      WX_MCH_ID: ${WX_MCH_ID:-}
+      WX_API_KEY: ${WX_API_KEY:-}
+      WX_CERT_SERIAL_NO: ${WX_CERT_SERIAL_NO:-}
+      WX_PRIVATE_KEY_PATH: ${WX_PRIVATE_KEY_PATH:-}
+      WX_PLATFORM_CERT_PATH: ${WX_PLATFORM_CERT_PATH:-}
+      WX_NOTIFY_URL: ${WX_NOTIFY_URL:-}
+      # 套餐到期提醒的订阅消息模板 id；留空则不发提醒
+      WX_SUBSCRIBE_TEMPLATE_EXPIRE: ${WX_SUBSCRIBE_TEMPLATE_EXPIRE:-}
+      SHARE_BASE_URL: ${SHARE_BASE_URL:-http://localhost:8000}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-*}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-}
+      OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-}
+      COS_SECRET_ID: ${COS_SECRET_ID:-}
+      COS_SECRET_KEY: ${COS_SECRET_KEY:-}
+      COS_REGION: ${COS_REGION:-}
+      COS_BUCKET_NAME: ${COS_BUCKET_NAME:-}
+      # 管理后台鉴权令牌。不传的话 /api/admin/* 全部 403，
+      # 表现是「后台页面打得开但数据全空」，很容易误判成前端问题。
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+    volumes:
+      # 挂源码目录实现热重载。注意：宿主机上的 .env 也会随之进入容器，
+      # 但下面 environment 里显式声明的变量优先级更高，不会被 .env 覆盖。
+      - ../services/api:/app
+      # 上传文件持久化到宿主机，避免容器重建丢图
+      - ./data/uploads:/app/uploads
+      # 支付证书（apiclient_key.pem / 平台证书）放这里，只读挂载。目录不存在时
+      # docker 会自动创建空目录；用 PEM 全文注入时此挂载无副作用。
+      - ./certs:/app/certs:ro
+    command: >
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ../services/api:/app
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
 
   worker:
     build:
-      context: ../services/api
+      context: ..
+      dockerfile: services/api/Dockerfile.worker
     environment:
-      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@postgres:5432/piaoxiaozhu}
-      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
-      - JWT_SECRET=${JWT_SECRET:-change-this-to-a-random-string}
-      - WX_APPID=${WX_APPID}
-      - WX_SECRET=${WX_SECRET}
-      - WX_MCH_ID=${WX_MCH_ID}
-      - WX_API_KEY=${WX_API_KEY}
-      - WX_CERT_PATH=${WX_CERT_PATH}
-      - OSS_ACCESS_KEY_ID=${OSS_ACCESS_KEY_ID}
-      - OSS_ACCESS_KEY_SECRET=${OSS_ACCESS_KEY_SECRET}
-      - OSS_ENDPOINT=${OSS_ENDPOINT}
-      - OSS_BUCKET_NAME=${OSS_BUCKET_NAME}
-      - LLM_BASE_URL=${LLM_BASE_URL}
-      - LLM_API_KEY=${LLM_API_KEY}
-      - LLM_MODEL_NAME=${LLM_MODEL_NAME}
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/piaoxiaozhu
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET:-dev-only-change-me}
+      UPLOAD_DIR: /app/uploads
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://apihub.agnes-ai.com/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-agnes-2.0-flash}
+      # 到期提醒任务要发订阅消息，凭据与模板 id 必须给到 worker
+      WX_APPID: ${WX_APPID:-}
+      WX_SECRET: ${WX_SECRET:-}
+      WX_SUBSCRIBE_TEMPLATE_EXPIRE: ${WX_SUBSCRIBE_TEMPLATE_EXPIRE:-}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-}
+      OSS_BUCKET_NAME: ${OSS_BUCKET_NAME:-}
+      COS_SECRET_ID: ${COS_SECRET_ID:-}
+      COS_SECRET_KEY: ${COS_SECRET_KEY:-}
+      COS_REGION: ${COS_REGION:-}
+      COS_BUCKET_NAME: ${COS_BUCKET_NAME:-}
+      # worker 也会调微信接口（内容安全），旁加载开关要与 api 保持一致
+      WECHAT_OPENAPI_SIDECAR: ${WECHAT_OPENAPI_SIDECAR:-false}
+    volumes:
+      - ../services/api:/app
+      - ./data/uploads:/app/uploads
+    command: >
+      celery -A app.worker worker --loglevel=info --concurrency=1
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.worker worker --loglevel=info
+    restart: unless-stopped
+
+  # 定时调度：只按点把任务投进 Redis，实际执行在 worker 里，因此不必连数据库。
+  # 没有这个进程，到期提醒不会触发（但到期降级是读取时惰性判定的，不受影响）。
+  beat:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile.worker
+    environment:
+      APP_ENV: development
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ../services/api:/app
+    command: >
+      celery -A app.worker beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgres
+      - POSTGRES_DB=piaoxiaozhu
     ports:
       - "5432:5432"
     volumes:
@@ -72,6 +144,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -82,6 +155,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
 volumes:
   pgdata:

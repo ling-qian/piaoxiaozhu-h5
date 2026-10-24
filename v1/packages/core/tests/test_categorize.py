@@ -57,6 +57,18 @@ def test_receipt_text_office():
     assert result.category_l1 == "办公"
 
 
+def test_receipt_text_catering_food():
+    """餐饮/食品类支出应归入食材。"""
+    result = categorize_expense(merchant="老王烧烤店", text="项目名称 餐饮服务 124.76 3% 3.74")
+    assert result.category_code == "food_material"
+
+
+def test_rent_not_misclassified_by_square_meter():
+    """「平米」曾被单字关键词「米」命中，导致房租发票被误判成食材。"""
+    result = categorize_expense(text="租赁面积 100 平米 本月房租")
+    assert result.category_code == "rent"
+
+
 def test_fallback_to_other():
     result = categorize_expense(merchant="未知商户", text="一些无关文字")
     assert result.category_code == "other"

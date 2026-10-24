@@ -453,3 +453,64 @@
 .modal-btn--disabled {
   opacity: 0.6;
 }
+
+/* ---- 票据记录搜索与筛选 ---- */
+.filter-bar {
+  background: $color-bg-card;
+  border-radius: $radius-md;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: $shadow-card;
+}
+
+.filter-input {
+  height: 72px;
+  background: $color-bg-page;
+  border-radius: $radius-sm;
+  padding: 0 20px;
+  font-size: 26px;
+  color: $color-text-primary;
+}
+
+.filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.filter-chips--scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.filter-chip {
+  flex-shrink: 0;
+  padding: 8px 20px;
+  border-radius: 999px;
+  background: $color-bg-page;
+  color: $color-text-secondary;
+  font-size: 24px;
+}
+
+.filter-chip--active {
+  background: $color-brand;
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.filter-summary {
+  display: block;
+  margin-top: 12px;
+  font-size: 22px;
+  color: $color-text-hint;
+}
+
+.empty-reset {
+  display: block;
+  margin-top: 20px;
+  font-size: 26px;
+  color: $color-brand;
+}

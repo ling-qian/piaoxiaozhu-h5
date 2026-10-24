@@ -1,0 +1,37 @@
+[
+ {
+  "merchant": "美团",
+  "text": null,
+  "name": null
+ },
+ {
+  "merchant": null,
+  "text": "蔬菜 生鲜 批发",
+  "name": null
+ },
+ {
+  "merchant": null,
+  "text": "本月房租 场地费",
+  "name": null
+ },
+ {
+  "merchant": null,
+  "text": "电费 水费 燃气",
+  "name": null
+ },
+ {
+  "merchant": null,
+  "text": "完全无关的文字",
+  "name": null
+ },
+ {
+  "merchant": "某某餐饮有限公司",
+  "text": "餐饮服务",
+  "name": "测试项目"
+ },
+ {
+  "merchant": null,
+  "text": null,
+  "name": null
+ }
+]

@@ -12,9 +12,6 @@ export interface PlanConfig {
   projectLimit: number; // 项目数量上限，-1 表示无限
   aiQuota: number; // AI 分析次数/月，-1 表示无限
   canExport: boolean; // 是否可以导出数据
-  canCostOptimize: boolean; // 成本优化方案
-  canMultiStore: boolean; // 多门店对比
-  canAdvisior: boolean; // 专属财务顾问
   gradient: string;
   accentColor: string;
   badge?: string;
@@ -31,9 +28,6 @@ export const PLANS: Record<string, PlanConfig> = {
     projectLimit: 1,
     aiQuota: 0,
     canExport: false,
-    canCostOptimize: false,
-    canMultiStore: false,
-    canAdvisior: false,
     gradient: "from-[#E8E8E8] to-[#D4D4D4]",
     accentColor: "#999999",
   },
@@ -47,9 +41,6 @@ export const PLANS: Record<string, PlanConfig> = {
     projectLimit: 10,
     aiQuota: 20,
     canExport: true,
-    canCostOptimize: true,
-    canMultiStore: false,
-    canAdvisior: false,
     gradient: "from-[#FF6B35] to-[#FF8F65]",
     accentColor: "#FF6B35",
     badge: "推荐",
@@ -64,9 +55,6 @@ export const PLANS: Record<string, PlanConfig> = {
     projectLimit: -1,
     aiQuota: -1,
     canExport: true,
-    canCostOptimize: true,
-    canMultiStore: true,
-    canAdvisior: true,
     gradient: "from-[#722ED1] to-[#9254DE]",
     accentColor: "#722ED1",
   },

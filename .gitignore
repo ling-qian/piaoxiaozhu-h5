@@ -15,3 +15,13 @@ venv2/
 uploads/
 *.egg-info/
 .vercel
+
+# macOS 目录元数据，不应进入版本库
+.DS_Store
+**/.DS_Store
+
+# 部署产物（不进仓库）
+px-deploy.zip
+v1-codebundle.zip
+*.codebundle.zip
+v1/apps/api-worker/.testkeys/
