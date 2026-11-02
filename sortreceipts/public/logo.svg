@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="SortReceipts">
+  <!--
+    SortReceipts 图形标
+    - 蓝色圆角底：站点品牌色 #2563EB
+    - 白色收据：底部锯齿是收据纸的通用视觉符号
+    - 三条递减的线：表达「排序 / 整理」，这是产品最核心的能力
+    16px 下仍可辨认：一个主体形状 + 三条粗线，不依赖细节
+  -->
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="#2563EB"/>
+  <path d="M20 13 H44 V46 L40 43 L36 46 L32 43 L28 46 L24 43 L20 46 Z" fill="#FFFFFF"/>
+  <rect x="25" y="21" width="14" height="3.4" rx="1.7" fill="#2563EB"/>
+  <rect x="25" y="28.5" width="10" height="3.4" rx="1.7" fill="#2563EB" opacity="0.72"/>
+  <rect x="25" y="36" width="6" height="3.4" rx="1.7" fill="#2563EB" opacity="0.46"/>
+</svg>

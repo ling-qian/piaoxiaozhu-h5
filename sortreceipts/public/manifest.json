@@ -1,0 +1,25 @@
+{
+  "name": "SortReceipts — Smart Invoice Organizer",
+  "short_name": "SortReceipts",
+  "description": "Scan receipts, auto-categorize expenses, and generate reports. An AI-powered invoice organizer for small businesses.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FFFFFF",
+  "theme_color": "#2563EB",
+  "orientation": "portrait",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["finance", "productivity"]
+}

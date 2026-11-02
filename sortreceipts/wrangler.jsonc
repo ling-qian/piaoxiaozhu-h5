@@ -1,0 +1,41 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "sortreceipts",
+  "main": ".open-next/worker.js",
+
+  // 与后端 Worker 保持一致。改这个日期会改变运行时行为，两边一起改。
+  "compatibility_date": "2026-10-01",
+  // Next.js 的服务端代码会用到 Node 内置模块，OpenNext 靠这个开关提供 polyfill
+  "compatibility_flags": ["nodejs_compat"],
+
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+
+  /**
+   * 独立子域名。
+   *
+   * 不用 `qianling-tech.top/sortreceipts` 这种路径形式：那个主域下还有别的站点，
+   * 路径部署会让 cookie（path=/）和缓存作用域互相污染，路由规则也要一条条抠。
+   * 子域名天然隔离，代码侧零改动。
+   *
+   * `custom_domain: true` 由 Cloudflare 自动建 DNS 记录与证书，不需要手动加 CNAME。
+   */
+  "routes": [{ "pattern": "sortreceipts.qianling-tech.top", "custom_domain": true }],
+
+  "observability": { "enabled": true },
+
+  /**
+   * 运行时变量。
+   *
+   * `WORKER_API_URL` 在代码里是 `process.env.WORKER_API_URL` 读的，
+   * 属于运行期取值——同一份构建产物可以指向不同的后端。
+   *
+   * 注意 `NEXT_PUBLIC_*` 不在这里：Next 在构建时就把它们内联进产物了，
+   * 配在这里不会生效，必须在构建时通过 .env 或环境变量提供。
+   */
+  "vars": {
+    "WORKER_API_URL": "https://api.qianling-tech.top"
+  }
+}

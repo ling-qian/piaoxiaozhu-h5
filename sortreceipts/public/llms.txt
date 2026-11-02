@@ -1,0 +1,75 @@
+# SortReceipts
+
+> SortReceipts is a browser-based receipt scanner and expense tracker for small businesses. Photograph a printed receipt; the app reads the vendor, amount, date and tax, files it under one of 11 business categories, and keeps monthly income, expense and profit reports current. Nothing to install — it runs in a browser.
+
+Full content for retrieval: /llms-full.txt. Long-form guide: /guide. Questions and answers: /faq. Company and product facts: /about.
+
+## Problems it solves
+
+- **Month-end catch-up**: receipts sit in a drawer until the last day. SortReceipts records each one when it happens, so the month closes without a backlog.
+- **Retyping totals**: vendor, amount, date and tax are read from the photo instead of typed by hand.
+- **Not knowing where the money went**: every expense carries one of 11 categories, and the category split plus profit trend are on one screen.
+- **Reformatting before handing books to an accountant**: monthly reports export as CSV, which Excel, Numbers and Google Sheets open directly.
+
+## Who it is for
+
+Small business owners who deal with paper receipts: restaurants, cafés, food trucks, retail shops and freelancers. One project represents one store or one line of business, and projects keep separate books.
+
+## How it works
+
+1. Create a project (one store or one line of business).
+2. Photograph the receipt and check the four extracted fields: vendor, amount, date, tax.
+3. Read the monthly report: income, expenses, category split, profit trend. Export to CSV at month end.
+4. Optionally run the AI business review, which reads the month's records and writes a short summary of where the money went.
+
+## What it does
+
+- Reads printed receipts from photos in JPG, PNG, WebP, HEIC or HEIF, up to 10 MB each.
+- Extracts vendor, total amount, invoice date and tax amount from the recognised text.
+- Categorizes each expense automatically: Meals & Entertainment, Travel & Lodging, Transportation & Fuel, Office Supplies, Software & Subscriptions, Rent & Facilities, Utilities, Marketing & Advertising, Professional Services, Equipment & Hardware, Other.
+- Builds monthly reports: income, expenses, category split, profit trend.
+- Answers plain-language questions such as "how much did I spend on meals last month?" using the user's own records.
+- Exports reports as CSV on paid plans.
+- The product interface is available in English and Chinese. The marketing site also has pages in Spanish, Portuguese, French, German, Japanese and Korean.
+
+## Pricing (USD, monthly)
+
+- Free: 5 receipts a month, 1 project, basic reports, no export.
+- Pro: $3.99 — 200 receipts a month, 10 projects, CSV export, AI business review.
+- Business: $13.99 — unlimited receipts and projects, priority support.
+
+## Limitations
+
+- Printed receipts work best. Handwritten notes and poorly lit photos may need manual correction.
+- Amounts are stored as entered; the app is not a tax filing service and does not compute VAT returns.
+- The product interface is available in English and Chinese only. Other languages cover the marketing page, not the product itself.
+
+## Links
+
+- Home (English): https://sortreceipts.qianling-tech.top/
+- Chinese: https://sortreceipts.qianling-tech.top/zh
+- Spanish: https://sortreceipts.qianling-tech.top/es
+- Portuguese: https://sortreceipts.qianling-tech.top/pt
+- French: https://sortreceipts.qianling-tech.top/fr
+- German: https://sortreceipts.qianling-tech.top/de
+- Japanese: https://sortreceipts.qianling-tech.top/ja
+- Korean: https://sortreceipts.qianling-tech.top/ko
+- Guide (English): https://sortreceipts.qianling-tech.top/guide
+- Guide (Chinese): https://sortreceipts.qianling-tech.top/zh/guide
+- Topic — restaurant and café receipts: https://sortreceipts.qianling-tech.top/guide/restaurant-receipts
+- Topic — business trip receipts: https://sortreceipts.qianling-tech.top/guide/travel-expenses
+- Topic — month-end close: https://sortreceipts.qianling-tech.top/guide/month-end-close
+- FAQ (English): https://sortreceipts.qianling-tech.top/faq
+- FAQ (Chinese): https://sortreceipts.qianling-tech.top/zh/faq
+- About (operator: Qianling Tech): https://sortreceipts.qianling-tech.top/about
+- Privacy policy: https://sortreceipts.qianling-tech.top/privacy
+- Terms of service: https://sortreceipts.qianling-tech.top/terms
+- Contact: https://sortreceipts.qianling-tech.top/contact
+- Full text: https://sortreceipts.qianling-tech.top/llms-full.txt
+- Sitemap: https://sortreceipts.qianling-tech.top/sitemap.xml
+- Sign in: https://sortreceipts.qianling-tech.top/auth/login
+
+## Notes
+
+- Data is stored on Cloudflare infrastructure and encrypted in transit; records can be deleted from the account, and the whole account can be deleted by email request.
+- Last updated: 2026-10-31
