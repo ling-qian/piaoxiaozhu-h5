@@ -10,9 +10,10 @@ import { Hono } from "hono";
 
 import type { Env } from "../env";
 import type { UserRow } from "../db/types";
-import { cosPresignGet, cosPresignPut, cosPublicUrl } from "../lib/cos";
+import { cosDeleteObject, cosObjectSize, cosPresignGet, cosPresignPut, cosPublicUrl } from "../lib/cos";
 import { badRequest, isUuid, notFound, serverError } from "../lib/http";
 import { nowIso } from "../lib/time";
+import { assertHourlyLimit } from "../lib/rate-limit";
 
 const router = new Hono<{ Bindings: Env; Variables: { user: UserRow } }>();
 
@@ -94,7 +95,23 @@ router.get("/files/upload-url", async (c) => {
   if (!isUuid(projectId)) throw notFound("Project not found");
   await assertProjectOwner(c.env.DB, projectId, u.id);
 
+  // 每签发一个地址，就是一次可能的大文件写入。按小时封顶，别让存储被刷。
+  await assertHourlyLimit(c.env.DB, u.id, "file_upload_url", 40, "上传太频繁了，请稍后再试");
+
   const { kind, ext } = classifyUpload(filename, contentType);
+  const max = maxBytes(kind);
+
+  // 客户端报的 size 不是用来信任的，而是用来签 content-length：
+  // 签进去多少字节，COS 就只接受多少字节，多传一个字节签名就不匹配。
+  // 不传 size 的老客户端仍然可用，登记时会按对象实际大小再拒一次。
+  const sizeRaw = c.req.query("size");
+  let extraHeaders: Record<string, string> | undefined;
+  if (sizeRaw !== undefined && sizeRaw !== "") {
+    const size = Number(sizeRaw);
+    if (!Number.isFinite(size) || size <= 0) throw badRequest("size 必须是正整数");
+    if (size > max) throw badRequest(`文件超过 ${Math.floor(max / 1024 / 1024)}MB 上限`);
+    extraHeaders = { "content-length": String(Math.trunc(size)) };
+  }
 
   const { COS_SECRET_ID, COS_SECRET_KEY, COS_REGION, COS_BUCKET_NAME } = c.env;
   if (!COS_SECRET_ID || !COS_SECRET_KEY || !COS_REGION || !COS_BUCKET_NAME) {
@@ -111,6 +128,7 @@ router.get("/files/upload-url", async (c) => {
     secretKey: COS_SECRET_KEY,
     key: fileKey,
     expires: UPLOAD_URL_TTL,
+    extraHeaders,
   });
 
   return c.json({
@@ -120,7 +138,9 @@ router.get("/files/upload-url", async (c) => {
     method: "PUT",
     expires_in: UPLOAD_URL_TTL,
     content_kind: kind,
-    max_bytes: maxBytes(kind),
+    max_bytes: max,
+    /** 为 true 时 PUT 必须带同样的 Content-Length，否则 COS 判签名不匹配 */
+    size_locked: Boolean(extraHeaders),
   });
 });
 
@@ -146,12 +166,50 @@ router.post("/files/register", async (c) => {
     throw badRequest("file_key 与登记的文件不匹配");
   }
 
-  if (!c.env.COS_BUCKET_NAME || !c.env.COS_REGION) {
+  const { COS_BUCKET_NAME, COS_REGION, COS_SECRET_ID, COS_SECRET_KEY } = c.env;
+  if (!COS_BUCKET_NAME || !COS_REGION || !COS_SECRET_ID || !COS_SECRET_KEY) {
     throw serverError("当前未配置对象存储");
   }
 
+  // 每次登记都要回源 HEAD 一次，次数同样要封顶
+  await assertHourlyLimit(c.env.DB, u.id, "file_register", 60, "上传太频繁了，请稍后再试");
+
   const { kind } = classifyUpload(filename || fileKey, contentType);
-  const fileUrl = cosPublicUrl(c.env.COS_BUCKET_NAME, c.env.COS_REGION, fileKey);
+  const max = maxBytes(kind);
+
+  // 以存储里的真实大小为准。客户端报多少、预签名 URL 是否被重放都不作数：
+  // 回源读到的字节数超过上限，就删掉对象并拒绝登记。
+  const head = await cosObjectSize({
+    bucket: COS_BUCKET_NAME,
+    region: COS_REGION,
+    secretId: COS_SECRET_ID,
+    secretKey: COS_SECRET_KEY,
+    key: fileKey,
+  });
+  if (!head.exists) throw badRequest("文件还没上传成功，请重试");
+  if (head.size === null) throw badRequest("无法确认文件大小，请重新上传");
+  if (head.size <= 0) {
+    await cosDeleteObject({
+      bucket: COS_BUCKET_NAME,
+      region: COS_REGION,
+      secretId: COS_SECRET_ID,
+      secretKey: COS_SECRET_KEY,
+      key: fileKey,
+    });
+    throw badRequest("文件内容为空，请重新上传");
+  }
+  if (head.size > max) {
+    await cosDeleteObject({
+      bucket: COS_BUCKET_NAME,
+      region: COS_REGION,
+      secretId: COS_SECRET_ID,
+      secretKey: COS_SECRET_KEY,
+      key: fileKey,
+    });
+    throw badRequest(`文件超过 ${Math.floor(max / 1024 / 1024)}MB 上限，已拒绝`);
+  }
+
+  const fileUrl = cosPublicUrl(COS_BUCKET_NAME, COS_REGION, fileKey);
   const ts = nowIso();
 
   await c.env.DB.prepare(
@@ -164,10 +222,10 @@ router.post("/files/register", async (c) => {
 
   // 桶是私有读，file_url（公开地址）只能存档，展示必须用签名地址
   const viewUrl = await cosPresignGet({
-    bucket: c.env.COS_BUCKET_NAME,
-    region: c.env.COS_REGION,
-    secretId: c.env.COS_SECRET_ID!,
-    secretKey: c.env.COS_SECRET_KEY!,
+    bucket: COS_BUCKET_NAME,
+    region: COS_REGION,
+    secretId: COS_SECRET_ID,
+    secretKey: COS_SECRET_KEY,
     key: fileKey,
     expires: VIEW_URL_TTL,
   });

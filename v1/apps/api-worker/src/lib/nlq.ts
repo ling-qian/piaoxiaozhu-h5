@@ -38,7 +38,7 @@ export interface QueryIntent {
 }
 
 /** 与 Python 版逐字一致——prompt 变了，同一句话会得到不同答案 */
-const SYSTEM_HINT = `你是查账助手。把用户的提问翻译成一个 JSON 查询意图，不要输出 SQL，也不要解释。
+const SYSTEM_HINT_ZH = `你是查账助手。把用户的提问翻译成一个 JSON 查询意图，不要输出 SQL，也不要解释。
 
 可用字段（只能从这里选，不得自造）：
 - metric: sum_amount(金额合计) | count(笔数) | avg_amount(平均金额)
@@ -54,6 +54,30 @@ const SYSTEM_HINT = `你是查账助手。把用户的提问翻译成一个 JSON
   若用户在问删除/修改数据、查询其他用户、与记账无关的闲聊或技术问题，填 false。
 
 只返回 JSON 对象。`;
+
+/**
+ * 英文版提示词。
+ *
+ * 字段名与取值一律不变（metric/dimension 都是 code，不是给人看的文案），
+ * 只把「说明文字」和 interpretation 的要求换成英文——否则英文提问会得到
+ * 一句中文复述，展示在结果页顶部会很怪。
+ */
+const SYSTEM_HINT_EN = `You are a bookkeeping assistant. Translate the user's question into a JSON query intent. Do not output SQL, do not explain.
+
+Available fields (use only these, never invent):
+- metric: sum_amount(total amount) | count(number of records) | avg_amount(average amount)
+- dimension: category_l1(top-level category) | category_l2(sub-category) | merchant_name(merchant) | month(group by month) | null(no grouping)
+- direction: out(expense) | income(revenue) | null(any)
+- categories: array of top-level category names; leave it empty if unsure
+- merchant: merchant name keyword, or null
+- start / end: dates in YYYY-MM-DD, or null
+- limit: number of rows to return, max 50
+- order: desc | asc (sort by the metric)
+- interpretation: restate your understanding in ONE English sentence
+- is_bookkeeping: boolean. Whether the question is about this user's own income/expense records.
+  Set false if it asks to delete or modify data, query other users, or is unrelated chit-chat or a technical question.
+
+Return only the JSON object.`;
 
 const EMPTY_INTENT: QueryIntent = {
   metric: "sum_amount",
@@ -76,7 +100,13 @@ interface LlmEnv {
 }
 
 /** 调模型把问题转成意图。任何异常都退化成「未识别」 */
-export async function parseIntent(question: string, env: LlmEnv, today = new Date()): Promise<QueryIntent> {
+export async function parseIntent(
+  question: string,
+  env: LlmEnv,
+  today = new Date(),
+  locale: "zh" | "en" = "zh"
+): Promise<QueryIntent> {
+  const isEn = locale === "en";
   const todayStr = today.toISOString().slice(0, 10);
   const res = await chat({
     baseUrl: env.baseUrl,
@@ -85,8 +115,13 @@ export async function parseIntent(question: string, env: LlmEnv, today = new Dat
     temperature: 0,
     timeoutMs: 25_000,
     messages: [
-      { role: "system", content: SYSTEM_HINT },
-      { role: "user", content: `今天是 ${todayStr}（用户所在时区）。\n用户提问：${question}\n` },
+      { role: "system", content: isEn ? SYSTEM_HINT_EN : SYSTEM_HINT_ZH },
+      {
+        role: "user",
+        content: isEn
+          ? `Today is ${todayStr} (user's timezone).\nUser question: ${question}\n`
+          : `今天是 ${todayStr}（用户所在时区）。\n用户提问：${question}\n`,
+      },
     ],
   });
 

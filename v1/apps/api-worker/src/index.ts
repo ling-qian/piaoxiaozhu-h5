@@ -20,6 +20,11 @@ import analysisRoutes from "./routes/analysis";
 import ocrRoutes from "./routes/ocr";
 import fileRoutes from "./routes/files";
 import paymentRoutes from "./routes/payments";
+import pointRoutes from "./routes/points";
+import adminRoutes from "./routes/admin";
+import intlPaymentRoutes from "./routes/payments-intl";
+import packRoutes from "./routes/pack";
+import salesRoutes from "./routes/sales";
 
 type Vars = { user: UserRow };
 
@@ -55,9 +60,15 @@ app.use("/api/*", async (c, next) => {
   // 免登录白名单：
   //   /api/auth/*                      登录本身
   //   /api/payments/wechat/notify      微信服务器回调（不带 JWT，安全靠验签+解密）
+  //   /api/admin/*                     后台管理，用 X-Admin-Token 单令牌鉴权，
+  //                                    不走用户 JWT，各 handler 自己校验
   if (
     c.req.path.startsWith("/api/auth/") ||
-    c.req.path === "/api/payments/wechat/notify"
+    c.req.path.startsWith("/api/admin/") ||
+    c.req.path === "/api/payments/wechat/notify" ||
+    c.req.path === "/api/payments/stripe/webhook" ||
+    // 只读分享：凭快照令牌访问，会计不需要注册账号
+    c.req.path.startsWith("/api/share/")
   ) {
     return next();
   }
@@ -87,6 +98,11 @@ app.route("/api", analysisRoutes);
 app.route("/api", ocrRoutes);
 app.route("/api", fileRoutes);
 app.route("/api", paymentRoutes);
+app.route("/api", pointRoutes);
+app.route("/api", adminRoutes);
+app.route("/api", intlPaymentRoutes);
+app.route("/api", packRoutes);
+app.route("/api", salesRoutes);
 
 // 兜底 404 也用统一结构，避免前端拿到 HTML 报错页
 app.notFound((c) => c.json({ detail: `接口不存在：${c.req.method} ${c.req.path}` }, 404));

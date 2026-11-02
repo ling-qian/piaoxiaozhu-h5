@@ -27,6 +27,24 @@ export function cnMonth(now: Date = new Date()): string {
 }
 
 /**
+ * 把某个时刻转成北京时间的 `YYYY-MM-DD`。
+ *
+ * 签到按自然日判定，日界必须用北京时间。若用 UTC 日界，实际重置点是北京时间
+ * 早 8 点——用户早上 7 点签一次、9 点再签一次，会被算成两天，重复领奖。
+ */
+export function cnDateString(input: string | Date): string {
+  const d = typeof input === "string" ? new Date(input) : input;
+  if (Number.isNaN(d.getTime())) return "";
+  const shifted = new Date(d.getTime() + 8 * 3600_000);
+  return shifted.toISOString().slice(0, 10);
+}
+
+/** 北京时间今天（YYYY-MM-DD） */
+export function cnToday(): string {
+  return cnDateString(new Date());
+}
+
+/**
  * 北京时间「本月 1 日 00:00」对应的 UTC ISO。
  *
  * 不能简单用字符串切月（`YYYY-MM-01` 缺时间部分），也不能拿带 +08:00 的字符串

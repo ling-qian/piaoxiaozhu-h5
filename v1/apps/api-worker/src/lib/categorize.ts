@@ -40,6 +40,42 @@ export const CATEGORY_L2_MAP: Record<string, string> = {
   other: "",
 };
 
+/**
+ * 海外版分类：小餐饮店的成本结构。
+ *
+ * 八类与前端 `sortreceipts/lib/constants.ts` 的 `CATEGORIES` 同一套 code，
+ * 这样识别出来的记录能对上筛选器、图表和编辑下拉框。显示名用英文，
+ * 由模型照着写进 `category_l1`，中文版则继续用 `CATEGORY_L1_MAP`。
+ *
+ * 不做行业分类开关：模板只服务一类店，白名单越长，模型选错的机会越多。
+ * 「平台佣金」在海外对应外卖与刷卡平台的抽成，所以保留 `platform_fee`。
+ */
+export const CATEGORY_L1_MAP_INTL: Record<string, string> = {
+  food_material: "Food & ingredients",
+  rent: "Rent",
+  salary: "Payroll",
+  utilities: "Utilities",
+  platform_fee: "Platform fees",
+  advertising: "Advertising",
+  office: "Office supplies",
+  other: "Other",
+};
+
+/** 按区域取分类展示名表。不配或非 cn 一律按海外处理（与 REGION 的默认值一致）。 */
+export function categoryL1Map(region?: string): Record<string, string> {
+  return region === "cn" ? CATEGORY_L1_MAP : CATEGORY_L1_MAP_INTL;
+}
+
+/** 按区域取分类白名单，用于约束模型只能从这些值里选 */
+export function allowedCategories(region?: string): string[] {
+  return Object.values(categoryL1Map(region));
+}
+
+/** 未分类兜底文案，跟随区域 */
+export function uncategorizedLabel(region?: string): string {
+  return region === "cn" ? "其他" : "Other";
+}
+
 /** 商户名精确匹配字典（与 Python 版 RESTAURANT_MERCHANT_DICT 一致） */
 export const RESTAURANT_MERCHANT_DICT: Record<string, string> = {
   美团: "platform_fee",

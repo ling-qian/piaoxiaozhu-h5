@@ -6,6 +6,8 @@
  */
 import type { Context } from "hono";
 
+import { pick, type Locale } from "./locale";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -19,6 +21,7 @@ export const badRequest = (msg: string) => new ApiError(400, msg);
 export const unauthorized = (msg = "Not authenticated") => new ApiError(401, msg);
 export const forbidden = (msg: string) => new ApiError(403, msg);
 export const notFound = (msg = "Not found") => new ApiError(404, msg);
+export const tooManyRequests = (msg: string) => new ApiError(429, msg);
 export const paymentRequired = (msg: string) => new ApiError(402, msg);
 export const serverError = (msg: string) => new ApiError(500, msg);
 
@@ -28,7 +31,7 @@ export function errorHandler(err: Error, c: Context) {
     return c.json({ detail: err.message }, err.status as any);
   }
   console.error("[unhandled]", err);
-  return c.json({ detail: "服务内部错误" }, 500);
+  return c.json({ detail: pick(c, "服务内部错误", "Internal server error") }, 500);
 }
 
 /** 校验 UUID 形状。非法 id 直接 404，避免把脏值塞进 SQL。 */
@@ -37,11 +40,25 @@ export function isUuid(v: string | undefined | null): boolean {
   return !!v && UUID_RE.test(v);
 }
 
-/** 缺字段/超范围的通用校验 */
-export function requireString(v: unknown, field: string, max = 200): string {
+/**
+ * 缺字段/超范围的通用校验。
+ *
+ * `locale` 默认中文：现有调用点不传时行为不变，避免一次性改爆全站。
+ * 海外接口逐个传 `getLocale(c)`，把报错切到英文。
+ * `field` 由调用方提供，英文场景请传英文字段名（如 "email"）。
+ */
+export function requireString(v: unknown, field: string, max = 200, locale: Locale = "zh"): string {
   const s = typeof v === "string" ? v.trim() : "";
-  if (!s) throw badRequest(`${field}不能为空`);
-  if (s.length > max) throw badRequest(`${field}过长（最多 ${max} 字）`);
+  if (!s) {
+    throw badRequest(locale === "en" ? `${field} is required` : `${field}不能为空`);
+  }
+  if (s.length > max) {
+    throw badRequest(
+      locale === "en"
+        ? `${field} is too long (max ${max} characters)`
+        : `${field}过长（最多 ${max} 字）`
+    );
+  }
   return s;
 }
 

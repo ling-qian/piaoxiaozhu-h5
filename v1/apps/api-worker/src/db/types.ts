@@ -58,6 +58,8 @@ export interface InvoiceRecordRow {
   verify_status: string | null;
   verify_detail: string | null;
   verify_checked_at: string | null;
+  /** 对账单里的行号，单张小票恒为 1 */
+  line_no: number;
 }
 
 export interface QuotaLogRow {
@@ -74,4 +76,34 @@ export interface ProjectWithAggregates extends ProjectRow {
   record_count: number;
   total_cost: number;
   total_income: number;
+}
+
+/** 会计合作方。code 是主键，也是对外转发的推荐码 */
+export interface PartnerRow {
+  code: string;
+  name: string;
+  contact: string | null;
+  note: string | null;
+  status: string;
+  created_at: string;
+}
+
+/** 注册归因：一个用户只记一次来源，后注册的覆盖没有意义 */
+export interface ReferralRow {
+  user_id: string;
+  partner_code: string;
+  source: string | null;
+  created_at: string;
+}
+
+/** 每天一行营业额，唯一键是 (project_id, sale_date) */
+export interface DailySaleRow {
+  id: string;
+  user_id: string;
+  project_id: string;
+  sale_date: string;
+  amount: number;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
 }

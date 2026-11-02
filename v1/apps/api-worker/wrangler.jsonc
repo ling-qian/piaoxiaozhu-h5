@@ -8,16 +8,36 @@
     {
       "binding": "DB",
       "database_name": "piaoxiaozhu",
-      "database_id": "<运行 wrangler d1 create piaoxiaozhu 后填这里>"
+      // 2026-10-28 在控制台创建。这个 id 与「主区域」绑定，主区域建完不可改，
+      // 换区域只能新建库再迁数据。
+      "database_id": "f0380163-4122-4e8d-9ebd-80bfe2f189e9"
     }
   ],
+
+  /**
+   * 自定义域名。
+   *
+   * `workers.dev` 那个地址在国内访问不了，线上必须有自有域名。
+   * `custom_domain: true` 会让 Cloudflare 自动建 DNS 记录和证书，
+   * 不需要去控制台手动加 CNAME。
+   */
+  "routes": [{ "pattern": "api.qianling-tech.top", "custom_domain": true }],
 
   "observability": { "enabled": true },
 
   "vars": {
     "APP_ENV": "production",
+    // ── 区域开关（默认不配）──
+    // 不配 = 微信接口保持可用，两个版本都能跑。
+    // 当前部署（api.qianling-tech.top）服务海外版，关掉微信登录。
+    // 若要为国内版部署，另建一个 Worker 并把这一项改成 "cn"（或整行删掉）。
+    "REGION": "intl",
     "JWT_ALGORITHM": "HS256",
+    // 支付成功/取消后的回跳地址。Stripe 要求绝对地址；PayPal 的 return_url 也用它。
+    "APP_BASE_URL": "https://sortreceipts.qianling-tech.top",
     "LLM_BASE_URL": "https://apihub.agnes-ai.com/v1",
-    "LLM_MODEL_NAME": "agnes-2.0-flash"
+    // 模型名必须是服务商当前在售的。旧值 agnes-2.0-flash 已下线，
+    // 写错了不会启动报错，而是调用时 503、分类环节静默跳过。
+    "LLM_MODEL_NAME": "agnes-3.0-flash"
   }
 }

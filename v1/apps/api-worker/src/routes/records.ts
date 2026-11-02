@@ -9,6 +9,7 @@ import type { Env } from "../env";
 import type { InvoiceRecordRow, UserRow } from "../db/types";
 import { badRequest, isUuid, notFound, paymentRequired } from "../lib/http";
 import { checkInvoice, deriveVerdict } from "../lib/invoice-check";
+import { normalizeBatchLines } from "../lib/bill-lines";
 import { COST_INVOICE_OCR, consumePoints } from "../lib/points";
 import { invoiceFingerprint } from "../lib/invoice-identity";
 import { nowIso } from "../lib/time";
@@ -57,6 +58,8 @@ function toPayload(r: InvoiceRecordRow) {
     verify_status: r.verify_status,
     verify_detail: detail,
     verify_checked_at: r.verify_checked_at,
+    // 旧数据加列时默认 1，所以这里兜底成 1 而不是 null
+    line_no: r.line_no ?? 1,
   };
 }
 
@@ -251,6 +254,182 @@ router.post("/records", async (c) => {
     .first<InvoiceRecordRow>();
   if (!created) throw notFound("Record not found");
   return c.json({ ...toPayload(created), action: "created" }, 201);
+});
+
+/**
+ * 批量入账：一张供应商对账单拆出的 N 行一次写入。
+ *
+ * 与单条入账的三处差异，都是刻意的：
+ *   1. 积分按整张账单扣一次，不按行扣——20 行只调了一次识别。
+ *   2. 不生成弱指纹。现有算法要「税号 + 日期 + 金额」，同一张账单里
+ *      两行金额相同会被误判成重复，宁可放弃跨批查重。
+ *   3. 去重改按 (file_id, line_no)：重复提交同一张账单时只补缺失的行。
+ */
+router.post("/records/batch", async (c) => {
+  const u = c.get("user");
+  const body = await c.req.json<any>().catch(() => ({}));
+
+  const projectId = String(body?.project_id ?? "");
+  if (!isUuid(projectId)) throw notFound("Project not found");
+
+  const owned = await c.env.DB.prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?")
+    .bind(projectId, u.id)
+    .first<{ id: string }>();
+  if (!owned) throw notFound("Project not found");
+
+  const direction = String(body?.direction ?? "");
+  if (direction !== "out" && direction !== "income") {
+    throw badRequest('direction 只能是 "out" 或 "income"');
+  }
+
+  const fileId = body?.file_id && isUuid(String(body.file_id)) ? String(body.file_id) : null;
+  if (fileId) {
+    const fileOwned = await c.env.DB.prepare("SELECT id FROM invoice_files WHERE id = ? AND user_id = ?")
+      .bind(fileId, u.id)
+      .first<{ id: string }>();
+    if (!fileOwned) throw notFound("File not found");
+  }
+
+  const normalized = normalizeBatchLines(
+    {
+      merchantName: body?.merchant_name ?? null,
+      invoiceDate: body?.invoice_date ?? null,
+      taxNo: body?.tax_no ?? null,
+    },
+    body?.lines
+  );
+
+  if (normalized.lines.length === 0) {
+    throw badRequest(
+      normalized.failed > 0
+        ? "所有明细行的金额都无法识别，请手动填写后再提交"
+        : "没有可入账的明细行"
+    );
+  }
+
+  // 已存在的行号：重复提交同一张账单时跳过，不重复扣钱也不重复记账
+  const existingLineNos = new Set<number>();
+  if (fileId) {
+    const { results } = await c.env.DB.prepare(
+      "SELECT line_no FROM invoice_records WHERE file_id = ? AND user_id = ?"
+    )
+      .bind(fileId, u.id)
+      .all<{ line_no: number }>();
+    for (const r of results ?? []) existingLineNos.add(Number(r.line_no ?? 1));
+  }
+
+  const fromOcr = Boolean(body?.raw_text);
+
+  // 先剔掉已存在的行号，再决定要不要扣积分：
+  // 整批都是重复时就返回 0 条，不该扣钱。
+  const newLines = normalized.lines.filter((l) => !existingLineNos.has(l.lineNo));
+  const duplicates = normalized.lines.length - newLines.length;
+
+  if (newLines.length === 0) {
+    return c.json({
+      created: 0,
+      duplicates,
+      failed: normalized.failed,
+      line_count: normalized.lines.length,
+      ids: [],
+    });
+  }
+
+  if (fromOcr) {
+    const charged = await consumePoints(c.env.DB, u.id, COST_INVOICE_OCR, "consume_invoice_ocr", "账单识别", nowIso());
+    if (!charged.ok) {
+      throw paymentRequired(
+        `积分不足：识别一张账单需 ${COST_INVOICE_OCR} 积分，当前 ${charged.balance}。可通过签到或购买套餐获取积分。`
+      );
+    }
+  }
+
+  const ts = nowIso();
+  const ids: string[] = [];
+  const statements: D1PreparedStatement[] = [];
+
+  for (const line of newLines) {
+    const id = crypto.randomUUID();
+    ids.push(id);
+
+    // 行上有发票号才做指纹；对账单通常没有，这一步留空
+    const cents = Math.round(line.amount * 100);
+    const fp = line.invoiceNo
+      ? await invoiceFingerprint({
+          invoiceType: null,
+          invoiceCode: line.invoiceCode,
+          invoiceNo: line.invoiceNo,
+          sellerTaxNo: line.taxNo,
+          invoiceDate: line.invoiceDate,
+          totalAmountCents: cents,
+        })
+      : null;
+
+    const checks = checkInvoice({
+      invoiceCode: line.invoiceCode,
+      invoiceNo: line.invoiceNo,
+      sellerTaxNo: line.taxNo,
+      invoiceDate: line.invoiceDate,
+      totalAmountCents: cents,
+      taxAmountCents: line.taxAmount === null ? null : Math.round(line.taxAmount * 100),
+    });
+    const verdict = deriveVerdict(checks);
+
+    statements.push(
+      c.env.DB.prepare(
+        `INSERT INTO invoice_records (
+           id, project_id, file_id, user_id, direction, merchant_name, tax_no,
+           amount, tax_amount, invoice_date, invoice_code, invoice_no,
+           category_code, category_l1, category_l2, confidence, raw_text, reason,
+           is_manual_corrected, created_at, updated_at,
+           invoice_fingerprint, fingerprint_strength, duplicate_of,
+           verify_status, verify_detail, verify_checked_at, line_no
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?,
+                   ?, ?, NULL, ?, ?, ?, ?)`
+      ).bind(
+        id,
+        projectId,
+        fileId,
+        u.id,
+        direction,
+        line.merchantName,
+        line.taxNo,
+        line.amount,
+        line.taxAmount,
+        line.invoiceDate,
+        line.invoiceCode,
+        line.invoiceNo,
+        line.categoryCode,
+        line.categoryL1,
+        line.categoryL2,
+        line.confidence,
+        // 原始文字只挂在第一行，避免 20 行各存一份同样的全文
+        body?.raw_text && ids.length === 1 ? String(body.raw_text) : null,
+        line.description,
+        ts,
+        ts,
+        fp?.[0] ?? null,
+        fp?.[1] ?? null,
+        verdict,
+        JSON.stringify({ checks }),
+        ts,
+        line.lineNo
+      )
+    );
+  }
+
+  if (statements.length > 0) await c.env.DB.batch(statements);
+
+  return c.json(
+    {
+      created: ids.length,
+      duplicates,
+      failed: normalized.failed,
+      line_count: normalized.lines.length,
+      ids,
+    },
+    201
+  );
 });
 
 router.patch("/records/:id", async (c) => {

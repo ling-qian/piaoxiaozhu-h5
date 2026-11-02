@@ -14,6 +14,7 @@ import { badRequest, isUuid, notFound, paymentRequired, serverError } from "../l
 import { chat, formatMoney } from "../lib/llm";
 import { COST_AI_ANALYSIS, consumePoints, getBalance, logPoints } from "../lib/points";
 import { nowIso } from "../lib/time";
+import { getLocale, type Locale } from "../lib/locale";
 
 const router = new Hono<{ Bindings: Env; Variables: { user: UserRow } }>();
 
@@ -29,7 +30,17 @@ interface Row {
 
 const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 
-function buildPrompt(projectName: string, rows: Row[]): { prompt: string; summary: Record<string, unknown> } {
+function buildPrompt(
+  projectName: string,
+  rows: Row[],
+  locale: Locale = "zh"
+): { prompt: string; summary: Record<string, unknown> } {
+  const isEn = locale === "en";
+  // 数据缺分类/商户/日期时的兜底文案，也要跟当前语言一致，
+  // 否则英文 prompt 里会冒出「未知商户」这种中文。
+  const UNCATEGORIZED = isEn ? "Uncategorized" : "其他";
+  const UNKNOWN_MERCHANT = isEn ? "Unknown merchant" : "未知商户";
+  const UNKNOWN_MONTH = isEn ? "Unknown" : "未知";
   let income = 0;
   let expense = 0;
   const byCat = new Map<string, number>();
@@ -42,12 +53,12 @@ function buildPrompt(projectName: string, rows: Row[]): { prompt: string; summar
       income += amount;
     } else {
       expense += amount;
-      const cat = r.category_l1 || "其他";
+      const cat = r.category_l1 || UNCATEGORIZED;
       byCat.set(cat, (byCat.get(cat) ?? 0) + amount);
-      const name = r.merchant_name || "未知商户";
+      const name = r.merchant_name || UNKNOWN_MERCHANT;
       byMerchant.set(name, (byMerchant.get(name) ?? 0) + amount);
     }
-    const month = (r.invoice_date ?? "").slice(0, 7) || "未知";
+    const month = (r.invoice_date ?? "").slice(0, 7) || UNKNOWN_MONTH;
     const bucket = byMonth.get(month) ?? { income: 0, expense: 0 };
     if (r.direction === "income") bucket.income += amount;
     else bucket.expense += amount;
@@ -64,7 +75,11 @@ function buildPrompt(projectName: string, rows: Row[]): { prompt: string; summar
 
   const monthlyLines = [...byMonth.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([m, d]) => `- ${m}: 收入 ${formatMoney(d.income)}，支出 ${formatMoney(d.expense)}，利润 ${formatMoney(d.income - d.expense)}`)
+    .map(([m, d]) =>
+      isEn
+        ? `- ${m}: revenue ${formatMoney(d.income)}, expense ${formatMoney(d.expense)}, profit ${formatMoney(d.income - d.expense)}`
+        : `- ${m}: 收入 ${formatMoney(d.income)}，支出 ${formatMoney(d.expense)}，利润 ${formatMoney(d.income - d.expense)}`
+    )
     .join("\n");
 
   const topMerchants = [...byMerchant.entries()]
@@ -73,7 +88,38 @@ function buildPrompt(projectName: string, rows: Row[]): { prompt: string; summar
     .map(([name, amount]) => `- ${name}: ${formatMoney(amount)}`)
     .join("\n");
 
-  const prompt = `你是一位专业的小微商户财务顾问。请根据以下经营数据，提供利润分析与经营建议。
+  const prompt = isEn
+    ? `You are a financial advisor for small businesses. Analyze the operating data below and produce a profit analysis with actionable advice.
+
+## Project: ${projectName}
+
+### Totals
+- Revenue: ${formatMoney(income)}
+- Expenses: ${formatMoney(expense)}
+- Gross profit: ${formatMoney(grossProfit)}
+- Gross margin: ${grossMargin.toFixed(1)}%
+- Records: ${rows.length}
+
+### Expenses by category
+${categoryLines || "- No expense records"}
+
+### Monthly revenue and expenses
+${monthlyLines || "- No usable dates"}
+
+### Top 10 merchants by expense
+${topMerchants || "- No merchant data"}
+
+Respond in English. Cover these dimensions:
+1. **Profit health**: is the gross margin healthy and sustainable?
+2. **Cost structure**: which costs are disproportionately high, and where is there room to optimize?
+3. **Trend insight**: how are revenue and expenses trending, any abnormal swings?
+4. **Merchant concentration**: is the business over-reliant on a few suppliers?
+5. **Actionable advice**: 3–5 concrete actions to cut costs or improve efficiency
+6. **Risk alerts**: which operating risks deserve attention?
+
+Requirements: professional but plain-spoken; include specific numbers and executable actions; **keep it to 400–600 words**;
+do not restate the data I gave you — go straight to conclusions and actions.`
+    : `你是一位专业的小微商户财务顾问。请根据以下经营数据，提供利润分析与经营建议。
 
 ## 项目：${projectName}
 
@@ -147,7 +193,8 @@ router.post("/projects/:id/analysis", async (c) => {
   }
   await consumePoints(c.env.DB, u.id, COST_AI_ANALYSIS, "consume_ai_analysis", `AI 经营分析：${project.name}`, ts);
 
-  const { prompt, summary } = buildPrompt(project.name, rows);
+  const locale = getLocale(c);
+  const { prompt, summary } = buildPrompt(project.name, rows, locale);
 
   const res = await chat({
     baseUrl: c.env.LLM_BASE_URL,
@@ -160,7 +207,10 @@ router.post("/projects/:id/analysis", async (c) => {
     messages: [
       {
         role: "system",
-        content: "你是一位资深的小微商户财务顾问，擅长从经营数据中发现问题并给出可落地的建议。",
+        content:
+          locale === "en"
+            ? "You are a senior financial advisor for small businesses, skilled at spotting problems in operating data and giving practical, executable advice."
+            : "你是一位资深的小微商户财务顾问，擅长从经营数据中发现问题并给出可落地的建议。",
       },
       { role: "user", content: prompt },
     ],
@@ -170,7 +220,13 @@ router.post("/projects/:id/analysis", async (c) => {
     // 没产出结果不该收钱
     await logPoints(c.env.DB, u.id, "consume_ai_analysis", COST_AI_ANALYSIS, "AI 分析失败退款", nowIso());
     throw serverError(
-      res.failure === "timeout" ? "AI 分析超时，请稍后重试" : "AI 分析服务暂时不可用，请稍后重试"
+      locale === "en"
+        ? res.failure === "timeout"
+          ? "AI analysis timed out, please try again"
+          : "AI analysis is temporarily unavailable, please try again"
+        : res.failure === "timeout"
+          ? "AI 分析超时，请稍后重试"
+          : "AI 分析服务暂时不可用，请稍后重试"
     );
   }
 

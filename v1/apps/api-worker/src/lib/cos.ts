@@ -56,8 +56,16 @@ export interface CosPresignOptions {
   /** 对象键，如 uploads/{userId}/{projectId}/{fileId}.jpg */
   key: string;
   expires?: number;
-  /** HTTP 方法：上传用 PUT（默认），展示用 GET */
-  method?: "PUT" | "GET";
+  /** HTTP 方法：上传用 PUT（默认），展示用 GET，核对大小用 HEAD，清理用 DELETE */
+  method?: "PUT" | "GET" | "HEAD" | "DELETE";
+  /**
+   * 额外参与签名的请求头。
+   *
+   * 上传时把 content-length 签进去，客户端就只能传这个大小：
+   * 多传一个字节，COS 直接回签名不匹配。这是预签名 PUT 唯一能在存储侧
+   * 卡住大小限制的办法，光靠调用方自己报 size 不算数。
+   */
+  extraHeaders?: Record<string, string>;
   /** 仅测试用：固定起始秒数，便于与 Python 版对拍 */
   nowSec?: number;
 }
@@ -71,9 +79,17 @@ export async function cosPresign(opts: CosPresignOptions): Promise<string> {
   const start = now - 60;
   const keyTime = `${start};${now + (opts.expires ?? 900)}`;
 
-  // 预签名场景头部列表固定为 host；url 参数列表为空
+  // 预签名头部列表至少包含 host；额外头部按名字排序后一并参与签名
   const method = (opts.method ?? "PUT").toLowerCase();
-  const httpString = `${method}\n${path}\n\nhost=${encodeURIComponent(host)}\n`;
+  const headerPairs = (
+    [
+      ["host", host],
+      ...Object.entries(opts.extraHeaders ?? {}).map(([k, v]) => [k.toLowerCase(), v] as [string, string]),
+    ] as Array<[string, string]>
+  ).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const headersStr = headerPairs.map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join("&");
+  const headerList = headerPairs.map(([k]) => k).join(";");
+  const httpString = `${method}\n${path}\n\n${headersStr}\n`;
   const stringToSign = `sha1\n${keyTime}\n${await sha1Hex(httpString)}\n`;
 
   // ⚠️ 关键细节：COS 的第二段 HMAC 用的密钥是**第一段结果的十六进制字符串**
@@ -89,7 +105,7 @@ export async function cosPresign(opts: CosPresignOptions): Promise<string> {
     `&q-ak=${opts.secretId}` +
     `&q-sign-time=${keyTimeEnc}` +
     `&q-key-time=${keyTimeEnc}` +
-    `&q-header-list=host` +
+    `&q-header-list=${encodeURIComponent(headerList)}` +
     `&q-url-param-list=` +
     `&q-signature=${signature}`;
 
@@ -114,4 +130,86 @@ export function cosPresignPut(opts: CosPresignOptions): Promise<string> {
  */
 export function cosPresignGet(opts: CosPresignOptions): Promise<string> {
   return cosPresign({ ...opts, method: "GET" });
+}
+
+/**
+ * 读对象的真实大小。
+ *
+ * 预签名 PUT 本身不知道客户端到底传了多少字节，所以登记时要以这里读到的值为准。
+ *
+ * 为什么不用 HEAD、也不用 Range：实测 COS 对这两种写法都回 403。
+ * 带 URL 签名的 HEAD 请求直接被拒；把 `range` 签进 head 列表同样判签名不匹配。
+ * 唯一稳定可用的是普通签名 GET——拿到响应头就取消响应体，不下载正文。
+ */
+export async function cosObjectSize(
+  opts: CosPresignOptions
+): Promise<{ exists: boolean; size: number | null }> {
+  const url = await cosPresignGet(opts);
+  const res = await fetch(url, { method: "GET" });
+  // 只要响应头，正文一律不读。漏掉这一步，10MB 的票会整张下载一遍。
+  if (res.body) await res.body.cancel().catch(() => {});
+
+  if (!res.ok) {
+    console.error("[cos] 读大小失败:", res.status, opts.key);
+    return { exists: false, size: null };
+  }
+
+  const raw = res.headers.get("content-length");
+  const size = raw === null ? Number.NaN : Number(raw);
+  return { exists: true, size: Number.isFinite(size) ? size : null };
+}
+
+/** 删除对象。拒收超限文件时顺手清掉，别把垃圾留在桶里 */
+export async function cosDeleteObject(opts: CosPresignOptions): Promise<void> {
+  const url = await cosPresign({ ...opts, method: "DELETE" });
+  const res = await fetch(url, { method: "DELETE" });
+  if (!res.ok && res.status !== 404) {
+    console.error("[cos] 删除对象失败:", res.status, opts.key);
+  }
+}
+
+/**
+ * 上传一张临时图片，返回给第三方模型拉取用的地址。
+ *
+ * ## 为什么经 COS 中转
+ *
+ * 视觉模型要求把图片作为 `image_url` 传入。直接内嵌 base64 的 data URL 时，
+ * 请求体会有几十 KB，服务商的网关对「数据中心 IP + 大 POST」直接回 429
+ * （实测：同一张图，本机 200，Worker 里 429；换成 691 字节的小图也一样）。
+ *
+ * 改成传 URL 后，我们发出的请求只有几百字节，跟文本调用一个量级；
+ * 拉图这一步由服务商的服务器去做，不受这个限制。
+ *
+ * 返回预签名 GET 而不是公网地址：桶保持私有，签名一小时有效，
+ * 足够模型拉取，也不会把用户的票据长期暴露在公网。
+ */
+export async function cosUploadForVision(
+  bytes: ArrayBuffer,
+  env: {
+    COS_BUCKET_NAME?: string;
+    COS_REGION?: string;
+    COS_SECRET_ID?: string;
+    COS_SECRET_KEY?: string;
+  }
+): Promise<string | null> {
+  const { COS_BUCKET_NAME, COS_REGION, COS_SECRET_ID, COS_SECRET_KEY } = env;
+  if (!COS_BUCKET_NAME || !COS_REGION || !COS_SECRET_ID || !COS_SECRET_KEY) return null;
+
+  const key = `ocr-tmp/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.jpg`;
+  const common = {
+    bucket: COS_BUCKET_NAME,
+    region: COS_REGION,
+    secretId: COS_SECRET_ID,
+    secretKey: COS_SECRET_KEY,
+    key,
+  };
+
+  const putUrl = await cosPresignPut({ ...common, expires: 600 });
+  const put = await fetch(putUrl, { method: "PUT", body: bytes });
+  if (!put.ok) {
+    console.error("[cos] 临时上传失败:", put.status, (await put.text()).slice(0, 120));
+    return null;
+  }
+
+  return cosPresignGet({ ...common, expires: 3600 });
 }

@@ -10,6 +10,10 @@
  *   3. 识别失败不影响用户把票存下来：金额可以手填，丢数据才是事故。
  */
 
+import { recognizeViaLLM } from "./ocr-vision";
+import type { Locale } from "./locale";
+import { cosUploadForVision } from "./cos";
+
 export interface OcrCategory {
   code: string;
   l1: string;
@@ -37,14 +41,24 @@ export interface OcrResult {
 
 export type OcrFailure = "no_service" | "timeout" | "network" | "bad_response" | "rejected";
 
+/** 服务商返回的 token 用量。只用于成本核算，不进接口响应 */
+export interface OcrUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  /** 图片按分辨率计费时，这里能看到图片占了多少 token */
+  prompt_tokens_details?: { cached_tokens?: number; image_tokens?: number };
+}
+
 export interface OcrCallResult {
   ok: boolean;
   data?: OcrResult;
   failure?: OcrFailure;
   message?: string;
+  usage?: OcrUsage;
 }
 
-interface OcrRaw {
+export interface OcrRaw {
   raw_text?: string | null;
   ocr_confidence?: number | null;
   merchant_name?: string | null;
@@ -63,11 +77,42 @@ interface OcrRaw {
 /** 识别一张票据。图片字节直接透传，不落盘。 */
 export async function recognize(
   image: ArrayBuffer,
-  serviceUrl: string | undefined,
-  timeoutMs = 60_000
+  env: {
+    LLM_API_KEY?: string;
+    LLM_BASE_URL: string;
+    LLM_MODEL_NAME: string;
+    OCR_SERVICE_URL?: string;
+    OCR_API_KEY?: string;
+    COS_BUCKET_NAME?: string;
+    COS_REGION?: string;
+    COS_SECRET_ID?: string;
+    COS_SECRET_KEY?: string;
+  },
+  timeoutMs = 60_000,
+  locale: Locale = "zh"
 ): Promise<OcrCallResult> {
+  const isEn = locale === "en";
+  const serviceUrl = env.OCR_SERVICE_URL;
+  // 优先走视觉 LLM：一次调用完成 OCR + 分类，无需独立容器。
+  // 失败时回落到外部 OCR 服务——两家互为备份，谁在用谁的兜底。
+  if (env.LLM_API_KEY) {
+    // 图片优先经 COS 中转（服务商拉取），直嵌 base64 会被其网关按 429 拒掉
+    const imageUrl = await imageUrlForVision(image, env);
+    const vision = await recognizeViaLLM(imageUrl, env, locale);
+    if (vision.ok) return vision;
+    console.error("[ocr] 视觉识别失败，尝试外部 OCR 服务:", vision.message);
+    // 视觉失败但外部服务也没配，就把视觉的失败原因带回去
+    if (!serviceUrl) return vision;
+  }
+
   if (!serviceUrl) {
-    return { ok: false, failure: "no_service", message: "OCR 服务未配置（缺少 OCR_SERVICE_URL）" };
+    return {
+      ok: false,
+      failure: "no_service",
+      message: isEn
+        ? "OCR service is not configured (missing OCR_SERVICE_URL)"
+        : "OCR 服务未配置（缺少 OCR_SERVICE_URL）",
+    };
   }
 
   const controller = new AbortController();
@@ -76,7 +121,11 @@ export async function recognize(
   try {
     const resp = await fetch(`${serviceUrl.replace(/\/+$/, "")}/ocr`, {
       method: "POST",
-      headers: { "Content-Type": "application/octet-stream" },
+      headers: {
+        "Content-Type": "application/octet-stream",
+        // 识别服务占 CPU，公网裸露会被滥用，共享密钥是最轻的防线
+        ...(env.OCR_API_KEY ? { "X-OCR-Key": env.OCR_API_KEY } : {}),
+      },
       body: image,
       signal: controller.signal,
     });
@@ -88,7 +137,13 @@ export async function recognize(
       return {
         ok: false,
         failure: resp.status === 503 ? "timeout" : "rejected",
-        message: resp.status === 503 ? "OCR 模型正在加载，请稍后重试" : "识别服务暂时不可用",
+        message: isEn
+          ? resp.status === 503
+            ? "The OCR model is still loading, please try again shortly"
+            : "Recognition service is temporarily unavailable"
+          : resp.status === 503
+            ? "OCR 模型正在加载，请稍后重试"
+            : "识别服务暂时不可用",
       };
     }
 
@@ -117,9 +172,43 @@ export async function recognize(
     return {
       ok: false,
       failure: isAbort ? "timeout" : "network",
-      message: isAbort ? "识别超时，请重试或手动填写" : "识别服务连不通",
+      message: isEn
+        ? isAbort
+          ? "Recognition timed out, please retry or enter the details manually"
+          : "Recognition service is unreachable"
+        : isAbort
+          ? "识别超时，请重试或手动填写"
+          : "识别服务连不通",
     };
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** 图片转 data URL。COS 不可用时的兜底：服务商网关可能对大 POST 回 429 */
+export function toDataUrl(image: ArrayBuffer): string {
+  const bytes = new Uint8Array(image);
+  let bin = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return `data:image/jpeg;base64,${btoa(bin)}`;
+}
+
+/**
+ * 给视觉模型的图片地址：先传 COS，传不上去再退回 base64。
+ *
+ * 小票与对账单两条通道都走这里，免得只修好一边。
+ */
+export async function imageUrlForVision(
+  image: ArrayBuffer,
+  env: {
+    COS_BUCKET_NAME?: string;
+    COS_REGION?: string;
+    COS_SECRET_ID?: string;
+    COS_SECRET_KEY?: string;
+  }
+): Promise<string> {
+  return (await cosUploadForVision(image, env)) ?? toDataUrl(image);
 }

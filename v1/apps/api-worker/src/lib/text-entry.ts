@@ -8,11 +8,8 @@
  * 金额、日期、分类都要过校验，不合格就要求用户补，绝不静默入库。
  */
 
-import { CATEGORY_L1_MAP } from "./categorize";
+import { allowedCategories } from "./categorize";
 import { chat, extractJson } from "./llm";
-
-/** 允许写入的分类（中文名，与库里 category_l1 的取值一致） */
-export const ALLOWED_CATEGORIES: string[] = Object.values(CATEGORY_L1_MAP);
 
 const MAX_AMOUNT = 10_000_000;
 
@@ -27,7 +24,7 @@ export interface ParsedEntry {
   missing: string[];
 }
 
-const SYSTEM_HINT = (categories: string[]) =>
+const SYSTEM_HINT_ZH = (categories: string[]) =>
   `你是记账助手。把用户的一句话解析成一条收支记录，只返回 JSON，不要解释。
 
 字段：
@@ -41,6 +38,28 @@ const SYSTEM_HINT = (categories: string[]) =>
 
 只返回 JSON 对象。`;
 
+/**
+ * 英文版提示词。
+ *
+ * `category_l1` 的白名单随区域变化：海外版是小餐饮店的八类成本
+ * （食材/房租/工资/水电/平台佣金/广告/办公/其他），中文版是中文名字。
+ * 让模型自己翻译分类名会产出不在白名单里的值，
+ * 后面 sanitize 会把它们全部降级成 Other——等于分类失效。所以白名单必须显式传入。
+ */
+const SYSTEM_HINT_EN = (categories: string[]) =>
+  `You are a bookkeeping assistant. Turn the user's sentence into one income/expense record. Return only JSON, no explanation.
+
+Fields:
+- direction: "out"(expense) or "income"(revenue)
+- amount: number, in the currency the user used. Use null when no explicit amount is given
+- merchant: merchant or counterparty name; empty string if unknown
+- date: YYYY-MM-DD. Convert "yesterday", "last Tuesday" into a real date (today's date is provided in the user message)
+- category_l1: MUST be one of: ${JSON.stringify(categories)}
+- note: one short line, may be empty
+- confidence: 0-1, how confident you are in the parse
+
+Return only the JSON object.`;
+
 interface LlmEnv {
   baseUrl: string;
   apiKey: string | undefined;
@@ -50,10 +69,13 @@ interface LlmEnv {
 export async function parseEntry(
   text: string,
   env: LlmEnv,
-  today = new Date()
+  today = new Date(),
+  region?: string
 ): Promise<ParsedEntry | null> {
   if (!text.trim()) return null;
 
+  const isEn = region !== "cn";
+  const categories = allowedCategories(region);
   const todayStr = today.toISOString().slice(0, 10);
   const res = await chat({
     baseUrl: env.baseUrl,
@@ -62,15 +84,20 @@ export async function parseEntry(
     temperature: 0,
     timeoutMs: 25_000,
     messages: [
-      { role: "system", content: SYSTEM_HINT(ALLOWED_CATEGORIES) },
-      { role: "user", content: `今天是 ${todayStr}。用户说：${text}` },
+      { role: "system", content: isEn ? SYSTEM_HINT_EN(categories) : SYSTEM_HINT_ZH(categories) },
+      {
+        role: "user",
+        content: isEn
+          ? `Today is ${todayStr}. The user said: ${text}`
+          : `今天是 ${todayStr}。用户说：${text}`,
+      },
     ],
   });
 
   if (!res.ok) return null;
   const raw = extractJson(res.text);
   if (!raw) return null;
-  return sanitize(raw, text, today);
+  return sanitize(raw, text, today, region);
 }
 
 function cleanDate(value: unknown): string | null {
@@ -88,14 +115,21 @@ function cleanDate(value: unknown): string | null {
   return s;
 }
 
-export function sanitize(raw: Record<string, unknown>, originalText: string, today: Date): ParsedEntry {
+export function sanitize(
+  raw: Record<string, unknown>,
+  originalText: string,
+  today: Date,
+  region?: string
+): ParsedEntry {
+  const isEn = region !== "cn";
+  const UNCATEGORIZED = isEn ? "Other" : "其他";
   const entry: ParsedEntry = {
     ok: false,
     direction: "out",
     amount: null,
     merchant: "",
     date: today.toISOString().slice(0, 10),
-    categoryL1: "其他",
+    categoryL1: UNCATEGORIZED,
     note: originalText.slice(0, 60),
     missing: [],
   };
@@ -118,15 +152,17 @@ export function sanitize(raw: Record<string, unknown>, originalText: string, tod
   entry.merchant = merchant
     ? merchant.slice(0, 80)
     : entry.direction === "income"
-      ? "手工录入"
+      ? (isEn ? "Manual entry" : "手工录入")
       : "";
 
   entry.date = cleanDate(raw.date) ?? today.toISOString().slice(0, 10);
 
   const cat = String(raw.category_l1 ?? "").trim();
-  // 分类表是支出分类（食材/房租/工资…），收入套用会得出「客户→工资」这种误导结果，
-  // 收入一律归「其他」，让用户在确认页按需改。
-  entry.categoryL1 = entry.direction === "income" ? "其他" : ALLOWED_CATEGORIES.includes(cat) ? cat : "其他";
+  // 分类表是支出分类，收入套用会得出「客户→工资」这种误导结果，
+  // 收入一律归未分类，让用户在确认页按需改。
+  const allowed = allowedCategories(region);
+  entry.categoryL1 =
+    entry.direction === "income" ? UNCATEGORIZED : allowed.includes(cat) ? cat : UNCATEGORIZED;
 
   // 缺金额没法入账；其他字段都有兜底
   if (entry.amount === null) entry.missing.push("amount");

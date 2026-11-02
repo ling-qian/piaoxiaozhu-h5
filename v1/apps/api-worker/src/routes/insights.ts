@@ -17,6 +17,7 @@ import {
   serverError,
 } from "../lib/http";
 import { chat, formatMoney } from "../lib/llm";
+import { getLocale } from "../lib/locale";
 import { buildQuery, parseIntent, render, timeRangeLabel } from "../lib/nlq";
 import {
   chargeAsk,
@@ -26,6 +27,7 @@ import {
 } from "../lib/points";
 import { parseEntry } from "../lib/text-entry";
 import { nowIso } from "../lib/time";
+import { assertHourlyLimit } from "../lib/rate-limit";
 
 const router = new Hono<{ Bindings: Env; Variables: { user: UserRow } }>();
 
@@ -61,9 +63,12 @@ router.post("/insights/ask", async (c) => {
   const u = c.get("user");
   const body = await c.req.json<{ question?: string }>().catch(() => ({}) as any);
   const question = String(body?.question ?? "").trim();
+  const isEn = getLocale(c) === "en";
 
-  if (!question) throw badRequest("请先输入问题");
-  if (question.length > MAX_QUESTION_LEN) throw badRequest("问题太长了，请精简一下");
+  if (!question) throw badRequest(isEn ? "Please enter a question" : "请先输入问题");
+  if (question.length > MAX_QUESTION_LEN) {
+    throw badRequest(isEn ? "That question is too long, please shorten it" : "问题太长了，请精简一下");
+  }
 
   const ts = nowIso();
 
@@ -85,15 +90,19 @@ router.post("/insights/ask", async (c) => {
 
   // 解析失败对这个功能是常态（模型偶发返回非 JSON），重试一次能显著改善体验；
   // 只在失败路径多花一次调用，成功率提升远大于成本。
-  let intent = await parseIntent(question, llmEnv(c.env));
+  let intent = await parseIntent(question, llmEnv(c.env), new Date(), isEn ? "en" : "zh");
   if (!intent.interpretation) {
     console.warn("[ask] 意图解析失败，重试一次:", question.slice(0, 40));
-    intent = await parseIntent(question, llmEnv(c.env));
+    intent = await parseIntent(question, llmEnv(c.env), new Date(), isEn ? "en" : "zh");
   }
 
   if (!intent.interpretation) {
     if (charged) await refundAsk(c.env.DB, u.id, ts);
-    throw serverError("暂时没法理解这个问题，请换个说法，或稍后再试");
+    throw serverError(
+      isEn
+        ? "Sorry, I couldn't understand that question. Try rephrasing, or ask again later."
+        : "暂时没法理解这个问题，请换个说法，或稍后再试"
+    );
   }
 
   // 顺序重要：先判「是不是查账问题」。越界提问时模型常常只返回
@@ -101,7 +110,11 @@ router.post("/insights/ask", async (c) => {
   // 会让这类请求落到「没法理解」，提示词不准确。
   if (!intent.isBookkeeping) {
     if (charged) await refundAsk(c.env.DB, u.id, ts);
-    throw badRequest("我只能帮你查账目数据，换个关于收支的问题试试");
+    throw badRequest(
+      isEn
+        ? "I can only answer questions about your bookkeeping data — try asking about income or expenses."
+        : "我只能帮你查账目数据，换个关于收支的问题试试"
+    );
   }
 
   const { sql, params } = buildQuery(intent, u.id);
@@ -130,21 +143,45 @@ router.post("/insights/ask", async (c) => {
 // --------------------------------------------------------------------------- 对话记账
 
 router.post("/insights/parse-text", async (c) => {
+  const u = c.get("user");
   const body = await c.req.json<{ text?: string }>().catch(() => ({}) as any);
   const text = String(body?.text ?? "").trim();
 
-  if (!text) throw badRequest("请说一句话，比如「昨天买菜 128」");
-  if (text.length > MAX_TEXT_LEN) throw badRequest("一句话就好，别太长");
+  if (!text) {
+    throw badRequest(
+      getLocale(c) === "en"
+        ? 'Please type one sentence, e.g. "lunch 12.50 yesterday"'
+        : "请说一句话，比如「昨天买菜 128」"
+    );
+  }
+  if (text.length > MAX_TEXT_LEN) {
+    throw badRequest(getLocale(c) === "en" ? "One short sentence is enough" : "一句话就好，别太长");
+  }
+
+  // 这一步不扣积分，但每次都要调模型。按小时封顶，防止被当成免费接口刷。
+  await assertHourlyLimit(
+    c.env.DB,
+    u.id,
+    "parse_text",
+    60,
+    getLocale(c) === "en"
+      ? "Too many entries in a short time. Please wait a few minutes."
+      : "录入太频繁了，请过几分钟再试"
+  );
 
   // 与问账同样的原因：模型偶发返回非 JSON，重试一次能显著降低「没听懂」的概率
-  let entry = await parseEntry(text, llmEnv(c.env));
+  let entry = await parseEntry(text, llmEnv(c.env), new Date(), c.env.REGION);
   if (!entry || (!entry.ok && entry.missing.length === 0)) {
     console.warn("[parse-text] 解析失败，重试一次:", text.slice(0, 40));
-    entry = await parseEntry(text, llmEnv(c.env));
+    entry = await parseEntry(text, llmEnv(c.env), new Date(), c.env.REGION);
   }
 
   if (!entry) {
-    throw serverError("没听懂这句，换个说法试试（例如：昨天盒马买菜 128）");
+    throw serverError(
+      getLocale(c) === "en"
+        ? 'Could not understand that sentence. Try rephrasing (e.g. "lunch at Pret 12.50 yesterday")'
+        : "没听懂这句，换个说法试试（例如：昨天盒马买菜 128）"
+    );
   }
 
   return c.json({
@@ -182,6 +219,17 @@ router.get("/insights/audit-report", async (c) => {
   const projectId = c.req.query("project_id") ?? null;
   if (projectId && !isUuid(projectId)) throw notFoundProject();
 
+  // 这份报告会调一次模型写审核意见，同样按小时封顶
+  await assertHourlyLimit(
+    c.env.DB,
+    u.id,
+    "audit_report",
+    30,
+    getLocale(c) === "en"
+      ? "Too many audit reports. Please wait a while before generating another."
+      : "审单报告生成太频繁了，请稍后再试"
+  );
+
   const records = await loadScanRecords(c.env.DB, u.id, projectId);
   const findings = scan(records);
 
@@ -198,9 +246,14 @@ router.get("/insights/audit-report", async (c) => {
 
   let advice = "";
   if (records.length > 0) {
+    const isEn = getLocale(c) === "en";
     const lines =
-      findings.slice(0, 8).map((f) => `- [${f.severity}] ${f.title}：${f.detail}`).join("\n") ||
-      "- 未发现明显问题";
+      findings
+        .slice(0, 8)
+        .map((f) =>
+          isEn ? `- [${f.severity}] ${f.title}: ${f.detail}` : `- [${f.severity}] ${f.title}：${f.detail}`
+        )
+        .join("\n") || (isEn ? "- No obvious issues found" : "- 未发现明显问题");
 
     // 审核意见由模型写（1 次调用）；发现与汇总都是算出来的，模型只负责组织语言，
     // 不让它参与计算——数字类结论一旦交给模型，就会有编造风险。
@@ -213,11 +266,15 @@ router.get("/insights/audit-report", async (c) => {
       messages: [
         {
           role: "user",
-          content:
-            `你是小微企业记账审核员。根据下面的账目汇总与体检发现，写一段 120 字以内的中文审核意见。\n` +
-            `要求：只针对给出的信息，不要编造数字；先说要先处理什么，再给一条改进建议。\n\n` +
-            `### 汇总\n记录 ${records.length} 条，收入 ${formatMoney(income)}，支出 ${formatMoney(expense)}。\n\n` +
-            `### 体检发现\n${lines}`,
+          content: isEn
+            ? `You are a bookkeeping reviewer for a small business. Based on the summary and audit findings below, write a review in English, under 80 words.\n` +
+              `Rules: only use the information given, never invent numbers; first say what to fix first, then give one improvement suggestion.\n\n` +
+              `### Summary\n${records.length} records, revenue ${formatMoney(income)}, expenses ${formatMoney(expense)}.\n\n` +
+              `### Audit findings\n${lines}`
+            : `你是小微企业记账审核员。根据下面的账目汇总与体检发现，写一段 120 字以内的中文审核意见。\n` +
+              `要求：只针对给出的信息，不要编造数字；先说要先处理什么，再给一条改进建议。\n\n` +
+              `### 汇总\n记录 ${records.length} 条，收入 ${formatMoney(income)}，支出 ${formatMoney(expense)}。\n\n` +
+              `### 体检发现\n${lines}`,
         },
       ],
     });
@@ -281,7 +338,11 @@ router.get("/insights/monthly-digest", async (c) => {
     const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
     month = prev.toISOString().slice(0, 7);
   }
-  if (!/^\d{4}-\d{2}$/.test(month)) throw badRequest("month 格式应为 YYYY-MM");
+  if (!/^\d{4}-\d{2}$/.test(month)) {
+    throw badRequest(
+      getLocale(c) === "en" ? "month must be in YYYY-MM format" : "month 格式应为 YYYY-MM"
+    );
+  }
 
   const sql = projectId
     ? `SELECT direction, amount, invoice_date, category_l1, merchant_name FROM invoice_records
