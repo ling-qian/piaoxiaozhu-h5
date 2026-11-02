@@ -37,7 +37,7 @@
   ],
   "exclude": [
     "node_modules",
-    "piaoxiaozhu-h5",
+    "sortreceipts",
     "v1"
   ]
 }
