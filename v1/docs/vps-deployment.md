@@ -91,7 +91,7 @@ JWT_SECRET=<openssl rand -hex 32 生成>
 ADMIN_TOKEN=<openssl rand -hex 24 生成>
 LLM_API_KEY=<你的模型 key>
 LLM_BASE_URL=https://apihub.agnes-ai.com/v1
-LLM_MODEL_NAME=agnes-2.0-flash
+LLM_MODEL_NAME=agnes-3.0-flash
 
 WX_APPID=wx097578daa9dd2a26
 WX_SECRET=<小程序后台的 AppSecret>

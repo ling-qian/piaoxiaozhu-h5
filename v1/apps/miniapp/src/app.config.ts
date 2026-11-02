@@ -1,4 +1,16 @@
 export default defineAppConfig({
+  /**
+   * 按需注入：只注入当前访问页面所需的代码，未访问的页面不注入不执行。
+   *
+   * 收益：16 个页面，启动时少执行 15 个页面的模块级代码，降低启动耗时与内存。
+   *
+   * 已确认安全：所有页面顶层只有 interface/type/const 常量与组件定义，
+   * 没有任何可执行副作用（无顶层 setInterval / addEventListener / Taro.xxx），
+   * 所以「未访问页面代码不执行」不会影响行为。
+   *
+   * 官方要求基础库 ≥ 2.11.1；低于该版本兼容但无优化效果。
+   */
+  lazyCodeLoading: 'requiredComponents',
   pages: [
     'pages/index/index',
     'pages/upload/index',

@@ -102,7 +102,9 @@
 }
 
 .stat-card {
-  width: calc(50% - 8px);
+  /* 与首页 quick-item 同一个坑：calc(50% - 8px) × 2 + gap 16px = 正好 100%，
+     rpx 舍入后会超出导致单行单列。留 6px 余量。 */
+  width: calc(50% - 14px);
   box-sizing: border-box;
   background: #fff;
   border-radius: 16px;

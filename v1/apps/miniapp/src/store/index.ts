@@ -43,7 +43,7 @@ interface AppState {
   fetchQuota: () => Promise<void>;
   fetchProjects: () => Promise<void>;
   setCurrentProject: (project: ProjectInfo | null) => void;
-  login: (code: string) => Promise<void>;
+  login: (code: string, promptProfile?: boolean) => Promise<void>;
   autoLogin: () => Promise<void>;
   logout: () => void;
   isLoggedIn: () => boolean;
@@ -62,8 +62,17 @@ function isAuthExpired(error: any): boolean {
  * 微信自 2022-10 起收回了 wx.getUserProfile，登录接口本身不返回昵称头像，
  * 只能由用户在编辑资料页主动设置。没有这一步，界面会一直显示「用户」和
  * 默认头像，看起来像登录没生效。
+ *
+ * 但**只提示一次**：这个函数挂在 autoLogin 上，而 autoLogin 每次冷启动都会跑。
+ * 原来没有去重，用户点「稍后」后下次开小程序又弹——反复被同一个弹窗打断，
+ * 比「界面显示用户」更让人想关掉小程序。「我的」页有三处入口能进编辑资料，
+ * 不靠弹窗用户也找得到。
  */
 function promptProfileSetup() {
+  const PROMPT_KEY = 'profile_prompt_shown';
+  if (Taro.getStorageSync(PROMPT_KEY)) return;
+  Taro.setStorageSync(PROMPT_KEY, true);
+
   Taro.showModal({
     title: '完善个人资料',
     content: '设置头像和昵称，方便在小程序内识别你的账号。',
@@ -120,7 +129,16 @@ export const useStore = create<AppState>((set, get) => ({
 
   setCurrentProject: (project) => set({ currentProject: project }),
 
-  login: async (code: string) => {
+  /**
+   * 登录。
+   *
+   * @param promptProfile 是否在昵称为空时弹「完善资料」。
+   *   默认 false：冷启动的静默登录（autoLogin）和 requireLogin 的兜底登录
+   *   都不该弹窗——前者用户还没看到内容就被打断，后者用户正要点上传，
+   *   弹窗会把当前任务冲掉。只有「我的 → 微信一键登录」这种用户主动发起的
+   *   登录才适合顺势引导。
+   */
+  login: async (code: string, promptProfile = false) => {
     // 失败原因由 api 层按后端 detail 提示，这里不再覆盖成笼统的「登录失败」
     const data = await authApi.wechatLogin(code);
     const accessToken = data.access_token;
@@ -129,7 +147,7 @@ export const useStore = create<AppState>((set, get) => ({
     set({ userInfo: user as UserInfo, initialized: true });
     await Promise.all([get().fetchQuota(), get().fetchProjects()]);
 
-    if (!user.nickname) {
+    if (promptProfile && !user.nickname) {
       promptProfileSetup();
     }
   },

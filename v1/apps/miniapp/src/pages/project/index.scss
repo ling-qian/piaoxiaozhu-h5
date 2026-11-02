@@ -274,6 +274,15 @@
       opacity: 0.7;
     }
   }
+
+  /* 「可点开」的视觉提示。金额右边一个浅色箭头，
+     成本极低，但决定了用户能不能发现明细页 */
+  .record-arrow {
+    margin-left: 8px;
+    color: #C8C9CC;
+    font-size: 32px;
+    line-height: 1;
+  }
 }
 
 .record-main {

@@ -248,20 +248,26 @@ async def get_project_stats(
     if project is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
 
+    # user_id 必须一起过滤：/projects/{id}/records 是按 user_id 过滤的，
+    # 这里不加就会出现「汇总有金额、明细列表为空」——当记录的 user_id 与
+    # 项目 owner 不一致时（脏数据/串号），两个接口会给出互相矛盾的结果。
     total_records = await db.execute(
         select(func.count()).select_from(InvoiceRecord).where(
-            InvoiceRecord.project_id == project_id
+            InvoiceRecord.project_id == project_id,
+            InvoiceRecord.user_id == current_user.id,
         )
     )
     cost_result = await db.execute(
         select(func.coalesce(func.sum(InvoiceRecord.amount), 0)).where(
             InvoiceRecord.project_id == project_id,
+            InvoiceRecord.user_id == current_user.id,
             InvoiceRecord.direction == "out",
         )
     )
     income_result = await db.execute(
         select(func.coalesce(func.sum(InvoiceRecord.amount), 0)).where(
             InvoiceRecord.project_id == project_id,
+            InvoiceRecord.user_id == current_user.id,
             InvoiceRecord.direction == "income",
         )
     )
@@ -269,6 +275,7 @@ async def get_project_stats(
         select(InvoiceRecord.category_l1, func.sum(InvoiceRecord.amount))
         .where(
             InvoiceRecord.project_id == project_id,
+            InvoiceRecord.user_id == current_user.id,
             InvoiceRecord.direction == "out",
         )
         .group_by(InvoiceRecord.category_l1)

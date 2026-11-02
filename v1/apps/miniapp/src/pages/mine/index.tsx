@@ -3,6 +3,7 @@ import Taro from '@tarojs/taro';
 import { useState } from 'react';
 import { useStore } from '../../store';
 import { pointsApi, resolveMediaUrl, userApi } from '../../services/api';
+import { requireLogin } from '../../utils/authGate';
 import './index.scss';
 
 const PLAN_NAMES: Record<string, string> = {
@@ -30,6 +31,9 @@ export default function Mine() {
 
   const handleCheckin = async () => {
     if (checkingIn) return;
+    // 按钮已藏在 {userInfo && points} 里，这里再兜一层：
+    // 登录态可能在页面停留期间过期（token 7 天有效期），届时不会直接吃一个 401。
+    if (!(await requireLogin())) return;
     setCheckingIn(true);
     try {
       const res = await pointsApi.checkin();
@@ -70,7 +74,9 @@ export default function Mine() {
           Taro.showToast({ title: '未获取到微信登录凭证', icon: 'none' });
           return;
         }
-        await useStore.getState().login(res.code);
+        // 这是用户主动点击的登录，适合顺势引导完善资料；
+        // 冷启动的静默登录不会传这个参数，所以不会被弹窗打断。
+        await useStore.getState().login(res.code, true);
       } catch {
         Taro.showToast({ title: '微信登录失败，请重试', icon: 'none' });
         return;
@@ -101,7 +107,10 @@ export default function Mine() {
         showQuotaInfo();
         break;
       case 'toolkit':
-        Taro.navigateTo({ url: '/pages/toolkit/index' });
+        // 工具箱是 tabBar 页，必须用 switchTab。
+        // navigateTo 跳 tabBar 页会直接报
+        // 「navigateTo:fail can not navigateTo a tabbar page」，且不会跳转。
+        Taro.switchTab({ url: '/pages/toolkit/index' });
         break;
       case 'profile':
         Taro.navigateTo({ url: '/pages/profile/index' });

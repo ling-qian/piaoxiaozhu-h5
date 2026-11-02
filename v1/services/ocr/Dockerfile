@@ -22,7 +22,9 @@ RUN pip install -r /app/requirements.txt
 
 COPY packages/core /app/packages/core
 COPY services/api/app /app/app
-COPY services/ocr/app.py /app/ocr_app.py
+# 源文件名是 ocr_app.py，不是 app.py：那个名字会遮蔽 services/api 的 app 包，
+# 导致 `from app.services.ocr_service import ...` 报 "app is not a package"。
+COPY services/ocr/ocr_app.py /app/ocr_app.py
 
 # 装 core 为可导入包（ocr_service 依赖 piaoxiaozhu_core）
 RUN pip install -e /app/packages/core

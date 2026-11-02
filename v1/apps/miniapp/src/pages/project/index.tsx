@@ -86,6 +86,8 @@ export default function Project() {
   const [stats, setStats] = useState<ProjectStats | null>(null);
   const [records, setRecords] = useState<RecordItem[]>([]);
   const [recordsTotal, setRecordsTotal] = useState(0);
+  /** 记录加载失败的原因。空状态要能区分「没记录」和「没加载到」，否则用户会以为数据丢了 */
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -167,8 +169,29 @@ export default function Project() {
       }
       setRecordsTotal(total);
       setPage(pageNum);
-    } catch {
-      // ignore
+      setLoadError(null);
+
+      // 首次加载出记录时提示一次交互方式：点开看明细、长按快速删除。
+      // 用 toast 而不是模态框——不打断操作，而且只出现一次。
+      if (pageNum === 1 && items.length > 0 && !Taro.getStorageSync('record_gesture_hint_shown')) {
+        Taro.setStorageSync('record_gesture_hint_shown', true);
+        setTimeout(() => {
+          Taro.showToast({ title: '点记录看明细 · 长按可删除', icon: 'none', duration: 2500 });
+        }, 600);
+      }
+    } catch (e: any) {
+      // 请求失败必须让用户知道，不能静默显示「暂无票据记录」——
+      // 那会让人以为数据丢了，而真相可能只是 token 过期或网络抖动。
+      // toast 由 api 层统一弹（含 errMsg 透出），这里只落到界面上，
+      // 避免同一个错误弹两次。
+      const msg = e?.message === '登录已过期'
+        ? '登录已过期，请重新登录'
+        : (e?.message || '记录加载失败');
+      setLoadError(msg);
+      if (!append) {
+        setRecords([]);
+        setRecordsTotal(0);
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -452,10 +475,12 @@ export default function Project() {
                     <Text className='record-date'>{record.invoice_date || ''}</Text>
                   </View>
                 </View>
-                <Text className={`record-amount ${record.direction === 'income' ? 'record-amount--income' : 'record-amount--cost'}`}>
-                  {record.direction === 'income' ? '+' : '-'}¥{formatAmount(record.amount)}
-                </Text>
-              </View>
+                  <Text className={`record-amount ${record.direction === 'income' ? 'record-amount--income' : 'record-amount--cost'}`}>
+                    {record.direction === 'income' ? '+' : '-'}¥{formatAmount(record.amount)}
+                  </Text>
+                  {/* 可点击提示：没有这个箭头，用户根本不知道记录能点开看明细 */}
+                  <Text className='record-arrow'>›</Text>
+                </View>
             ))}
             {loadingMore && (
               <View className='loading-more'>
@@ -470,18 +495,25 @@ export default function Project() {
           </View>
         ) : !loading ? (
           <View className='empty-state'>
-            <Text className='empty-icon'>📋</Text>
+            <Text className='empty-icon'>{loadError ? '⚠️' : '📋'}</Text>
             <Text className='empty-text'>
-              {filterActive ? '没有符合条件的记录' : '暂无票据记录'}
+              {loadError ? loadError : filterActive ? '没有符合条件的记录' : '暂无票据记录'}
             </Text>
-            {filterActive && (
+            {loadError ? (
+              <Text
+                className='empty-reset'
+                onClick={() => loadRecords(projectIdRef.current, 1)}
+              >
+                重新加载
+              </Text>
+            ) : filterActive ? (
               <Text
                 className='empty-reset'
                 onClick={() => applyFilter({ keyword: '', direction: 'all', categoryL1: 'all' })}
               >
                 清除筛选条件
               </Text>
-            )}
+            ) : null}
           </View>
         ) : null}
       </View>

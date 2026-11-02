@@ -39,6 +39,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "packages
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+# 共享密钥：这个服务占 CPU（几百毫秒到几秒一次推理），裸露在公网会被扫到滥用。
+# Worker 侧带 X-OCR-Key 头；两边用同一个值，各自配在环境变量/secret 里。
+OCR_API_KEY = os.environ.get("OCR_API_KEY", "")
+
+
 app = FastAPI(title="piaoxiaozhu-ocr", version="1.0.0")
 
 # 管线是重对象（加载模型），整个进程只初始化一次
@@ -72,6 +77,12 @@ def get_pipeline():
         )
 
 
+def require_ocr_key(request: Request) -> None:
+    """校验共享密钥。未配置密钥时放行——本地开发不该被自己挡住。"""
+    if OCR_API_KEY and request.headers.get("x-ocr-key") != OCR_API_KEY:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid ocr key")
+
+
 @app.get("/health")
 async def health() -> dict:
     """健康检查。
@@ -88,7 +99,8 @@ async def health() -> dict:
 
 
 @app.post("/warmup")
-async def warmup() -> dict:
+async def warmup(request: Request) -> dict:
+    require_ocr_key(request)
     """预热：容器启动后由 Worker 或部署脚本调一次，把模型加载提前到用户上传之前。"""
     get_pipeline()
     return {"status": "ok", "initialized": True}
@@ -96,6 +108,7 @@ async def warmup() -> dict:
 
 @app.post("/ocr")
 async def recognize(request: Request) -> JSONResponse:
+    require_ocr_key(request)
     body = await request.body()
     if not body:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="图片内容为空")

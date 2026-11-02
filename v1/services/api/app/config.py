@@ -60,7 +60,10 @@ class Settings(BaseSettings):
     # 默认值与 .env.example 保持一致，避免「没配环境变量」时静默指向另一个供应商
     LLM_BASE_URL: str = "https://apihub.agnes-ai.com/v1"
     LLM_API_KEY: str = ""
-    LLM_MODEL_NAME: str = "agnes-2.0-flash"
+    # ⚠️ 模型名必须是服务商当前在售的。写已下线的 agnes-2.0-flash 不会启动报错，
+    # 而是调用时返回 503 model_not_found；分类环节更糟——它会静默跳过，
+    # 票据照样入库，但分类全落到「其他」。这个坑 2026-10 踩过一次。
+    LLM_MODEL_NAME: str = "agnes-3.0-flash"
 
     OSS_ACCESS_KEY_ID: Optional[str] = None
     OSS_ACCESS_KEY_SECRET: Optional[str] = None

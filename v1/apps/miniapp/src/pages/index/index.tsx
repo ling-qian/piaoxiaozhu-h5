@@ -18,6 +18,9 @@ export default function Index() {
   const [checkingIn, setCheckingIn] = useState(false);
 
   const loadPointsStatus = async () => {
+    // 未登录不发这个请求：既省一次必然 401 的往返，
+    // 也避免后端日志里堆一堆无意义的 401。
+    if (!useStore.getState().isLoggedIn()) return;
     try {
       const res = await pointsApi.getPoints();
       setCheckedInToday(res.checked_in_today);
@@ -158,15 +161,19 @@ export default function Index() {
           <Text className='greeting-text'>你好，{userInfo?.nickname || '用户'}</Text>
           <Text className='greeting-sub'>今天需要识别票据吗？</Text>
         </View>
-        <View
-          className={`checkin-pill ${checkedInToday ? 'checkin-pill--done' : ''}`}
-          onClick={handleCheckin}
-        >
-          <Text className='checkin-text'>
-            {checkedInToday ? '已签到 ✓' : checkingIn ? '签到中…' : '签到 +2'}
-          </Text>
+          {/* 签到入口只在登录后展示：未登录时点了会 401，
+              而且「签到 +2」对一个还没账号的人没有意义 */}
+          {userInfo && (
+            <View
+              className={`checkin-pill ${checkedInToday ? 'checkin-pill--done' : ''}`}
+              onClick={handleCheckin}
+            >
+              <Text className='checkin-text'>
+                {checkedInToday ? '已签到 ✓' : checkingIn ? '签到中…' : '签到 +2'}
+              </Text>
+            </View>
+          )}
         </View>
-      </View>
 
       {/* 主 CTA：把最高频的动作做成整块大按钮，而不是和其他入口并列的小方块 */}
       <View className='hero-upload' onClick={handleUpload}>

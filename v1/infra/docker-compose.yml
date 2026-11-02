@@ -28,7 +28,7 @@ services:
       CONTENT_SECURITY_ENABLED: ${CONTENT_SECURITY_ENABLED:-true}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://apihub.agnes-ai.com/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-agnes-2.0-flash}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-agnes-3.0-flash}
       # 固定为 false：联调支付用 mock 通道，不要在这条路径上放开免费升级
       PAYMENT_MOCK_ENABLED: "false"
       # 微信支付（真实收款）。WX_PRIVATE_KEY_PATH / WX_PLATFORM_CERT_PATH 可填
@@ -84,7 +84,7 @@ services:
       UPLOAD_DIR: /app/uploads
       LLM_BASE_URL: ${LLM_BASE_URL:-https://apihub.agnes-ai.com/v1}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-agnes-2.0-flash}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-agnes-3.0-flash}
       # 到期提醒任务要发订阅消息，凭据与模板 id 必须给到 worker
       WX_APPID: ${WX_APPID:-}
       WX_SECRET: ${WX_SECRET:-}
