@@ -285,3 +285,18 @@ CREATE TABLE IF NOT EXISTS api_usage (
   created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_api_usage_user ON api_usage(user_id, action, created_at);
+
+-- ---------------------------------------------------------------- 付费意向
+--
+-- 支付通道还没接完时，Pro 的购买入口改成「留邮箱，开通后通知」。
+-- 同一个邮箱对同一个套餐只留一行，重复提交不会堆数据。
+CREATE TABLE IF NOT EXISTS plan_interest (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT REFERENCES users(id) ON DELETE CASCADE,
+  email       TEXT NOT NULL,
+  plan_code   TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  -- 开通后发过通知就写上时间，避免同一个人收到第二封
+  notified_at TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ix_plan_interest_email_plan ON plan_interest(email, plan_code);

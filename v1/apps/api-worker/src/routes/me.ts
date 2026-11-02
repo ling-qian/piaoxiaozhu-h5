@@ -15,6 +15,9 @@ router.get("/me", async (c) => {
     id: u.id,
     openid: u.openid,
     unionid: u.unionid,
+    // 会员页要用它预填「开通后通知」的邮箱，之前漏了这个字段，
+    // 前端只能拿到 undefined，输入框一直是空的。
+    email: u.email,
     phone: u.phone,
     nickname: u.nickname,
     avatar_url: u.avatar_url,

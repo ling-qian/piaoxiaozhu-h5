@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/lib/i18n";
 import { formatPrice, CURRENCY_SYMBOL } from "@/lib/currency";
-import { capturePaypalOrder, getIntlPaymentConfig, startIntlCheckout, syncStripeOrder } from "@/lib/actions/payment-actions";
+import { capturePaypalOrder, getIntlPaymentConfig, registerPlanInterest, startIntlCheckout, syncStripeOrder } from "@/lib/actions/payment-actions";
 import { IS_CN_REGION } from "@/lib/region";
 import PageHeader from "@/components/page-header";
 
@@ -87,7 +87,7 @@ interface UpgradeRequest {
 
 type PayMethod = "wechat" | "alipay" | "card";
 
-export default function MemberClient({ currentPlan }: { currentPlan: string }) {
+export default function MemberClient({ currentPlan, currentEmail }: { currentPlan: string; currentEmail: string }) {
   const { showToast } = useToast();
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -99,6 +99,16 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
   const [intlConfig, setIntlConfig] = useState<{ stripe: boolean; paypal: boolean } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<UpgradeRequest[]>([]);
+  // 支付没开通时，购买按钮改成留邮箱。这三个状态服务于那个弹窗
+  const [interestPlan, setInterestPlan] = useState<{ code: string; name: string; accentColor: string } | null>(null);
+  const [interestEmail, setInterestEmail] = useState("");
+  const [submittingInterest, setSubmittingInterest] = useState(false);
+
+  // 海外版按支付能力渲染；国内版继续走收款码 + 人工审核
+  const isIntlMode = !IS_CN_REGION;
+  const hasStripe = Boolean(intlConfig?.stripe);
+  const hasPaypal = Boolean(intlConfig?.paypal);
+  const paymentsOpen = hasStripe || hasPaypal;
 
   // 支付回跳处理：Stripe 用 sync 核对，PayPal 用 capture 扣款
   useEffect(() => {
@@ -160,6 +170,14 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
     const plan = plans.find((p) => p.code === planCode);
     if (!plan) return;
 
+    // 支付通道没开时，支付弹窗只会写「暂未开通」，等于把用户送进死胡同。
+    // 改成留邮箱，开通后通知。
+    if (isIntlMode && !paymentsOpen) {
+      setInterestEmail(currentEmail);
+      setInterestPlan({ code: planCode, name: t(plan.nameKey), accentColor: plan.accentColor });
+      return;
+    }
+
     setPayPlan({
       code: planCode,
       name: t(plan.nameKey),
@@ -167,6 +185,20 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
       accentColor: plan.accentColor,
     });
     setShowPayModal(true);
+  }
+
+  async function handleInterestSubmit() {
+    if (!interestPlan || submittingInterest) return;
+    setSubmittingInterest(true);
+    try {
+      await registerPlanInterest(interestPlan.code, interestEmail);
+      showToast(t("member.interestSaved"), "success");
+      setInterestPlan(null);
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : t("member.interestFailed"), "error");
+    } finally {
+      setSubmittingInterest(false);
+    }
   }
 
   // Stripe 模式：选择支付方式后跳转 Stripe Checkout
@@ -227,11 +259,6 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
   const pendingPlanNames = pendingRequests
     .filter((r) => r.status === "pending")
     .map((r) => { const p = plans.find((p) => p.code === r.planCode); return p ? t(p.nameKey) : r.planCode; });
-
-  // 海外版按支付能力渲染；国内版继续走收款码 + 人工审核
-  const isIntlMode = !IS_CN_REGION;
-  const hasStripe = Boolean(intlConfig?.stripe);
-  const hasPaypal = Boolean(intlConfig?.paypal);
 
   return (
     <div className="pb-20 min-h-screen bg-[#F8FAFC] lg:pb-10">
@@ -362,7 +389,15 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
                         : undefined
                     }
                   >
-                    {isPurchasing ? t("member.redirectingPay") : isCurrent ? t("member.currentPlanLabel") : hasPending ? t("member.reviewing") : t("member.buyNow")}
+                    {isPurchasing
+                      ? t("member.redirectingPay")
+                      : isCurrent
+                      ? t("member.currentPlanLabel")
+                      : hasPending
+                      ? t("member.reviewing")
+                      : isIntlMode && !paymentsOpen
+                      ? t("member.interestNotify")
+                      : t("member.buyNow")}
                   </button>
                 )}
               </div>
@@ -544,6 +579,51 @@ export default function MemberClient({ currentPlan }: { currentPlan: string }) {
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 留邮箱弹窗：支付未开通时替代支付弹窗 */}
+      {interestPlan && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 animate-fade-in">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm overflow-hidden animate-fade-in-up">
+            <div
+              className="px-5 py-5 text-white relative"
+              style={{ background: `linear-gradient(135deg, ${interestPlan.accentColor}, ${interestPlan.accentColor}CC)` }}
+            >
+              <button
+                onClick={() => setInterestPlan(null)}
+                className="absolute right-4 top-4 w-7 h-7 rounded-full bg-white/20 flex items-center justify-center text-white text-sm"
+              >
+                ✕
+              </button>
+              <p className="text-sm opacity-90">{t("member.interestTitle")}</p>
+              <p className="text-2xl font-black mt-1">{interestPlan.name}</p>
+            </div>
+            <div className="px-5 py-5">
+              <p className="text-sm text-[#475569] mb-3 leading-relaxed">{t("member.interestDesc")}</p>
+              <input
+                type="email"
+                value={interestEmail}
+                onChange={(e) => setInterestEmail(e.target.value)}
+                placeholder="you@restaurant.com"
+                className="w-full border border-[#E2E8F0] rounded-xl px-4 py-3 text-sm bg-white focus:border-brand focus:outline-none transition-colors"
+              />
+              <button
+                onClick={handleInterestSubmit}
+                disabled={submittingInterest}
+                className="w-full mt-4 py-3.5 rounded-xl text-white text-sm font-semibold btn-press transition-all duration-200 disabled:opacity-50"
+                style={{ backgroundColor: interestPlan.accentColor, boxShadow: `0 4px 14px ${interestPlan.accentColor}40` }}
+              >
+                {submittingInterest ? t("member.interestSaving") : t("member.interestNotify")}
+              </button>
+              <button
+                onClick={() => setInterestPlan(null)}
+                className="w-full mt-2 py-3 rounded-xl text-sm font-medium text-[#64748B]"
+              >
+                {t("member.interestCancel")}
+              </button>
+            </div>
           </div>
         </div>
       )}

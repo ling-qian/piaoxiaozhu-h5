@@ -13,7 +13,7 @@ export default async function MemberPage() {
 
   return (
     <Suspense>
-      <MemberClient currentPlan={user.planCode} />
+      <MemberClient currentPlan={user.planCode} currentEmail={user.email ?? ""} />
     </Suspense>
   );
 }

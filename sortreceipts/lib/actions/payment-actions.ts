@@ -116,3 +116,24 @@ export async function capturePaypalOrder(orderId: string): Promise<{ paid: boole
     throw new Error("确认 PayPal 付款失败");
   }
 }
+
+/**
+ * 登记付费意向。
+ *
+ * 支付通道没开通时，Pro 的购买按钮不走下单，而是把邮箱记下来。
+ * 开通后运营按这张表通知，用户不会看到一个「暂未开通」的死胡同。
+ */
+export async function registerPlanInterest(planCode: string, email: string): Promise<void> {
+  const session = await auth();
+  if (!session?.user) throw new Error("请先登录");
+
+  try {
+    await apiFetch<{ ok: boolean }>("/api/plan-interest", {
+      method: "POST",
+      body: { planCode, email },
+    });
+  } catch (e) {
+    if (e instanceof ApiError) throw new Error(e.message);
+    throw new Error("提交失败，请稍后再试");
+  }
+}

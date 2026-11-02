@@ -23,6 +23,7 @@ import paymentRoutes from "./routes/payments";
 import pointRoutes from "./routes/points";
 import adminRoutes from "./routes/admin";
 import intlPaymentRoutes from "./routes/payments-intl";
+import interestRoutes from "./routes/interest";
 import packRoutes from "./routes/pack";
 import salesRoutes from "./routes/sales";
 
@@ -101,6 +102,7 @@ app.route("/api", paymentRoutes);
 app.route("/api", pointRoutes);
 app.route("/api", adminRoutes);
 app.route("/api", intlPaymentRoutes);
+app.route("/api", interestRoutes);
 app.route("/api", packRoutes);
 app.route("/api", salesRoutes);
 
