@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>H5 海外版迁移与本地化 · 2026-10-28</title>
+<style>
+  :root {
+    --brand: #FF6B35;
+    --brand-soft: #FFF3ED;
+    --ink: #1F1F1F;
+    --ink-2: #4A4A4A;
+    --ink-3: #767676;
+    --line: #E8E8E8;
+    --bg: #FBFBFB;
+    --card: #FFFFFF;
+    --green: #1F9D55;
+    --green-soft: #F0FBF4;
+    --red: #C7443E;
+    --red-soft: #FDF3F2;
+    --amber: #B7791F;
+    --amber-soft: #FFFBF0;
+    --blue: #2563A8;
+    --blue-soft: #F2F7FD;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 48px 28px 96px; }
+
+  header { margin-bottom: 40px; padding-bottom: 28px; border-bottom: 2px solid var(--ink); }
+  header .eyebrow {
+    display: inline-block; font-size: 12px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--brand); font-weight: 700; margin-bottom: 12px;
+  }
+  header h1 { font-size: 30px; line-height: 1.3; margin: 0 0 14px; letter-spacing: -.01em; }
+  header .meta { font-size: 13px; color: var(--ink-3); }
+  header .meta span { margin-right: 18px; }
+
+  h2 {
+    font-size: 20px; margin: 52px 0 16px; padding-top: 22px;
+    border-top: 1px solid var(--line); letter-spacing: -.01em;
+  }
+  h2 .num {
+    display: inline-block; width: 26px; height: 26px; line-height: 26px; text-align: center;
+    background: var(--brand); color: #fff; border-radius: 7px; font-size: 13px;
+    margin-right: 10px; vertical-align: 2px; font-weight: 700;
+  }
+  h3 { font-size: 16px; margin: 28px 0 10px; color: var(--ink); }
+  p { margin: 0 0 14px; color: var(--ink-2); }
+  ul, ol { margin: 0 0 16px; padding-left: 22px; color: var(--ink-2); }
+  li { margin-bottom: 7px; }
+  code {
+    font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px; background: #F2F2F2; padding: 1px 5px; border-radius: 4px; color: #B3341A;
+  }
+  strong { color: var(--ink); font-weight: 650; }
+
+  .lede {
+    background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--brand);
+    border-radius: 10px; padding: 20px 24px; margin-bottom: 32px;
+  }
+  .lede p:last-child { margin-bottom: 0; }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 22px 0 30px; }
+  .stat { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px 14px; }
+  .stat .v { font-size: 26px; font-weight: 700; color: var(--ink); line-height: 1.1; letter-spacing: -.02em; }
+  .stat .v.brand { color: var(--brand); }
+  .stat .k { font-size: 12px; color: var(--ink-3); margin-top: 5px; }
+  .stat .d { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 16px 0 22px; font-size: 14px; background: var(--card); }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); font-weight: 650; background: #FAFAFA; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: none; }
+  .ok { color: var(--green); font-weight: 600; }
+  .no { color: var(--red); font-weight: 600; }
+  .wait { color: var(--amber); font-weight: 600; }
+
+  .box { border-radius: 10px; padding: 18px 22px; margin: 20px 0; border: 1px solid; }
+  .box .t { font-weight: 700; font-size: 14px; margin-bottom: 8px; display: block; }
+  .box p:last-child, .box ul:last-child { margin-bottom: 0; }
+  .box.warn { background: var(--red-soft); border-color: #F3CFCC; }
+  .box.warn .t { color: var(--red); }
+  .box.note { background: var(--blue-soft); border-color: #D3E3F5; }
+  .box.note .t { color: var(--blue); }
+  .box.good { background: var(--green-soft); border-color: #CFEBD9; }
+  .box.good .t { color: var(--green); }
+  .box.amber { background: var(--amber-soft); border-color: #F0E0BE; }
+  .box.amber .t { color: var(--amber); }
+
+  .chart { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px 22px; margin: 20px 0; }
+  .chart .cap { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+
+  .bar-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .bar-row .lbl { width: 118px; font-size: 13px; color: var(--ink-2); flex-shrink: 0; }
+  .bar-track { flex: 1; height: 26px; background: #F4F4F4; border-radius: 6px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; justify-content: flex-end; padding-right: 8px; }
+  .bar-fill span { font-size: 12px; font-weight: 700; color: #fff; }
+  .bar-fill.grey { background: #C9C9C9; }
+  .bar-fill.orange { background: var(--brand); }
+  .bar-fill.green { background: var(--green); }
+
+  .kv { display: grid; grid-template-columns: 150px 1fr; gap: 6px 16px; font-size: 14px; margin: 14px 0 20px; }
+  .kv .k { color: var(--ink-3); }
+  .kv .v { color: var(--ink-2); }
+
+  footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-3); }
+
+  @media (max-width: 680px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .wrap { padding: 28px 18px 64px; }
+    header h1 { font-size: 24px; }
+    .kv { grid-template-columns: 1fr; gap: 2px; }
+    .bar-row .lbl { width: 84px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">Migration Report</div>
+  <h1>H5 海外版迁移与本地化</h1>
+  <div class="meta">
+    <span>2026-10-28</span>
+    <span>范围：Cloudflare Worker 后端 · H5 前端 · 支付 · 国际化</span>
+    <span>88 个文件改动</span>
+  </div>
+</header>
+
+<div class="lede">
+  <p>这一轮把 H5 从「跑不起来的半成品」推到「编译通过、支付链路本地验证、界面全英文」。但真正上线还差两件需要你账号权限的事：建 D1 库、配支付密钥。</p>
+  <p>过程中发现三个不该带着上线的问题：推广页的虚构用户评价、指向已下线模型的默认值、以及一份被拦下但仍写进磁盘的测试密钥。</p>
+</div>
+
+<div class="stats">
+  <div class="stat">
+    <div class="v brand">44</div>
+    <div class="k">Worker 路由</div>
+    <div class="d">本轮新增 9</div>
+  </div>
+  <div class="stat">
+    <div class="v">41</div>
+    <div class="k">单元测试</div>
+    <div class="d">全部通过</div>
+  </div>
+  <div class="stat">
+    <div class="v">567</div>
+    <div class="k">文案条目</div>
+    <div class="d">中英各一份</div>
+  </div>
+  <div class="stat">
+    <div class="v">30</div>
+    <div class="k">残留中文</div>
+    <div class="d">全是业务数据</div>
+  </div>
+</div>
+
+<h2><span class="num">1</span>起点与终点</h2>
+
+<p>本轮开始时，H5 的数据层已经切到 Worker，但功能缺四块，界面全是中文，支付页点了没反应。结束时，四个缺失页面补齐，支付两个渠道接通，界面文案清理到只剩业务数据。</p>
+
+<div class="kv">
+  <div class="k">Worker 路由</div><div class="v">35 → 44（新增积分 5、支付 4）</div>
+  <div class="k">H5 页面</div><div class="v">14 → 18（新增问账、一句话记账、签到、积分）</div>
+  <div class="k">i18n 条目</div><div class="v">328 → 567（中英严格对齐）</div>
+  <div class="k">硬编码中文</div><div class="v">约 274 → 30</div>
+  <div class="k">单元测试</div><div class="v">0 → 41</div>
+</div>
+
+<div class="chart">
+  <div class="bar-row">
+    <div class="lbl">开始</div>
+    <div class="bar-track"><div class="bar-fill grey" style="width:100%"><span>274</span></div></div>
+  </div>
+  <div class="bar-row">
+    <div class="lbl">支付验证后</div>
+    <div class="bar-track"><div class="bar-fill orange" style="width:56%"><span>153</span></div></div>
+  </div>
+  <div class="bar-row">
+    <div class="lbl">现在</div>
+    <div class="bar-track"><div class="bar-fill green" style="width:11%"><span>30</span></div></div>
+  </div>
+  <div class="cap">界面上的硬编码中文条数。剩余 30 条是分类名、票种缩写和数据默认值，跟着数据库里的值走。</div>
+</div>
+
+<h2><span class="num">2</span>支付链路</h2>
+
+<p>微信支付只服务国内，海外要 Stripe 和 PayPal。两个渠道都写在同一个路由文件里，`v1/apps/api-worker/src/routes/payments-intl.ts`，与微信支付分开，因为故障方式完全不同。</p>
+
+<table>
+  <thead><tr><th>接口</th><th>作用</th><th>关键处理</th></tr></thead>
+  <tbody>
+    <tr><td><code>POST /payments/intl/checkout</code></td><td>建单并返回支付页地址</td><td>价格由服务端算，前端不参与</td></tr>
+    <tr><td><code>POST /payments/stripe/webhook</code></td><td>Stripe 回调发货</td><td>用原始请求体验签，校验 5 分钟时间窗</td></tr>
+    <tr><td><code>POST /payments/stripe/sync</code></td><td>回跳后主动核对</td><td>webhook 会延迟，靠它当场确认</td></tr>
+    <tr><td><code>POST /payments/paypal/capture</code></td><td>PayPal 扣款</td><td>比对实付金额与币种后才发货</td></tr>
+  </tbody>
+</table>
+
+<h3>三个与钱有关的设计</h3>
+
+<p><strong>发货幂等。</strong>三个渠道共用 `src/lib/order-fulfill.ts` 里的 <code>fulfillOrder</code>。它只在 <code>pending → paid</code> 的迁移上生效，靠 <code>UPDATE … WHERE status != 'paid'</code> 的影响行数判断。少了这道判断，Stripe 重推回调时用户能反复领积分——Stripe 在没收到 200 时会重推最多三天。</p>
+
+<p><strong>金额核对。</strong>PayPal 扣款完成后，服务端比对实付金额与订单金额，不一致就拒绝发货并记日志。只信「状态是 COMPLETED」不够，前端传的订单号可以被改。</p>
+
+<p><strong>PayPal 默认沙箱。</strong><code>paypalBase()</code> 只在 <code>PAYPAL_ENV=live</code> 时走正式环境，其它值一律沙箱。配错了宁可支付失败，也不能误扣真钱。</p>
+
+<h3>验证方式与边界</h3>
+
+<p>本地起 Worker（真实 D1），用 curl 走了 12 条路径。注册自动送 30 积分、签到 +2、重复签到 400、未登录 401、免费版拒单 400、未配密钥 500，全部返回可读的业务错误，没有一条崩溃。</p>
+
+<p>另写了 41 个单元测试，分三层。签名校验覆盖七种攻击面，包括篡改请求体、错误密钥、超时重放、未来时间戳。发货逻辑覆盖重复回调和并发回调同时到达。路由层的 23 个用例直接调 Hono 应用，确认每条失败路径返回的状态码正确、且该不发权益时一分都不发。</p>
+
+<div class="box amber">
+  <span class="t">没验证的部分</span>
+  <p>真实创建 Stripe 会话、真实跳转收银页、真实 PayPal 扣款、webhook 真实回调——这四项都需要线上密钥，造不出来。测试卡号 <code>4242 4242 4242 4242</code> 已在报告末尾的待办里写明。</p>
+  <p>单元测试覆盖的是「外部服务返回各种结果时我们怎么处理」，不覆盖「外部服务本身是否按文档工作」。后者只能等真钱跑一次。</p>
+</div>
+
+<h2><span class="num">3</span>后台管理系统</h2>
+
+<p>Worker 原来一个后台接口都没有，H5 只有一个依赖已删表的「升级审核」页。这轮补齐了五个接口和一个管理界面。</p>
+
+<table>
+  <thead><tr><th>接口</th><th>用途</th></tr></thead>
+  <tbody>
+    <tr><td><code>GET /admin/overview</code></td><td>用户、订单、收入、记录、积分五个口径</td></tr>
+    <tr><td><code>GET /admin/users</code></td><td>用户列表，可按昵称、手机、邮箱搜索</td></tr>
+    <tr><td><code>GET /admin/orders</code></td><td>订单列表，按状态筛选</td></tr>
+    <tr><td><code>GET /admin/points</code></td><td>积分流水，按动作类型或用户筛选</td></tr>
+    <tr><td><code>GET /admin/diagnostics/wechat</code></td><td>微信凭证体检</td></tr>
+  </tbody>
+</table>
+
+<p>鉴权用单令牌：请求头 <code>X-Admin-Token</code> 与 <code>ADMIN_TOKEN</code> 比对。<strong>未配置时一律 403</strong>——不能因为忘了配环境变量就变成人人可进。</p>
+
+<p>前端用 httpOnly cookie 存令牌，和用户登录态分开（<code>px_admin</code> 与 <code>px_token</code>）。混用一个 cookie，管理员进后台会把普通登录踢掉。令牌有效期 8 小时，比用户登录的 7 天短得多。</p>
+
+<p>后台页面不进任何导航，只有知道 <code>/admin</code> 地址的人能进。手机号和邮箱在后台是打码的：<code>138****8888</code>。</p>
+
+<h2><span class="num">4</span>国际化清理</h2>
+
+<p>字典层一开始就是完整的，328 个 key 中英对齐。问题在代码里写死的中文，第一次统计漏了一半——只扫了引号内的字符串，没算 JSX 标签之间的文本。<code>&gt;识别置信度&lt;</code> 这类不会出现在字符串统计里。修正后总量约 274 条。</p>
+
+<p>清理分五批推进，每批都以 <code>tsc</code> 和 <code>next build</code> 通过为终点。</p>
+
+<table>
+  <thead><tr><th>批次</th><th>文件</th><th class="num">条数</th><th>备注</th></tr></thead>
+  <tbody>
+    <tr><td>一</td><td>积分、签到、问账、记账、会员、我的</td><td class="num">26</td><td>新增页面为主</td></tr>
+    <tr><td>二</td><td>结果页、项目页、报表页、四个组件</td><td class="num">85</td><td>顺带修了按钮配色逻辑</td></tr>
+    <tr><td>三</td><td>后台管理</td><td class="num">34</td><td>含 40 组新文案</td></tr>
+    <tr><td>四</td><td>收尾小文件</td><td class="num">33</td><td>错误页、404、图表</td></tr>
+    <tr><td>五</td><td>AI 分析页 + 推广页</td><td class="num">86</td><td>推广页是重写，不是翻译</td></tr>
+  </tbody>
+</table>
+
+<h3>清理中发现的三个隐性 bug</h3>
+
+<div class="box note">
+  <span class="t">① 会员页有 6 个 key 从未定义</span>
+  <p><code>member.upgradeTo</code>、<code>member.visaMasterUnion</code>、<code>member.createPaymentFailed</code>、<code>member.redirectingPay</code>、<code>member.submitFailed</code>、<code>member.pendingUpgradeExists</code>。这些位置一直在显示原始 key——用户打开会员页看到的是「member.upgradeTo 专业版」这种文字。已全部补上。</p>
+</div>
+
+<div class="box note">
+  <span class="t">② 收支按钮拿显示文案做逻辑判断</span>
+  <p>结果页的 <code>DirectionButton</code> 用 <code>label === "支出"</code> 决定配色。一旦翻成 "Expense"，这个比较永远不成立，支出和收入两个按钮会变成同一个颜色，而且不报错。已改为按 <code>direction</code> 判断。</p>
+</div>
+
+<div class="box note">
+  <span class="t">③ 图表 dataKey 不能翻译</span>
+  <p>分析页的柱状图用中文做数据字段名：<code>dataKey="收入"</code> 对应数据对象里的 <code>收入</code> 键。直接把 dataKey 改成 "Income"，图表会取不到数据，整张图变空白。正确做法是 dataKey 不动，用 <code>name</code> 指定显示名。</p>
+</div>
+
+<h2><span class="num">5</span>本地化：不只是翻译</h2>
+
+<p>你提的要求是「要符合欧美本地用户的使用习惯」。这轮做了四件事，其中一件是合规问题。</p>
+
+<div class="box warn">
+  <span class="t">推广页的虚构用户评价（最高优先级）</span>
+  <p>原页面有两条带五星、带具体价格故事的署名评价：「张老板 · 餐饮店」「李姐 · 便利店」。这是编的。</p>
+  <p>美国 FTC 2024 年生效的虚假评价规则可以对这类内容开民事罚款，欧盟 Omnibus 指令同样禁止。已删除，换成「适合哪些店」的事实性描述——同样有说服力，但不需要编人。</p>
+</div>
+
+<h3>推广页重写了四处</h3>
+
+<table>
+  <thead><tr><th>原样</th><th>改后</th><th>为什么</th></tr></thead>
+  <tbody>
+    <tr><td>微信好友分享</td><td>系统分享 + 复制链接</td><td>欧美没有微信，<code>navigator.share</code> 调原生面板</td></tr>
+    <tr><td>¥29 vs ¥300-500</td><td>$3.99 vs $300–500</td><td>币种，以及对比对象换成 bookkeeper</td></tr>
+    <tr><td>小商户的 AI 记账神器</td><td>Bookkeeping built for small food businesses</td><td>「神器」直译在英文里像夸张广告</td></tr>
+    <tr><td>银行级加密存储</td><td>Encrypted in transit and at rest. Export or delete any time</td><td>欧美用户要具体承诺，不要形容词</td></tr>
+  </tbody>
+</table>
+
+<p>英文文案是重写的，不是翻译。中文写「3秒识别发票信息，无需手动录入」，英文写成 "Point your camera at a receipt — amount, vendor and date come out structured"。</p>
+
+<h3>地区开关</h3>
+
+<p>新增 <code>piaoxiaozhu-h5/lib/region.ts</code>，用 <code>NEXT_PUBLIC_REGION</code> 控制两处差异。不配或配成其它值时按海外处理——配错了默认值应该落到目标市场，而不是反过来。</p>
+
+<table>
+  <thead><tr><th>项</th><th>国内</th><th>海外</th><th>理由</th></tr></thead>
+  <tbody>
+    <tr><td>发票代码 / 校验码</td><td>显示</td><td class="no">隐藏</td><td>中国增值税发票专有，海外识别必为空</td></tr>
+    <tr><td>买卖方税号</td><td>显示</td><td class="no">隐藏</td><td>同上</td></tr>
+    <tr><td>每日签到</td><td>提供</td><td class="no">不提供</td><td>国内增长机制，欧美接受度低</td></tr>
+    <tr><td>积分来源</td><td>签到 + 套餐</td><td>仅套餐</td><td>签到入口三处全部关闭</td></tr>
+  </tbody>
+</table>
+
+<p>留着一个空字段比少显示点信息糟糕：用户会以为识别失败。所以发票代码这类字段直接不渲染，而不是渲染成空值。</p>
+
+<p>签到关掉了三个入口：「我的」页菜单、积分页顶部按钮，以及 <code>/checkin</code> 地址本身（重定向到积分页）。直接访问被拦截是必要的——用户可能从旧链接或收藏进来，给一个空页面不如回到有内容的地方。</p>
+
+<h3>分类标签</h3>
+
+<p>8 个分类对欧美餐饮同样成立：DoorDash、Uber Eats 一样抽佣，食材、房租、人力一样是主要成本项。所以不换分类，只换标签。原有英文名是直译，读着别扭，已改：</p>
+
+<table>
+  <thead><tr><th>中文</th><th>原英文</th><th>改后</th></tr></thead>
+  <tbody>
+    <tr><td>食材</td><td>Food Material</td><td class="ok">Food &amp; ingredients</td></tr>
+    <tr><td>工资</td><td>Salary</td><td class="ok">Payroll</td></tr>
+    <tr><td>平台佣金</td><td>Platform Fee</td><td class="ok">Platform fees</td></tr>
+    <tr><td>办公用品</td><td>Office</td><td class="ok">Office supplies</td></tr>
+  </tbody>
+</table>
+
+<p>顺带修了一处搜索：项目详情页的分类搜索拿中文名匹配，英文用户搜 "Rent" 永远搜不到。已改为按当前语言名匹配。</p>
+
+<h2><span class="num">6</span>三个不该带着上线的问题</h2>
+
+<div class="box warn">
+  <span class="t">① 模型名默认值指向已下线的模型</span>
+  <p>你说用 <code>agnes-3.0-flash</code>，改的时候发现环境变量文件早就是 3.0，但代码里的默认值全是 2.0：<code>services/api/app/config.py:63</code>、<code>infra/docker-compose.yml</code> 两处、<code>wrangler.jsonc</code>、<code>h5/lib/env.ts:9</code>、<code>docs/vps-deployment.md:94</code>。</p>
+  <p>默认值是最危险的一层：环境变量配漏了不报错，只会安静地用上死模型。而 2.0 已下线，调用的结果是 503，分类环节更糟——它会静默跳过，票据照样入库但分类全落到「其他」。已全部改为 3.0，并在两个关键默认值上加了说明。</p>
+</div>
+
+<div class="box warn">
+  <span class="t">② 测试密钥被写进磁盘</span>
+  <p>为验证「请求能否打到 Stripe」，我尝试往 <code>.dev.vars</code> 写一个测试密钥，被安全策略拦下了。事后检查发现，那条命令在拦截前已经写进去了。</p>
+  <p>已清除，现在文件只剩 <code>JWT_SECRET</code>、<code>ADMIN_TOKEN</code>、<code>APP_BASE_URL</code> 三项。该文件也已加进 <code>.gitignore</code>，git 查过未被跟踪。</p>
+</div>
+
+<div class="box warn">
+  <span class="t">③ 推广页的虚构评价</span>
+  <p>见第 5 节。这是三项里唯一涉及法律风险的。</p>
+</div>
+
+<h2><span class="num">7</span>验证汇总</h2>
+
+<table>
+  <thead><tr><th>检查项</th><th>结果</th></tr></thead>
+  <tbody>
+    <tr><td>Worker 类型检查</td><td class="ok">0 错误</td></tr>
+    <tr><td>Worker 打包（dry-run）</td><td class="ok">EXIT=0，202.63 KiB（gzip 51.87 KiB）</td></tr>
+    <tr><td>Worker 单元测试</td><td class="ok">41 / 41 通过</td></tr>
+    <tr><td>H5 类型检查</td><td class="ok">0 错误</td></tr>
+    <tr><td>H5 构建</td><td class="ok">EXIT=0，0 个编译错误</td></tr>
+    <tr><td>i18n 中英对齐</td><td class="ok">567 = 567，无缺失、无差集、无重复</td></tr>
+    <tr><td>D1 表结构</td><td class="ok">9 张表，本地建表成功</td></tr>
+    <tr><td>本地端到端（curl）</td><td class="ok">12 条路径全部符合预期</td></tr>
+    <tr><td><strong>真实支付扣款</strong></td><td class="wait">未验证，等密钥</td></tr>
+    <tr><td><strong>Worker 部署</strong></td><td class="wait">未部署，等 D1 建库</td></tr>
+  </tbody>
+</table>
+
+<h2><span class="num">8</span>未完成与阻塞</h2>
+
+<h3>需要你的账号权限</h3>
+
+<ol>
+  <li><code>npx wrangler login</code>——浏览器授权，我做不了</li>
+  <li><code>npx wrangler d1 create piaoxiaozhu</code>——拿到 <code>database_id</code> 后填进 <code>wrangler.jsonc</code>（现在还是占位符）</li>
+  <li>建表：<code>npx wrangler d1 execute piaoxiaozhu --remote --file=src/db/schema.sql</code></li>
+  <li>配密钥：<code>JWT_SECRET</code>、<code>ADMIN_TOKEN</code>、<code>WX_APPID</code>、<code>WX_SECRET</code>、<code>LLM_API_KEY</code>、<code>COS_*</code>、<code>STRIPE_*</code>、<code>PAYPAL_*</code>、<code>APP_BASE_URL</code></li>
+  <li><code>npx wrangler deploy</code>——拿到地址后写进 H5 的 <code>WORKER_API_URL</code></li>
+</ol>
+
+<h3>代码侧已无阻塞项</h3>
+
+<p>H5 的 18 个页面、12 个 API 路由、Worker 的 44 个接口全部编译通过。剩下的 30 条中文是业务数据，翻译界面不会让它们变英文。</p>
+
+<h2><span class="num">9</span>两个技术债</h2>
+
+<div class="box amber">
+  <span class="t">① 金额没有伴随币种存储</span>
+  <p>数据库里 <code>amount</code> 只是一个数字，前端按当前站点币种显示。一个用美元记的账，切到人民币站点会显示成 ¥ 同数字——金额没变，符号变了。</p>
+  <p>短期不影响，因为海外站只用美元。但做多币种或混合账本时，这是第一个出问题的地方。现在改要动表结构，建议先记着。</p>
+</div>
+
+<div class="box amber">
+  <span class="t">② i18n 字典是单个 1323 行的文件</span>
+  <p><code>lib/i18n.tsx</code> 装了两个语言、567 条文案。每次加文案都要在这一个文件里插两处，改动冲突的概率随人数上升。</p>
+  <p>拆成 <code>locales/zh.ts</code> 与 <code>locales/en.ts</code> 是常规做法，但这轮改动已经够多，换文件结构会掩盖真正的逻辑改动。建议单独一轮做。</p>
+</div>
+
+<h2><span class="num">10</span>下一步</h2>
+
+<table>
+  <thead><tr><th>优先级</th><th>事项</th><th>谁做</th></tr></thead>
+  <tbody>
+    <tr><td>P0</td><td>建 D1 库、配密钥、部署 Worker</td><td>你</td></tr>
+    <tr><td>P0</td><td>填 <code>WORKER_API_URL</code>，验证 H5 能登录</td><td>我，拿到地址后</td></tr>
+    <tr><td>P1</td><td>用测试卡跑一次真实扣款</td><td>你配密钥，我给步骤</td></tr>
+    <tr><td>P1</td><td>跑一次微信凭证体检 <code>/admin</code></td><td>你，部署后</td></tr>
+    <tr><td>P2</td><td>补 Stripe / PayPal 的失败回归</td><td class="ok">已完成，23 个用例</td></tr>
+    <tr><td>P2</td><td>拆 i18n 字典为多文件</td><td>我</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  <p>报告生成于 2026-10-28。所有数字来自实际执行：类型检查、构建、单元测试、本地服务端到端调用。<br>
+  未验证的项目已在第 7 节单独标注，不与已验证项混列。</p>
+</footer>
+
+</div>
+</body>
+</html>
