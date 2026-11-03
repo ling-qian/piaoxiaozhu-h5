@@ -142,6 +142,35 @@ function passThrough(req: NextRequest, pathname: string) {
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
+/**
+ * 需要登录才能看的页面。
+ *
+ * 这里列受保护的路由，而不是「除公开路由外一律拦」。后者会把不存在的
+ * 地址也送去登录页：爬虫抓一个坏链，拿到的是 307 而不是 404，
+ * 既浪费抓取预算，也让人以为站点到处都要登录。
+ */
+const PROTECTED_PREFIXES = [
+  "/analysis",
+  "/ask",
+  "/bill",
+  "/checkin",
+  "/member",
+  "/mine",
+  "/pack",
+  "/points",
+  "/project",
+  "/quick-entry",
+  "/report",
+  "/result",
+  "/sales",
+  "/toolkit",
+  "/upload",
+];
+
+function isProtected(pathname: string): boolean {
+  return PROTECTED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
+
 export default function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
@@ -182,7 +211,7 @@ export default function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  if (!hasSession) {
+  if (!hasSession && isProtected(pathname)) {
     const loginUrl = new URL("/auth/login", req.url);
     // 带上原路径，登录后能回到用户本来想看的地方
     loginUrl.searchParams.set("callbackUrl", pathname);

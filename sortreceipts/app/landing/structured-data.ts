@@ -27,6 +27,9 @@ export function landingStructuredData(locale: LandingLocale) {
         name: "SortReceipts",
         url: base,
         logo: `${base}/icon-512.png`,
+        // 官方资料页。AI 引擎靠这组链接确认「SortReceipts 是同一个实体」，
+        // 只有站内链接时，实体消歧的证据不够。
+        sameAs: ["https://www.producthunt.com/products/sortreceipts/sortreceipts"],
         description:
           "A browser-based receipt scanner and cost tracker for small restaurants, cafés and food trucks. Supplier invoices become categorized cost records, monthly revenue and gross margin.",
         availableLanguage: ["en", "zh"],

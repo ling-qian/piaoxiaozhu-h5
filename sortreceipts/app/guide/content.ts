@@ -146,12 +146,12 @@ export const GUIDE_SECTIONS: Record<DocLocale, DocSection[]> = {
         rows: [
           ["Free", "$0", "5", "1", "No"],
           ["Pro", "$3.99 / month", "200", "10", "CSV"],
-          ["Business", "$13.99 / month", "Unlimited", "Unlimited", "CSV"],
+          ["Enterprise", "$13.99 / month", "Unlimited", "Unlimited", "CSV"],
         ],
       },
       paragraphs: [
         "Five receipts a month is enough to test whether the scan reads your particular receipts. It is not enough to run a shop, which is the point: the free plan is a trial with a limit rather than a trial with a countdown.",
-        "Pro also includes the AI business review, which reads the month's records and writes a short summary of where the money went. Business removes the receipt and project caps and adds priority support.",
+        "Pro also includes the AI business review, which reads the month's records and writes a short summary of where the money went. Enterprise removes the receipt and project caps and adds priority support.",
       ],
     },
     {
@@ -280,12 +280,12 @@ export const GUIDE_SECTIONS: Record<DocLocale, DocSection[]> = {
         rows: [
           ["免费版", "$0", "5 张", "1 个", "不支持"],
           ["专业版", "每月 $3.99", "200 张", "10 个", "CSV"],
-          ["商业版", "每月 $13.99", "不限", "不限", "CSV"],
+          ["企业版", "每月 $13.99", "不限", "不限", "CSV"],
         ],
       },
       paragraphs: [
         "每月 5 张够用来验证识别能不能读你手上的小票，不够撑起一家店。这是有意设计的：免费版是带额度的试用，不是带倒计时的试用。",
-        "专业版还带 AI 经营分析，读当月的记录并写一段钱花在哪的短评。商业版放开识别与项目上限，并给优先支持。",
+        "专业版还带 AI 经营分析，读当月的记录并写一段钱花在哪的短评。企业版放开识别与项目上限，并给优先支持。",
       ],
     },
     {
@@ -379,8 +379,8 @@ export const FAQ_ITEMS: DocFaq[] = [
   {
     q: { en: "Can I export my data?", zh: "数据能导出吗？" },
     a: {
-      en: "Monthly reports export as CSV on the Pro and Business plans. Excel, Numbers and Google Sheets open the file directly. The free plan does not include export.",
-      zh: "专业版和商业版可以把月度报表导出成 CSV，Excel、Numbers 和 Google 表格都能直接打开。免费版不含导出功能。",
+      en: "Monthly reports export as CSV on the Pro and Enterprise plans. Excel, Numbers and Google Sheets open the file directly. The free plan does not include export.",
+      zh: "专业版和企业版可以把月度报表导出成 CSV，Excel、Numbers 和 Google 表格都能直接打开。免费版不含导出功能。",
     },
   },
   {
@@ -389,8 +389,8 @@ export const FAQ_ITEMS: DocFaq[] = [
       zh: "多家门店或业务线能一起用吗？",
     },
     a: {
-      en: "Each project is one store or one line of business, with its own records and its own monthly report. The free plan allows one project, Pro allows 10, and Business is unlimited.",
-      zh: "一个项目对应一家门店或一条业务线，有自己的记录和月度报表。免费版 1 个项目，专业版 10 个，商业版不限。",
+      en: "Each project is one store or one line of business, with its own records and its own monthly report. The free plan allows one project, Pro allows 10, and Enterprise is unlimited.",
+      zh: "一个项目对应一家门店或一条业务线，有自己的记录和月度报表。免费版 1 个项目，专业版 10 个，企业版不限。",
     },
   },
   {
@@ -427,8 +427,8 @@ export const FAQ_ITEMS: DocFaq[] = [
       zh: "AI 经营分析和月度报表有什么区别？",
     },
     a: {
-      en: "The report shows the numbers: income, expenses, category split and profit trend. The AI business review reads the same records and writes a short description of what moved and what to look at, on the Pro and Business plans.",
-      zh: "报表给的是数字：收入、支出、分类占比和利润趋势。AI 经营分析读同一批记录，写一段哪里变了、该看什么的短评，专业版和商业版可用。",
+      en: "The report shows the numbers: income, expenses, category split and profit trend. The AI business review reads the same records and writes a short description of what moved and what to look at, on the Pro and Enterprise plans.",
+      zh: "报表给的是数字：收入、支出、分类占比和利润趋势。AI 经营分析读同一批记录，写一段哪里变了、该看什么的短评，专业版和企业版可用。",
     },
   },
   {

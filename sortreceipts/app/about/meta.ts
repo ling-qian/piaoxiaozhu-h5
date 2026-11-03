@@ -70,6 +70,7 @@ export function aboutStructuredData(locale: DocLocale) {
           itemOffered: {
             "@type": "SoftwareApplication",
             name: "SortReceipts",
+            sameAs: ["https://www.producthunt.com/products/sortreceipts/sortreceipts"],
             applicationCategory: "BusinessApplication",
             operatingSystem: "Web",
           },
