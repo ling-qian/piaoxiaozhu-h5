@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import {
   ArrowRight,
   Camera,
@@ -252,19 +254,19 @@ export default function LandingView({ locale }: { locale: LandingLocale }) {
 
           <div className="flex items-center gap-2">
             <LocaleSwitcher locale={locale} />
-            <a
+            <Link
               href="/auth/login"
               className="hidden px-3 py-1.5 text-sm font-medium text-[#475569] transition-colors hover:text-[#0F172A] sm:inline-flex"
             >
               {s.navSignin}
-            </a>
-            <a
+            </Link>
+            <Link
               href="/auth/register"
               className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full bg-brand px-3 py-2 text-sm font-semibold text-white shadow-[0_6px_16px_-6px_rgba(37,99,235,0.7)] transition-transform hover:-translate-y-0.5 sm:px-4"
             >
               {s.navStart}
               <ArrowRight className="h-4 w-4" />
-            </a>
+            </Link>
           </div>
         </div>
       </header>
@@ -290,13 +292,13 @@ export default function LandingView({ locale }: { locale: LandingLocale }) {
             <p className="mt-6 max-w-xl text-base leading-relaxed text-[#475569] sm:text-lg">{s.sub}</p>
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
-              <a
+              <Link
                 href="/auth/register"
                 className="inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3.5 text-sm font-bold text-white shadow-[0_14px_30px_-12px_rgba(37,99,235,0.85)] transition-transform hover:-translate-y-0.5"
               >
                 {s.ctaPrimary}
                 <ArrowRight className="h-4 w-4" />
-              </a>
+              </Link>
               <a
                 href="#how"
                 className="inline-flex items-center gap-2 rounded-full border border-black/[0.08] bg-white px-6 py-3.5 text-sm font-semibold text-[#0F172A] transition-colors hover:border-black/20"
@@ -459,7 +461,7 @@ export default function LandingView({ locale }: { locale: LandingLocale }) {
                   ))}
                 </ul>
 
-                <a
+                <Link
                   href="/auth/register"
                   className={`mt-8 inline-flex w-full items-center justify-center rounded-full px-5 py-3 text-sm font-bold transition-transform hover:-translate-y-0.5 ${
                     plan.featured
@@ -468,7 +470,7 @@ export default function LandingView({ locale }: { locale: LandingLocale }) {
                   }`}
                 >
                   {plan.cta}
-                </a>
+                </Link>
               </div>
             ))}
           </div>
@@ -502,13 +504,13 @@ export default function LandingView({ locale }: { locale: LandingLocale }) {
         <div className="relative mx-auto max-w-2xl px-5">
           <h2 className="text-3xl font-extrabold leading-tight tracking-[-0.02em] sm:text-4xl">{s.finalTitle}</h2>
           <p className="mt-4 text-base text-white/65">{s.finalSub}</p>
-          <a
+          <Link
             href="/auth/register"
             className="mt-8 inline-flex items-center gap-2 rounded-full bg-brand px-7 py-3.5 text-sm font-bold text-white shadow-[0_16px_40px_-14px_rgba(37,99,235,0.9)] transition-transform hover:-translate-y-0.5"
           >
             {s.finalCta}
             <ArrowRight className="h-4 w-4" />
-          </a>
+          </Link>
         </div>
       </section>
 
@@ -548,8 +550,8 @@ export default function LandingView({ locale }: { locale: LandingLocale }) {
             <a href={locale === "zh" ? "/zh/contact" : "/contact"} className="transition-colors hover:text-white">
               {locale === "zh" ? "联系我们" : "Contact"}
             </a>
-            <a href="/auth/login" className="transition-colors hover:text-white">{s.navSignin}</a>
-            <a href="/auth/register" className="transition-colors hover:text-white">{s.navStart}</a>
+            <Link href="/auth/login" className="transition-colors hover:text-white">{s.navSignin}</Link>
+            <Link href="/auth/register" className="transition-colors hover:text-white">{s.navStart}</Link>
           </nav>
         </div>
 

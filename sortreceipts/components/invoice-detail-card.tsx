@@ -56,9 +56,12 @@ export default function InvoiceDetailCard({
   sellerTaxNo,
   invoiceItems,
 }: InvoiceDetailCardProps) {
-  if (!invoiceType) return null;
-
+  // Hook 先于任何提前 return 调用。组件签名允许 invoiceType 为空，
+  // 若先 return 再调 Hook，同一个实例在两种分支间切换时 Hook 数量会变，
+  // React 会抛 "Rendered more hooks than during the previous render"。
   const { t } = useI18n();
+
+  if (!invoiceType) return null;
   // 未知票种直接显示原始值——比显示「未知」更有助于排查后端返回了什么
   const label = (invoiceType && INVOICE_TYPE_KEYS[invoiceType])
     ? t(INVOICE_TYPE_KEYS[invoiceType])

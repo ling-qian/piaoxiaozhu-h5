@@ -154,7 +154,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, t]);
 
   useEffect(() => {
     load(tab, tab === "users" ? keyword : "");

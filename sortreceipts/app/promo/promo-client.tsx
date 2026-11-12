@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/lib/i18n";
@@ -231,7 +232,7 @@ export default function PromoClient({ userId }: { userId: string | null }) {
 
         {/* CTA */}
         <div className="mt-6 mb-8 px-2">
-          <a
+          <Link
             href="/auth/login"
             className="block w-full py-4 rounded-2xl text-white text-base font-bold text-center btn-press shadow-lg"
             style={{
@@ -240,7 +241,7 @@ export default function PromoClient({ userId }: { userId: string | null }) {
             }}
           >
             {t("promo.cta")}
-          </a>
+          </Link>
           <p className="text-center text-[11px] text-white/70 mt-3">{t("promo.ctaNote")}</p>
         </div>
 

@@ -19,9 +19,6 @@
     "incremental": true,
     "plugins": [
       {
-        "name": "prisma"
-      },
-      {
         "name": "next"
       }
     ],

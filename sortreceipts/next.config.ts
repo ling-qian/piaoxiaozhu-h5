@@ -11,7 +11,9 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    // 曾经这里写 true，用来盖住 19 个 ESLint 错误。错误已经清掉，
+    // 现在让构建也当门禁：以后新增的错误会在 npm run build 这一步就停下。
+    ignoreDuringBuilds: false,
   },
   typescript: {
     ignoreBuildErrors: false,

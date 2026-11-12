@@ -85,8 +85,6 @@ const PUBLIC_PREFIXES = [
   "/api/auth", // 登录接口本身
   "/api/admin/login", // 后台登录：校验令牌后自己写 cookie
   "/api/admin/logout",
-  "/api/payments/stripe/webhook", // 支付回调靠签名验真，没有用户会话
-  "/tessdata", // OCR 语言包
   // 月度交付包的只读分享：会计没有账号，凭令牌访问
   "/share/",
   // 主题子文带 slug，用前缀一次覆盖，新增一篇不必再来改中间件
