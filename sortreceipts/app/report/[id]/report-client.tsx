@@ -1,6 +1,6 @@
 "use client";
 
-import { CURRENCY_SYMBOL } from "@/lib/currency";
+import { currencySymbolOf } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
@@ -23,12 +23,15 @@ import { RecordForReport as Record } from "@/types/record";
 
 export default function ReportClient({
   projectId,
+  currency,
   records,
 }: {
   projectId: string;
+  currency: string;
   records: Record[];
 }) {
   const { t } = useI18n();
+  const symbol = currencySymbolOf(currency);
   const router = useRouter();
   const { exporting, handleExport } = useExportCsv(projectId);
   const currentMonth = useMemo(() => {
@@ -77,11 +80,11 @@ export default function ReportClient({
         ) : (
         <>
         <div className="flex gap-2 animate-fade-in-up stagger-1">
-          <StatCard label={t("report.totalIncome")} value={`${CURRENCY_SYMBOL}${formatAmount(report.totalIncome)}`} color="#059669" />
-          <StatCard label={t("report.totalExpense")} value={`${CURRENCY_SYMBOL}${formatAmount(report.totalExpense)}`} color="#DC2626" />
+          <StatCard label={t("report.totalIncome")} value={`${symbol}${formatAmount(report.totalIncome)}`} color="#059669" />
+          <StatCard label={t("report.totalExpense")} value={`${symbol}${formatAmount(report.totalExpense)}`} color="#DC2626" />
           <StatCard
             label={t("report.grossProfit")}
-            value={`${CURRENCY_SYMBOL}${formatAmount(report.grossProfit)}`}
+            value={`${symbol}${formatAmount(report.grossProfit)}`}
             color={report.grossProfit >= 0 ? "#059669" : "#DC2626"}
           />
         </div>
@@ -137,12 +140,12 @@ export default function ReportClient({
         </button>
 
         <div className="animate-fade-in-up stagger-4">
-          <CostChart data={report.categoryBreakdown} />
+          <CostChart data={report.categoryBreakdown} currency={currency} />
         </div>
 
         {report.monthlyData.length > 0 && (
           <div className="animate-fade-in-up stagger-5">
-            <MonthlyTrend data={report.monthlyData} />
+            <MonthlyTrend data={report.monthlyData} currency={currency} />
           </div>
         )}
         </>

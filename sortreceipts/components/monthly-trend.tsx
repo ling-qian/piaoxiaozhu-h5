@@ -1,6 +1,6 @@
 "use client";
 
-import { CURRENCY_SYMBOL } from "@/lib/currency";
+import { currencySymbolOf } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import {
   LineChart,
@@ -15,9 +15,11 @@ import {
 
 interface MonthlyTrendProps {
   data: { month: string; income: number; expense: number }[];
+  /** 项目币种；不传时按站点币种显示 */
+  currency?: string | null;
 }
 
-export default function MonthlyTrend({ data }: MonthlyTrendProps) {
+export default function MonthlyTrend({ data, currency }: MonthlyTrendProps) {
   const { t } = useI18n();
   if (data.length === 0) return null;
 
@@ -45,7 +47,7 @@ export default function MonthlyTrend({ data }: MonthlyTrendProps) {
             />
             <Tooltip
               formatter={(value: number, name: string) => [
-                `${CURRENCY_SYMBOL}${value.toFixed(2)}`,
+                `${currencySymbolOf(currency)}${value.toFixed(2)}`,
                 name === "income" ? t("common.income") : t("common.expense"),
               ]}
               labelFormatter={(label: string) => `${label}`}

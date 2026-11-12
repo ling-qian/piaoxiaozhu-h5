@@ -56,6 +56,13 @@ export interface Env {
   RESEND_API_KEY?: string;
   /** 发件人，形如 `SortReceipts <no-reply@example.com>`，域名必须在 Resend 里验证过 */
   EMAIL_FROM?: string;
+  /**
+   * 邮件收票地址的域名，形如 `in.qianling-tech.top`。
+   *
+   * 这个子域要单独开 Cloudflare Email Routing 并把 MX 指过去，
+   * 不能和主域共用——主域的邮件路由可能还有别的用途。
+   */
+  INBOX_DOMAIN?: string;
   /** Cloudflare Turnstile 的 Secret Key。为空表示人机验证未配置 */
   TURNSTILE_SECRET_KEY?: string;
 

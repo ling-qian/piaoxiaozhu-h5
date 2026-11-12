@@ -56,6 +56,8 @@ export interface PackPayload {
   categories: PackCategory[];
   exceptions: PackException[];
   generated_at: string;
+  /** 项目记账币种。分享快照里也带，只读页据此显示符号 */
+  currency?: string;
 }
 
 export interface PackShare {

@@ -49,15 +49,51 @@ export function formatPrice(priceCny: number, priceUsd: number, currency: Curren
 export const CURRENCY_SYMBOL: string = SYMBOL[CURRENCY];
 
 /**
+ * 项目币种。
+ *
+ * 商品标价跟站点走，账目金额跟项目走：一个用户可能同时记人民币和美元的店。
+ * 与后端 `lib/currency.ts` 的列表保持一致，改一处要同步另一处。
+ */
+export const SUPPORTED_CURRENCIES = [
+  "USD",
+  "CNY",
+  "EUR",
+  "GBP",
+  "JPY",
+  "CAD",
+  "AUD",
+  "SGD",
+  "HKD",
+] as const;
+
+const PROJECT_SYMBOLS: Record<string, string> = {
+  USD: "$",
+  CNY: "¥",
+  EUR: "€",
+  GBP: "£",
+  JPY: "¥",
+  CAD: "CA$",
+  AUD: "A$",
+  SGD: "S$",
+  HKD: "HK$",
+};
+
+/** 项目币种符号。老项目或空值时退回站点币种，不显示成空白 */
+export function currencySymbolOf(code?: string | null): string {
+  const key = String(code ?? "").toUpperCase();
+  return PROJECT_SYMBOLS[key] ?? CURRENCY_SYMBOL;
+}
+
+/**
  * 账目金额的显示。
  *
  * 负号放在货币符号前面（`-$120.00`），而不是 `$-120.00`：
  * 后者在英文语境里几乎看不到，读起来像格式出错。
  */
-export function formatMoney(amount: number): string {
+export function formatMoney(amount: number, currency?: string | null): string {
   const value = Number(amount) || 0;
   const sign = value < 0 ? "-" : "";
-  return `${sign}${CURRENCY_SYMBOL}${Math.abs(value).toFixed(2)}`;
+  return `${sign}${currencySymbolOf(currency)}${Math.abs(value).toFixed(2)}`;
 }
 
 /**

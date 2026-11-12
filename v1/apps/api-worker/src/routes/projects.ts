@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import type { Env } from "../env";
 import type { ProjectWithAggregates, UserRow } from "../db/types";
 import { badRequest, forbidden, isUuid, notFound, requireString } from "../lib/http";
+import { normalizeCurrency } from "../lib/currency";
 import { effectivePlanCode, getPlan, UNLIMITED } from "../lib/plans";
 import { nowIso } from "../lib/time";
 
@@ -15,6 +16,7 @@ function toResponse(p: ProjectWithAggregates) {
     user_id: p.user_id,
     customer_id: p.customer_id,
     name: p.name,
+    currency: p.currency ?? "USD",
     industry: p.industry,
     report_month: p.report_month,
     status: p.status,
@@ -62,6 +64,7 @@ router.post("/projects", async (c) => {
   const industry = body?.industry ? String(body.industry).slice(0, 50) : null;
   const reportMonth = body?.report_month ? String(body.report_month).slice(0, 20) : null;
   const customerId = body?.customer_id ?? null;
+  const currency = normalizeCurrency(body?.currency);
 
   if (customerId && !isUuid(String(customerId))) throw badRequest("customer_id 格式不正确");
 
@@ -77,10 +80,10 @@ router.post("/projects", async (c) => {
 
   const id = crypto.randomUUID();
   await c.env.DB.prepare(
-    `INSERT INTO projects (id, user_id, customer_id, name, industry, report_month, status, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'draft', ?)`
+    `INSERT INTO projects (id, user_id, customer_id, name, currency, industry, report_month, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?)`
   )
-    .bind(id, u.id, customerId, name, industry, reportMonth, nowIso())
+    .bind(id, u.id, customerId, name, currency, industry, reportMonth, nowIso())
     .run();
 
   const created = await loadOne(c.env.DB, id, u.id);
@@ -95,6 +98,37 @@ router.get("/projects/:id", async (c) => {
   const row = await loadOne(c.env.DB, id, u.id);
   if (!row) throw notFound("Project not found");
   return c.json(toResponse(row));
+});
+
+/**
+ * 改记账币种。
+ *
+ * 只改显示口径，不动已存金额：老数据本来就是这个币种的数字，
+ * 之前显示错了符号，改过来即可。真要换算币种，得给每条记录加汇率，
+ * 那是另一件事。
+ */
+router.patch("/projects/:id", async (c) => {
+  const u = c.get("user");
+  const id = c.req.param("id");
+  if (!isUuid(id)) throw notFound("Project not found");
+
+  const body = await c.req.json<any>().catch(() => ({}));
+  if (body?.currency === undefined) throw badRequest("currency 不能为空");
+  const code = String(body.currency).trim().toUpperCase();
+  if (normalizeCurrency(code, "") !== code) throw badRequest("不支持的币种");
+
+  const owned = await c.env.DB.prepare("SELECT id FROM projects WHERE id = ? AND user_id = ?")
+    .bind(id, u.id)
+    .first<{ id: string }>();
+  if (!owned) throw notFound("Project not found");
+
+  await c.env.DB.prepare("UPDATE projects SET currency = ? WHERE id = ? AND user_id = ?")
+    .bind(code, id, u.id)
+    .run();
+
+  const updated = await loadOne(c.env.DB, id, u.id);
+  if (!updated) throw notFound("Project not found");
+  return c.json(toResponse(updated));
 });
 
 router.delete("/projects/:id", async (c) => {

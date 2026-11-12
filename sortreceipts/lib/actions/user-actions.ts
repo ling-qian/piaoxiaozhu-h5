@@ -187,3 +187,63 @@ export async function updateUserName(name: string) {
     body: { nickname: trimmed },
   });
 }
+
+/**
+ * 邮件收票地址。第一次调用时后端才生成随机段，所以这个函数有副作用，
+ * 只在用户真的打开「我的」页时才调用。
+ */
+export async function getInboxAddress(): Promise<{ address: string; configured: boolean } | null> {
+  const session = await auth();
+  if (!session?.user) return null;
+
+  try {
+    return await apiFetch<{ address: string; configured: boolean }>("/api/me/inbox");
+  } catch {
+    return null;
+  }
+}
+
+/** 给自己发一封「本月发现」测试邮件，用来确认发信通道是通的 */
+export async function sendDigestTest(): Promise<ActionOutcome> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "未登录" };
+
+  try {
+    await apiFetch<{ sent_to: string }>("/api/email/digest/test", { method: "POST", body: {} });
+    return { ok: true };
+  } catch (e) {
+    return failure(e, "测试邮件没发出去，请稍后再试");
+  }
+}
+
+/**
+ * 不经过真实邮件，直接把一张图喂给收票链路。
+ *
+ * 邮件路由要配 MX 才能收信，配好之前这是唯一能验证「识别 → 扣分 → 入库」的办法。
+ */
+export async function testInboundReceipt(input: {
+  filename: string;
+  contentType: string;
+  dataBase64: string;
+}): Promise<{ ok: boolean; recordId?: string; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "未登录" };
+
+  try {
+    const res = await apiFetch<{ status: string; record_id: string | null; project_id: string }>(
+      "/api/email/inbound/test",
+      {
+        method: "POST",
+        body: {
+          filename: input.filename,
+          content_type: input.contentType,
+          data_base64: input.dataBase64,
+        },
+      }
+    );
+    if (res.status === "created") return { ok: true, recordId: res.record_id ?? undefined };
+    return { ok: false, error: res.status === "failed" ? "识别失败，换一张清晰的试试" : "没有入库，可能是积分不足" };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "请求失败" };
+  }
+}

@@ -17,6 +17,10 @@ export interface UserRow {
   plan_remind_stage: string | null;
   plan_remind_expires_at: string | null;
   plan_remind_sent_at: string | null;
+  /** 邮件收票地址的随机段，首次请求地址时生成 */
+  inbox_token?: string | null;
+  /** 1 = 已退订「本月发现」邮件 */
+  email_opt_out?: number;
 }
 
 export interface ProjectRow {
@@ -24,6 +28,8 @@ export interface ProjectRow {
   user_id: string;
   customer_id: string | null;
   name: string;
+  /** 记账币种，ISO 4217 代码 */
+  currency: string;
   industry: string | null;
   report_month: string | null;
   status: string;

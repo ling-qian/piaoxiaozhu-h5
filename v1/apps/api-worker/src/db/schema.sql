@@ -31,7 +31,11 @@ CREATE TABLE IF NOT EXISTS users (
   plan_expires_at         TEXT,
   plan_remind_stage       TEXT,
   plan_remind_expires_at  TEXT,
-  plan_remind_sent_at     TEXT
+  plan_remind_sent_at     TEXT,
+  -- 邮件收票地址里的随机段：r-<inbox_token>@in.qianling-tech.top
+  inbox_token             TEXT,
+  -- 1 = 用户退订了「本月发现」邮件，定时任务跳过
+  email_opt_out           INTEGER NOT NULL DEFAULT 0
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_openid  ON users(openid);
 CREATE UNIQUE INDEX IF NOT EXISTS ix_users_phone   ON users(phone);
@@ -57,6 +61,9 @@ CREATE TABLE IF NOT EXISTS projects (
   user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   customer_id   TEXT REFERENCES customers(id) ON DELETE SET NULL,
   name          TEXT NOT NULL,
+  -- 记账币种（ISO 4217）。币种跟着项目走，不是跟着站点走：
+  -- 同一个用户可能同时记人民币和美元的店，混在一起算总额没有意义。
+  currency      TEXT NOT NULL DEFAULT 'USD',
   industry      TEXT,
   report_month  TEXT,
   status        TEXT NOT NULL DEFAULT 'draft',
@@ -300,3 +307,15 @@ CREATE TABLE IF NOT EXISTS plan_interest (
   notified_at TEXT
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ix_plan_interest_email_plan ON plan_interest(email, plan_code);
+
+-- ---------------------------------------------------------------- 邮件提醒流水
+--
+-- 「本月发现」邮件每月最多一封：定时任务每天跑，靠这张表去重，
+-- 而不是靠定时器只跑一次——cron 重试或人工补发都不会让用户收到第二封。
+CREATE TABLE IF NOT EXISTS digest_logs (
+  user_id  TEXT NOT NULL,
+  month    TEXT NOT NULL,
+  kind     TEXT NOT NULL DEFAULT 'findings',
+  sent_at  TEXT NOT NULL,
+  PRIMARY KEY (user_id, month, kind)
+);

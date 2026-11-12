@@ -1,6 +1,6 @@
 "use client";
 
-import { NUMBER_LOCALE } from "@/lib/currency";
+import { CURRENCY, NUMBER_LOCALE, SUPPORTED_CURRENCIES, currencySymbolOf } from "@/lib/currency";
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createProject, deleteProject } from "@/lib/actions/project-actions";
@@ -33,6 +33,7 @@ export default function HomeClient({ projects, isLoggedIn }: { projects: Project
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newIndustry, setNewIndustry] = useState("restaurant");
+  const [newCurrency, setNewCurrency] = useState<string>(CURRENCY);
   const [creating, setCreating] = useState(false);
   const [projectList, setProjectList] = useState(projects);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -77,10 +78,11 @@ export default function HomeClient({ projects, isLoggedIn }: { projects: Project
     if (!newName.trim()) return;
     setCreating(true);
     try {
-      const project = await createProject(newName.trim(), newIndustry);
+      const project = await createProject(newName.trim(), newIndustry, newCurrency);
       setShowCreate(false);
       setNewName("");
       setNewIndustry("restaurant");
+      setNewCurrency(CURRENCY);
       showToast(t("common.created"), "success");
       router.push(`/project/${project.id}`);
     } catch (err) {
@@ -402,12 +404,31 @@ export default function HomeClient({ projects, isLoggedIn }: { projects: Project
                 ))}
               </div>
             </div>
+            <div className="mb-4">
+              <label className="block text-xs text-[#64748B] mb-2">{t("home.currency")}</label>
+              <div className="flex gap-2 flex-wrap">
+                {SUPPORTED_CURRENCIES.map((code) => (
+                  <button
+                    key={code}
+                    onClick={() => setNewCurrency(code)}
+                    className={`px-3 py-1.5 rounded-lg text-xs btn-press ${
+                      newCurrency === code
+                        ? "bg-brand text-white"
+                        : "bg-[#F8FAFC] text-[#475569]"
+                    }`}
+                  >
+                    {code} {currencySymbolOf(code)}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => {
                   setShowCreate(false);
                   setNewName("");
                   setNewIndustry("restaurant");
+                  setNewCurrency(CURRENCY);
                 }}
                 className="flex-1 border border-[#E2E8F0] py-2.5 rounded-xl text-sm btn-press"
               >

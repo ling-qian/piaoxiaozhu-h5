@@ -1,6 +1,6 @@
 "use client";
 
-import { CURRENCY_SYMBOL } from "@/lib/currency";
+import { currencySymbolOf } from "@/lib/currency";
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
@@ -25,6 +25,7 @@ const MonthlyTrend = dynamic(() => import("@/components/monthly-trend"), {
 interface Project {
   id: string;
   name: string;
+  currency: string;
 }
 
 interface SearchResult {
@@ -44,6 +45,9 @@ export default function ReportClient({
   const searchParams = useSearchParams();
   const urlProjectId = searchParams.get("project");
   const activeProjectId = urlProjectId || projectId;
+  // 币种跟着当前选中的项目走，切项目时符号一起换
+  const activeProject = projects.find((p) => p.id === activeProjectId);
+  const symbol = currencySymbolOf(activeProject?.currency);
   const { exporting, handleExport } = useExportCsv(activeProjectId);
   const { t } = useI18n();
 
@@ -216,11 +220,11 @@ export default function ReportClient({
 
           {/* 统计卡片 */}
           <div className="flex gap-2 animate-fade-in-up stagger-1">
-            <StatCard label={t("report.totalIncome")} value={`${CURRENCY_SYMBOL}${formatAmount(report.totalIncome)}`} color="#059669" />
-            <StatCard label={t("report.totalExpense")} value={`${CURRENCY_SYMBOL}${formatAmount(report.totalExpense)}`} color="#DC2626" />
+            <StatCard label={t("report.totalIncome")} value={`${symbol}${formatAmount(report.totalIncome)}`} color="#059669" />
+            <StatCard label={t("report.totalExpense")} value={`${symbol}${formatAmount(report.totalExpense)}`} color="#DC2626" />
             <StatCard
               label={t("report.grossProfit")}
-              value={`${CURRENCY_SYMBOL}${formatAmount(report.grossProfit)}`}
+              value={`${symbol}${formatAmount(report.grossProfit)}`}
               color={report.grossProfit >= 0 ? "#059669" : "#DC2626"}
             />
           </div>
@@ -314,12 +318,12 @@ export default function ReportClient({
             }
           >
             <div className="animate-fade-in-up stagger-4">
-              <CostChart data={report.categoryBreakdown} />
+              <CostChart data={report.categoryBreakdown} currency={activeProject?.currency} />
             </div>
 
             {report.monthlyData.length > 0 && (
               <div className="animate-fade-in-up stagger-5">
-                <MonthlyTrend data={report.monthlyData} />
+                <MonthlyTrend data={report.monthlyData} currency={activeProject?.currency} />
               </div>
             )}
           </div>
@@ -361,7 +365,7 @@ export default function ReportClient({
                               </span>
                             </td>
                             <td className={`py-2 text-right whitespace-nowrap font-medium ${r.direction === "income" ? "text-success" : "text-error"}`}>
-                              {r.direction === "income" ? "+" : "-"}{CURRENCY_SYMBOL}{formatAmount(r.amount)}
+                              {r.direction === "income" ? "+" : "-"}{symbol}{formatAmount(r.amount)}
                             </td>
                           </tr>
                         );

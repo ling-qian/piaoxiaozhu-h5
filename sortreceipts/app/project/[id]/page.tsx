@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getProjectStats, getProjectById } from "@/lib/actions/project-actions";
+import { getProjectStats, getProjectById, getProjectFindings } from "@/lib/actions/project-actions";
 import { getRecords } from "@/lib/actions/record-actions";
 import ProjectDetailClient from "./project-detail-client";
 
@@ -19,8 +19,21 @@ export default async function ProjectDetailPage({
     redirect("/");
   }
 
-  const stats = await getProjectStats(id);
-  const { items: records, nextCursor } = await getRecords(id);
+  // 三个请求互不依赖，一起发，别串成三次往返
+  const [stats, recordsPage, findings] = await Promise.all([
+    getProjectStats(id),
+    getRecords(id),
+    getProjectFindings(id),
+  ]);
 
-  return <ProjectDetailClient projectId={id} stats={stats} initialRecords={records} initialNextCursor={nextCursor} />;
+  return (
+    <ProjectDetailClient
+      projectId={id}
+      currency={project.currency}
+      stats={stats}
+      initialRecords={recordsPage.items}
+      initialNextCursor={recordsPage.nextCursor}
+      findings={findings}
+    />
+  );
 }

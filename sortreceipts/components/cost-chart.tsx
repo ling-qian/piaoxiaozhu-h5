@@ -1,12 +1,14 @@
 "use client";
 
-import { CURRENCY_SYMBOL } from "@/lib/currency";
+import { currencySymbolOf } from "@/lib/currency";
 import { useI18n } from "@/lib/i18n";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { CATEGORIES, categoryLabel } from "@/lib/constants";
 
 interface CostChartProps {
   data: { code: string; name: string; amount: number; percentage: number }[];
+  /** 项目币种；不传时按站点币种显示 */
+  currency?: string | null;
 }
 
 const RADIAN = Math.PI / 180;
@@ -37,7 +39,7 @@ function renderCustomLabel({
   );
 }
 
-export default function CostChart({ data }: CostChartProps) {
+export default function CostChart({ data, currency }: CostChartProps) {
   const { t } = useI18n();
   if (data.length === 0) {
     return (
@@ -80,7 +82,7 @@ export default function CostChart({ data }: CostChartProps) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: number) => `${CURRENCY_SYMBOL}${value.toFixed(2)}`}
+              formatter={(value: number) => `${currencySymbolOf(currency)}${value.toFixed(2)}`}
             />
           </PieChart>
         </ResponsiveContainer>

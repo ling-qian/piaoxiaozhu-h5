@@ -11,7 +11,7 @@ import { Hono } from "hono";
 
 import type { Env } from "../env";
 import type { PackRecord } from "../lib/pack";
-import { buildPack, isMonthKey, previousMonth, renderPackCsv } from "../lib/pack";
+import { buildPack, currentMonth, isMonthKey, previousMonth, renderPackCsv } from "../lib/pack";
 import type { UserRow } from "../db/types";
 import { badRequest, forbidden, isUuid, notFound } from "../lib/http";
 import { effectivePlanCode, getPlan } from "../lib/plans";
@@ -25,9 +25,9 @@ const RECORD_COLUMNS = `id, direction, amount, tax_amount, invoice_date, merchan
 
 async function assertProject(db: D1Database, projectId: string, userId: string) {
   const row = await db
-    .prepare("SELECT id, name FROM projects WHERE id = ? AND user_id = ?")
+    .prepare("SELECT id, name, currency FROM projects WHERE id = ? AND user_id = ?")
     .bind(projectId, userId)
-    .first<{ id: string; name: string }>();
+    .first<{ id: string; name: string; currency: string | null }>();
   if (!row) throw notFound("Project not found");
   return row;
 }
@@ -105,6 +105,8 @@ router.get("/projects/:projectId/pack", async (c) => {
     ...pack,
     // 交付包抬头要写商户名，会计才知道这是哪家店的账
     project_name: project.name,
+    // 币种跟着项目走，前端据此显示金额符号
+    currency: project.currency ?? "USD",
     share: snapshot?.share_token
       ? {
           token: snapshot.share_token,
@@ -112,6 +114,30 @@ router.get("/projects/:projectId/pack", async (c) => {
           shared_at: snapshot.created_at,
         }
       : null,
+  });
+});
+
+/**
+ * 项目页的「本月发现」：只回异常，不回汇总。
+ *
+ * 用户每次打开项目就该看见哪里可能出了问题，而不是等到月底生成交付包才发现。
+ * 月份固定为当前月；没有日期的记录不属于任何月份，照常报出来。
+ */
+router.get("/projects/:projectId/findings", async (c) => {
+  const u = c.get("user");
+  const projectId = c.req.param("projectId");
+  if (!isUuid(projectId)) throw notFound("Project not found");
+  const project = await assertProject(c.env.DB, projectId, u.id);
+
+  const month = currentMonth();
+  const pack = buildPack(await loadRecords(c.env.DB, projectId, u.id), month, nowIso());
+
+  return c.json({
+    month,
+    // 金额符号跟着项目币种走，前端不写死
+    currency: project.currency ?? "USD",
+    record_count: pack.summary.record_count,
+    exceptions: pack.exceptions,
   });
 });
 
@@ -136,14 +162,15 @@ router.post("/projects/:projectId/pack/share", async (c) => {
   const u = c.get("user");
   const projectId = c.req.param("projectId");
   if (!isUuid(projectId)) throw notFound("Project not found");
-  await assertProject(c.env.DB, projectId, u.id);
+  const project = await assertProject(c.env.DB, projectId, u.id);
   assertCanExport(u);
 
   const body = await c.req.json<any>().catch(() => ({}));
   const month = resolveMonth(body?.month);
 
   const pack = buildPack(await loadRecords(c.env.DB, projectId, u.id), month, nowIso());
-  const detail = JSON.stringify(pack);
+  // 快照里要带币种：分享页没有项目上下文，只能从快照本身读
+  const detail = JSON.stringify({ ...pack, currency: project.currency ?? "USD" });
   const ts = nowIso();
 
   const ref = await referralOf(c.env.DB, u.id);

@@ -21,6 +21,7 @@ interface ProjectResponse {
   user_id: string;
   customer_id: string | null;
   name: string;
+  currency: string;
   industry: string | null;
   report_month: string | null;
   status: string;
@@ -37,6 +38,8 @@ function toCompat(p: ProjectResponse) {
     userId: p.user_id,
     customerId: p.customer_id,
     name: p.name,
+    // 老项目没有这个字段时按美元兜底：与后端默认值一致
+    currency: p.currency ?? "USD",
     // 页面类型是 string，而后端可能为 null —— 兜底成空串而不是把 null 漏出去
     industry: p.industry ?? "",
     reportMonth: p.report_month,
@@ -60,7 +63,7 @@ export async function getProjects() {
   return (data.items ?? []).map(toCompat);
 }
 
-export async function createProject(name: string, industry: string = "restaurant") {
+export async function createProject(name: string, industry: string = "restaurant", currency?: string) {
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
@@ -68,7 +71,7 @@ export async function createProject(name: string, industry: string = "restaurant
     // 项目数量限制由后端按套餐校验（同一套规则，避免两端算出来不一致）
     const data = await apiFetch<ProjectResponse>("/api/projects", {
       method: "POST",
-      body: { name, industry },
+      body: { name, industry, currency },
     });
     revalidatePath("/");
     return toCompat(data);
@@ -76,6 +79,21 @@ export async function createProject(name: string, industry: string = "restaurant
     if (e instanceof ApiError && e.status === 403) throw new Error(e.message);
     throw e;
   }
+}
+
+/** 改项目记账币种。只改显示口径，不动已存金额。 */
+export async function updateProjectCurrency(id: string, currency: string) {
+  const session = await auth();
+  if (!session?.user) throw new Error("未登录");
+
+  const data = await apiFetch<ProjectResponse>(`/api/projects/${id}`, {
+    method: "PATCH",
+    body: { currency },
+  });
+  revalidatePath("/");
+  revalidatePath(`/project/${id}`);
+  revalidatePath(`/analysis`);
+  return toCompat(data);
 }
 
 export async function updateProject(id: string, name: string) {
@@ -169,4 +187,63 @@ export async function getProjectStats(projectId: string) {
       .map((c) => ({ ...c, amount: round(c.amount) }))
       .sort((a, b) => b.amount - a.amount),
   };
+}
+
+export type FindingCode =
+  | "duplicate_invoice_no"
+  | "missing_invoice"
+  | "amount_outlier"
+  | "missing_date";
+
+export interface Finding {
+  code: FindingCode;
+  severity: "high" | "medium" | "low";
+  /** 涉及的记录数 */
+  count: number;
+  /** 涉及金额合计 */
+  amount: number;
+  /** 重复的发票号，或离群记录所属分类 */
+  label: string | null;
+  /** 离群金额是同类中位数的倍数，其余为 0 */
+  ratio: number;
+}
+
+export interface ProjectFindings {
+  /** 检查的是哪个月，YYYY-MM */
+  month: string;
+  currency: string;
+  /** 该月记录数，为 0 说明这个月还没记账 */
+  recordCount: number;
+  findings: Finding[];
+}
+
+/**
+ * 项目页的「本月发现」。
+ *
+ * 这是月结交付包里异常清单的常态化版本：用户一进项目就该看到哪里可能有问题，
+ * 而不是等到月底生成包才发现有张发票重复付了。
+ *
+ * 失败时返回 null，页面不显示这张卡，而不是给用户看一句报错。
+ */
+export async function getProjectFindings(projectId: string): Promise<ProjectFindings | null> {
+  const session = await auth();
+  if (!session?.user) return null;
+
+  try {
+    const data = await apiFetch<{
+      month: string;
+      currency: string;
+      record_count: number;
+      exceptions: Array<Finding>;
+    }>(`/api/projects/${projectId}/findings`);
+
+    return {
+      month: data.month,
+      currency: data.currency ?? "USD",
+      recordCount: data.record_count ?? 0,
+      findings: data.exceptions ?? [],
+    };
+  } catch {
+    return null;
+  }
 }

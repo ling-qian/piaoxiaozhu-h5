@@ -1,6 +1,6 @@
 "use client";
 
-import { CURRENCY_SYMBOL } from "@/lib/currency";
+import { currencySymbolOf, formatMoney, SUPPORTED_CURRENCIES } from "@/lib/currency";
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import PageHeader from "@/components/page-header";
@@ -10,7 +10,8 @@ import TabBar from "@/components/tab-bar";
 import { formatAmount } from "@/lib/utils";
 import { CATEGORIES, categoryLabel } from "@/lib/constants";
 import { deleteRecord, getRecords } from "@/lib/actions/record-actions";
-import { deleteProject } from "@/lib/actions/project-actions";
+import { deleteProject, updateProjectCurrency } from "@/lib/actions/project-actions";
+import type { Finding, ProjectFindings } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/lib/i18n";
 import { RecordItem } from "@/types/record";
@@ -33,18 +34,40 @@ type Record = RecordItem;
 
 export default function ProjectDetailClient({
   projectId,
+  currency,
   stats,
   initialRecords,
   initialNextCursor,
+  findings,
 }: {
   projectId: string;
+  /** 项目记账币种，金额显示按它走 */
+  currency: string;
   stats: Stats;
   initialRecords: Record[];
   initialNextCursor: string | null;
+  /** 本月异常，取不到时为 null，整张卡不显示 */
+  findings: ProjectFindings | null;
 }) {
   const router = useRouter();
   const { showToast } = useToast();
   const { t } = useI18n();
+  // 币种可以改：老项目建的时候还没这个字段，一律是 USD。
+  // 改的是显示口径，已经存下的金额不换算。
+  const [currencyCode, setCurrencyCode] = useState(currency);
+
+  async function handleCurrencyChange(code: string) {
+    if (code === currencyCode) return;
+    setCurrencyCode(code);
+    try {
+      await updateProjectCurrency(projectId, code);
+      showToast(t("common.saved"), "success");
+      router.refresh();
+    } catch {
+      setCurrencyCode(currency);
+      showToast(t("common.saveFail"), "error");
+    }
+  }
   const [records, setRecords] = useState(initialRecords);
   const [nextCursor, setNextCursor] = useState(initialNextCursor);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -169,11 +192,27 @@ export default function ProjectDetailClient({
         {/* 左栏：统计、成本分布、操作入口。手机上按顺序从上往下排 */}
         <div className="space-y-4 lg:col-span-1">
         {/* 统计卡片 */}
-        <StatRow stats={stats} t={t} />
+        <StatRow stats={stats} t={t} currency={currencyCode} />
+
+        {/* 记账币种：改的是显示口径，已存金额不换算 */}
+        <div className="bg-white rounded-md p-3 shadow-card">
+          <label className="block text-xs text-[#64748B] mb-2">{t("home.currency")}</label>
+          <select
+            value={currencyCode}
+            onChange={(e) => handleCurrencyChange(e.target.value)}
+            className="w-full border border-[#E2E8F0] rounded-lg px-2.5 py-2 text-sm bg-white focus:border-brand focus:outline-none"
+          >
+            {SUPPORTED_CURRENCIES.map((code) => (
+              <option key={code} value={code}>
+                {code} {currencySymbolOf(code)}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* 成本分类可视化 */}
         {stats.costByCategory && stats.costByCategory.length > 0 && (
-          <CostCategoryChart categories={stats.costByCategory} t={t} />
+          <CostCategoryChart categories={stats.costByCategory} t={t} currency={currencyCode} />
         )}
 
         {/* 操作按钮 */}
@@ -186,6 +225,16 @@ export default function ProjectDetailClient({
 
         {/* 右栏：记录列表与筛选 */}
         <div className="space-y-4 lg:col-span-2">
+        {/* 本月发现：异常从交付包里提出来，每次打开项目都能看见 */}
+        {findings && (
+          <FindingsCard
+            findings={findings}
+            currency={currencyCode}
+            projectId={projectId}
+            t={t}
+          />
+        )}
+
         {/* AI 经营分析入口 */}
         <AnalysisEntry projectId={projectId} t={t} />
 
@@ -283,6 +332,7 @@ export default function ProjectDetailClient({
               onLoadMore={handleLoadMore}
               nextCursor={nextCursor}
               loadingMore={loadingMore}
+              currency={currencyCode}
               t={t}
             />
           </div>
@@ -294,6 +344,7 @@ export default function ProjectDetailClient({
             onLoadMore={handleLoadMore}
             nextCursor={nextCursor}
             loadingMore={loadingMore}
+            currency={currencyCode}
             t={t}
           />
           </>
@@ -337,14 +388,15 @@ export default function ProjectDetailClient({
 }
 
 /** 统计卡片行：手机横排三个，桌面左栏里改成竖排 */
-function StatRow({ stats, t }: { stats: Stats; t: (key: string) => string }) {
+function StatRow({ stats, t, currency }: { stats: Stats; t: (key: string) => string; currency: string }) {
+  const symbol = currencySymbolOf(currency);
   return (
     <div className="flex gap-2 lg:flex-col">
-      <StatCard label={t("project.totalIncome")} value={`${CURRENCY_SYMBOL}${formatAmount(stats.totalIncome)}`} color="#059669" />
-      <StatCard label={t("project.totalExpense")} value={`${CURRENCY_SYMBOL}${formatAmount(stats.totalExpense)}`} color="#DC2626" />
+      <StatCard label={t("project.totalIncome")} value={`${symbol}${formatAmount(stats.totalIncome)}`} color="#059669" />
+      <StatCard label={t("project.totalExpense")} value={`${symbol}${formatAmount(stats.totalExpense)}`} color="#DC2626" />
       <StatCard
         label={t("project.grossProfit")}
-        value={`${CURRENCY_SYMBOL}${formatAmount(stats.grossProfit)}`}
+        value={`${symbol}${formatAmount(stats.grossProfit)}`}
         color={stats.grossProfit >= 0 ? "#059669" : "#DC2626"}
       />
     </div>
@@ -352,7 +404,8 @@ function StatRow({ stats, t }: { stats: Stats; t: (key: string) => string }) {
 }
 
 /** 成本分类可视化 */
-function CostCategoryChart({ categories, t }: { categories: { code: string; name: string; amount: number }[]; t: (key: string) => string }) {
+function CostCategoryChart({ categories, t, currency }: { categories: { code: string; name: string; amount: number }[]; t: (key: string) => string; currency: string }) {
+  const symbol = currencySymbolOf(currency);
   const maxAmount = categories[0]?.amount || 1;
   return (
     <div className="bg-white rounded-md p-3 shadow-card animate-fade-in-up stagger-1">
@@ -367,7 +420,7 @@ function CostCategoryChart({ categories, t }: { categories: { code: string; name
               <div className="flex items-center justify-between mb-0.5">
                 <CategoryTag code={cat.code} />
                 <span className="text-xs font-medium text-[#0F172A]">
-                  {CURRENCY_SYMBOL}{formatAmount(cat.amount)}
+                  {symbol}{formatAmount(cat.amount)}
                 </span>
               </div>
               <div className="h-2 bg-[#F8FAFC] rounded-full overflow-hidden">
@@ -403,6 +456,91 @@ function ActionButtons({ projectId, onAddIncome, t }: { projectId: string; onAdd
       </button>
     </div>
   );
+}
+
+/** 本月发现：把交付包里的异常清单提到项目页，每月的重复、缺票、金额异常都在这里 */
+function FindingsCard({
+  findings,
+  currency,
+  projectId,
+  t,
+}: {
+  findings: ProjectFindings;
+  currency: string;
+  projectId: string;
+  t: (key: string) => string;
+}) {
+  const router = useRouter();
+  const rows = findings.findings;
+  const hasRecords = findings.recordCount > 0;
+
+  return (
+    <div className="bg-white rounded-md p-4 shadow-card">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-sm font-semibold text-[#0F172A]">{t("findings.title")}</h3>
+          <span className="text-xs text-[#94A3B8]">{findings.month}</span>
+        </div>
+        <button
+          onClick={() => router.push(`/pack?project=${projectId}&month=${findings.month}`)}
+          className="text-xs text-brand shrink-0 btn-press"
+        >
+          {t("findings.openPack")} →
+        </button>
+      </div>
+
+      {!hasRecords ? (
+        <p className="text-xs text-[#64748B] mt-2 leading-relaxed">{t("findings.noRecords")}</p>
+      ) : rows.length === 0 ? (
+        <p className="text-xs text-[#64748B] mt-2 leading-relaxed">{t("findings.empty")}</p>
+      ) : (
+        <ul className="mt-2.5 space-y-2.5">
+          {rows.map((f, i) => (
+            <li key={`${f.code}-${i}`} className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${severityDot(f.severity)}`} />
+                  <span className="text-sm text-[#0F172A]">{findingLabel(f, t)}</span>
+                </div>
+                {f.code === "amount_outlier" && f.label && (
+                  <p className="text-xs text-[#94A3B8] mt-0.5 pl-3">
+                    {categoryLabel(f.label, t)} · {f.ratio}×
+                  </p>
+                )}
+                {f.code === "duplicate_invoice_no" && f.label && (
+                  <p className="text-xs text-[#94A3B8] mt-0.5 pl-3 truncate">{f.label}</p>
+                )}
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-sm font-medium text-[#0F172A]">{formatMoney(f.amount, currency)}</p>
+                <p className="text-xs text-[#94A3B8]">
+                  {f.count}
+                  {t("findings.unit")}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {hasRecords && rows.length > 0 && (
+        <p className="text-[11px] text-[#94A3B8] mt-3 leading-relaxed">{t("findings.footnote")}</p>
+      )}
+    </div>
+  );
+}
+
+function severityDot(severity: Finding["severity"]): string {
+  if (severity === "high") return "bg-[#DC2626]";
+  if (severity === "medium") return "bg-[#D97706]";
+  return "bg-[#94A3B8]";
+}
+
+function findingLabel(f: Finding, t: (key: string) => string): string {
+  if (f.code === "duplicate_invoice_no") return t("findings.duplicate");
+  if (f.code === "missing_invoice") return t("findings.missingInvoice");
+  if (f.code === "amount_outlier") return t("findings.outlier");
+  return t("findings.missingDate");
 }
 
 /** AI 经营分析入口 */
@@ -550,6 +688,7 @@ function RecordTable({
   onLoadMore,
   nextCursor,
   loadingMore,
+  currency,
   t,
 }: {
   records: Record[];
@@ -559,9 +698,11 @@ function RecordTable({
   onLoadMore: () => void;
   nextCursor: string | null;
   loadingMore: boolean;
+  currency: string;
   t: (key: string) => string;
 }) {
   const router = useRouter();
+  const symbol = currencySymbolOf(currency);
   return (
     <div className="hidden lg:block">
       <div className="overflow-hidden rounded-xl border border-[#E2E8F0] bg-white">
@@ -603,7 +744,7 @@ function RecordTable({
                     }`}
                   >
                     {r.direction === "income" ? "+" : "-"}
-                    {CURRENCY_SYMBOL}
+                    {symbol}
                     {formatAmount(r.amount)}
                   </td>
                   <td className="w-12 pr-4 text-right">
@@ -659,6 +800,7 @@ function RecordList({
   onLoadMore,
   nextCursor,
   loadingMore,
+  currency,
   t,
 }: {
   records: Record[];
@@ -674,6 +816,7 @@ function RecordList({
   onLoadMore: () => void;
   nextCursor: string | null;
   loadingMore: boolean;
+  currency: string;
   t: (key: string) => string;
 }) {
   const router = useRouter();
@@ -719,7 +862,7 @@ function RecordList({
                 className="flex-1 min-w-0"
                 onClick={() => { if (!isOpen) router.push(`/result?recordId=${r.id}&project=${projectId}`); }}
               >
-                <RecordCard {...r} />
+                <RecordCard {...r} currency={currency} />
               </div>
               <button
                 onClick={(e) => {

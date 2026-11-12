@@ -26,6 +26,9 @@ import intlPaymentRoutes from "./routes/payments-intl";
 import interestRoutes from "./routes/interest";
 import packRoutes from "./routes/pack";
 import salesRoutes from "./routes/sales";
+import emailRoutes from "./routes/email";
+import { maybeRunScheduledDigest } from "./lib/digest";
+import { handleInboundEmail } from "./lib/inbound";
 
 type Vars = { user: UserRow };
 
@@ -69,7 +72,9 @@ app.use("/api/*", async (c, next) => {
     c.req.path === "/api/payments/wechat/notify" ||
     c.req.path === "/api/payments/stripe/webhook" ||
     // 只读分享：凭快照令牌访问，会计不需要注册账号
-    c.req.path.startsWith("/api/share/")
+    c.req.path.startsWith("/api/share/") ||
+    // 退订链接来自邮件，凭签名访问，用户可能没有登录态
+    c.req.path === "/api/email/unsubscribe"
   ) {
     return next();
   }
@@ -105,8 +110,28 @@ app.route("/api", intlPaymentRoutes);
 app.route("/api", interestRoutes);
 app.route("/api", packRoutes);
 app.route("/api", salesRoutes);
+app.route("/api", emailRoutes);
 
 // 兜底 404 也用统一结构，避免前端拿到 HTML 报错页
 app.notFound((c) => c.json({ detail: `接口不存在：${c.req.method} ${c.req.path}` }, 404));
 
-export default app;
+/**
+ * 定时任务。
+ *
+ * 「本月发现」在每月 1 日与 15 日的 09:00 UTC 各发一封，日期判断在函数内部，
+ * 所以 cron 每小时跑一次也不会重复发。
+ */
+async function scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+  ctx.waitUntil(
+    maybeRunScheduledDigest(env).catch((err) => {
+      console.error("[cron] 本月发现邮件异常", err);
+    })
+  );
+}
+
+export default {
+  fetch: app.fetch,
+  scheduled,
+  // Cloudflare Email Routing 把收到的信转给 Worker 时走这里
+  email: handleInboundEmail,
+};

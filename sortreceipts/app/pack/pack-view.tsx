@@ -48,6 +48,7 @@ export default function PackView({
   const { t } = useI18n();
   const router = useRouter();
   const { showToast } = useToast();
+  const money = (v: number) => formatMoney(v, pack.currency);
 
   const [share, setShare] = useState<PackShare | null>(pack.share);
   const [csvBusy, setCsvBusy] = useState(false);
@@ -107,6 +108,8 @@ export default function PackView({
       {readOnly ? (
         <div className="px-4 pt-6 lg:mx-auto lg:max-w-3xl lg:px-10 print:px-0 print:pt-0">
           <p className="text-xs text-[#64748B]">{t("pack.readOnly")}</p>
+          {/* 品牌露出：会计每月都会打开这一页，这是我们最便宜的一次曝光 */}
+          <p className="text-xs text-brand mt-1">{t("pack.brandLine")}</p>
         </div>
       ) : (
         <PageHeader
@@ -202,10 +205,10 @@ export default function PackView({
           </div>
 
           <div className="grid grid-cols-2 gap-3 mt-4 lg:grid-cols-4">
-            <Stat label={t("pack.income")} value={formatMoney(pack.summary.income)} tone="income" />
-            <Stat label={t("pack.expense")} value={formatMoney(pack.summary.expense)} tone="expense" />
-            <Stat label={t("pack.net")} value={formatMoney(pack.summary.net)} tone="net" />
-            <Stat label={t("pack.taxTotal")} value={formatMoney(pack.summary.tax_total)} tone="muted" />
+            <Stat label={t("pack.income")} value={money(pack.summary.income)} tone="income" />
+            <Stat label={t("pack.expense")} value={money(pack.summary.expense)} tone="expense" />
+            <Stat label={t("pack.net")} value={money(pack.summary.net)} tone="net" />
+            <Stat label={t("pack.taxTotal")} value={money(pack.summary.tax_total)} tone="muted" />
           </div>
         </div>
 
@@ -229,7 +232,7 @@ export default function PackView({
                   <tr key={cat.name} className="border-b border-[#F1F5F9] last:border-0">
                     <td className="py-2 pl-4 text-[#0F172A]">{categoryLabel(cat.name, t)}</td>
                     <td className="py-2 text-right text-[#475569]">{cat.count}</td>
-                    <td className="py-2 text-right text-[#0F172A]">{formatMoney(cat.amount)}</td>
+                    <td className="py-2 text-right text-[#0F172A]">{money(cat.amount)}</td>
                     <td className="py-2 pr-4 text-right text-[#64748B]">{cat.share}%</td>
                   </tr>
                 ))}
@@ -246,7 +249,7 @@ export default function PackView({
           ) : (
             <div className="space-y-3 mt-3">
               {pack.exceptions.map((exception, index) => (
-                <ExceptionCard key={`${exception.code}-${index}`} exception={exception} />
+                <ExceptionCard key={`${exception.code}-${index}`} exception={exception} currency={pack.currency} />
               ))}
             </div>
           )}
@@ -257,12 +260,12 @@ export default function PackView({
           <div className="bg-white rounded-md p-4 shadow-card print:hidden text-center">
             <p className="text-sm font-medium text-[#0F172A]">{t("pack.ctaTitle")}</p>
             <p className="text-xs text-[#64748B] mt-1 leading-relaxed">{t("pack.ctaText")}</p>
-            <a
+            <Link
               href="/auth/register"
               className="mt-3 inline-flex items-center justify-center rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white btn-press"
             >
               {t("pack.ctaButton")}
-            </a>
+            </Link>
           </div>
         )}
       </div>
@@ -296,25 +299,30 @@ function Stat({
 }
 
 /** 异常条目的文案在这里拼：后端只给结构化字段，措辞跟着界面语言走 */
-function exceptionText(exception: PackException, t: (key: string) => string): string {
+function exceptionText(
+  exception: PackException,
+  t: (key: string) => string,
+  currency?: string
+): string {
+  const amount = formatMoney(exception.amount, currency);
   switch (exception.code) {
     case "duplicate_invoice_no":
       return t("pack.dupDetail")
         .replace("{no}", exception.label ?? "")
         .replace("{n}", String(exception.count))
-        .replace("{amount}", formatMoney(exception.amount));
+        .replace("{amount}", amount);
     case "missing_invoice":
       return t("pack.missingInvoiceDetail")
         .replace("{n}", String(exception.count))
-        .replace("{amount}", formatMoney(exception.amount));
+        .replace("{amount}", amount);
     case "amount_outlier":
       return t("pack.outlierDetail")
-        .replace("{amount}", formatMoney(exception.amount))
+        .replace("{amount}", amount)
         .replace("{ratio}", exception.ratio.toFixed(1));
     case "missing_date":
       return t("pack.missingDateDetail")
         .replace("{n}", String(exception.count))
-        .replace("{amount}", formatMoney(exception.amount));
+        .replace("{amount}", amount);
   }
 }
 
@@ -331,7 +339,7 @@ function exceptionTitle(exception: PackException, t: (key: string) => string): s
   }
 }
 
-function ExceptionCard({ exception }: { exception: PackException }) {
+function ExceptionCard({ exception, currency }: { exception: PackException; currency?: string }) {
   const { t } = useI18n();
   const tone =
     exception.severity === "high"
@@ -349,7 +357,7 @@ function ExceptionCard({ exception }: { exception: PackException }) {
             <p className="text-sm font-medium text-[#0F172A]">{exceptionTitle(exception, t)}</p>
             <span className={`text-[10px] px-1.5 py-0.5 rounded bg-[#F8FAFC] ${tone.text}`}>{tone.label}</span>
           </div>
-          <p className="text-xs text-[#475569] mt-1 leading-relaxed">{exceptionText(exception, t)}</p>
+          <p className="text-xs text-[#475569] mt-1 leading-relaxed">{exceptionText(exception, t, currency)}</p>
 
           {exception.records.length > 0 && (
             <div className="mt-2 space-y-1">
@@ -357,7 +365,7 @@ function ExceptionCard({ exception }: { exception: PackException }) {
                 <div key={r.id} className="flex items-center gap-2 text-xs text-[#64748B]">
                   <span className="w-20 shrink-0">{r.date || "—"}</span>
                   <span className="flex-1 min-w-0 truncate">{r.merchant || t("pack.noMerchant")}</span>
-                  <span className="shrink-0">{formatMoney(r.amount)}</span>
+                  <span className="shrink-0">{formatMoney(r.amount, currency)}</span>
                 </div>
               ))}
             </div>

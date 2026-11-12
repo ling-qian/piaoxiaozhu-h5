@@ -1,4 +1,4 @@
-import { CURRENCY_SYMBOL } from "@/lib/currency";
+import { currencySymbolOf } from "@/lib/currency";
 import CategoryTag from "./category-tag";
 import { getDirectionColor, getDirectionPrefix, formatAmount } from "@/lib/utils";
 
@@ -31,6 +31,8 @@ interface RecordCardProps {
   categoryL1: string;
   invoiceDate: string | null;
   invoiceType?: string | null;
+  /** 项目币种；不传时按站点币种显示 */
+  currency?: string | null;
   onClick?: () => void;
 }
 
@@ -42,6 +44,7 @@ export default function RecordCard({
   categoryL1,
   invoiceDate,
   invoiceType,
+  currency,
   onClick,
 }: RecordCardProps) {
   return (
@@ -71,7 +74,7 @@ export default function RecordCard({
         className="text-base font-semibold shrink-0 whitespace-nowrap"
         style={{ color: getDirectionColor(direction) }}
       >
-        {getDirectionPrefix(direction)}{CURRENCY_SYMBOL}{formatAmount(amount)}
+        {getDirectionPrefix(direction)}{currencySymbolOf(currency)}{formatAmount(amount)}
       </span>
     </div>
   );
