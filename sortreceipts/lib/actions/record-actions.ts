@@ -620,17 +620,32 @@ export async function getRecordsForReport(projectId: string) {
   const session = await auth();
   if (!session?.user) throw new Error("未登录");
 
-  // 报表要全量：分页拉完再聚合（记录量在几百条量级，可接受）
+  // 报表要全量：按接口返回的 total 翻页拉完再聚合。
+  //
+  // 上限 100 页只作为死循环保险，正常情况下永远达不到：翻页条件看的是
+  // total，不是固定页码。之前的 20 页硬上限会让超过 2000 条的项目在报表
+  // 和 CSV 导出里无声少数据，是「看起来对、其实缺尾」的那类错误。
+  const PAGE_SIZE = 100;
+  const MAX_PAGES = 100;
   const all: RecordPayload[] = [];
-  for (let page = 1; page <= 20; page++) {
+
+  for (let page = 1; page <= MAX_PAGES; page++) {
     const data = await apiFetch<{
       items: RecordPayload[];
       total: number;
       size: number;
-    }>(`/api/projects/${projectId}/records?page=${page}&size=100`);
+    }>(`/api/projects/${projectId}/records?page=${page}&size=${PAGE_SIZE}`);
     all.push(...(data.items ?? []));
-    if (!data.items || data.items.length < 100) break;
-    if (page * 100 >= (data.total ?? 0)) break;
+
+    const total = data.total ?? 0;
+    if (!data.items || data.items.length < PAGE_SIZE) break;
+    if (page * PAGE_SIZE >= total) break;
+
+    if (page === MAX_PAGES) {
+      console.error(
+        `[report] 项目 ${projectId} 记录数 ${total}，已达 ${MAX_PAGES} 页上限，本次聚合仍不完整`
+      );
+    }
   }
 
   return all.map(serializeRecord);
