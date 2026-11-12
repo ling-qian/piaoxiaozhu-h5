@@ -28,7 +28,7 @@ import packRoutes from "./routes/pack";
 import salesRoutes from "./routes/sales";
 import emailRoutes from "./routes/email";
 import { maybeRunScheduledDigest } from "./lib/digest";
-import { handleInboundEmail } from "./lib/inbound";
+import { handleInboundEmail } from "./lib/mail-router";
 
 type Vars = { user: UserRow };
 

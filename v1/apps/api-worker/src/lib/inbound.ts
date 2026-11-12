@@ -239,17 +239,17 @@ export async function resolveProjectId(env: Env, user: UserRow): Promise<string>
 }
 
 /**
- * Email Routing 的入口。
+ * 收票分支：`r-<token>@<INBOX_DOMAIN>` 的信。
  *
- * 地址格式 `r-<token>@<INBOX_DOMAIN>`。token 认不出就退信：
- * catch-all 会让主域的普通地址也走到这里，静默丢弃等于把那些信吞掉。
+ * 由 `mail-router.ts` 按收件域分过来。token 认不出就退信：
+ * 子域上也可能有写错地址的信，静默丢弃等于把那些信吞掉。
  */
-export async function handleInboundEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
+export async function handleReceiptEmail(message: ForwardableEmailMessage, env: Env): Promise<void> {
   const to = (message.to ?? "").trim().toLowerCase();
   const match = /^r-([0-9a-f]{16,64})@/.exec(to);
   if (!match) {
-    // catch-all 覆盖整个域，主域的普通地址也会进来。这里退信而不是丢弃：
-    // 丢弃会让发信人以为信已送达，而主域以前根本没有 MX，退信才是原来的行为。
+    // 地址前缀不对也走到这里（子域可能配了 catch-all）。退信而不是丢弃：
+    // 丢弃会让发信人以为信已送达。
     console.warn("[inbound] 收件地址格式不认:", to);
     message.setReject("No such recipient");
     return;

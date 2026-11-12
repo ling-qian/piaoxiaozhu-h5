@@ -63,6 +63,13 @@ export interface Env {
    * 不能和主域共用——主域的邮件路由可能还有别的用途。
    */
   INBOX_DOMAIN?: string;
+  /**
+   * `support@` 等地址分拣后的转发目标。
+   *
+   * 必须是 Cloudflare Email Routing 里已验证的 destination address，
+   * 否则 `message.forward()` 会抛错。未配置时来信直接退信，不静默丢弃。
+   */
+  SUPPORT_INBOX?: string;
   /** Cloudflare Turnstile 的 Secret Key。为空表示人机验证未配置 */
   TURNSTILE_SECRET_KEY?: string;
 
