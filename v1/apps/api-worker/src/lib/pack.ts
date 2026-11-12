@@ -94,6 +94,11 @@ export function previousMonth(now: Date = new Date()): string {
   return d.toISOString().slice(0, 7);
 }
 
+/** 当前月份的 YYYY-MM，项目页的「本月发现」用它 */
+export function currentMonth(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 7);
+}
+
 const toCents = (value: number | null): number => {
   const n = Number(value ?? 0);
   return Number.isFinite(n) ? Math.round(n * 100) : 0;
