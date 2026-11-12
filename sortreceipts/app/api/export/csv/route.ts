@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { ApiError } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { requireExportPlan } from "@/lib/plan";
 import { getRecordsForReport } from "@/lib/actions/record-actions";
 
 /**
@@ -33,6 +35,17 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) {
     return NextResponse.json({ error: "未登录" }, { status: 401 });
+  }
+
+  // 导出是付费权益。按钮在页面上会隐藏，但这条路由可以直接访问，
+  // 所以要在服务端再判一次套餐。
+  try {
+    await requireExportPlan();
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 403) {
+      return NextResponse.json({ error: e.message }, { status: 403 });
+    }
+    return NextResponse.json({ error: "套餐校验失败，请稍后重试" }, { status: 502 });
   }
 
   const projectId = req.nextUrl.searchParams.get("projectId");

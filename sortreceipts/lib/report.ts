@@ -1,4 +1,4 @@
-import { CATEGORIES } from "./constants";
+import { CATEGORIES, resolveCategoryCode } from "./constants";
 
 export interface ReportData {
   totalIncome: number;
@@ -63,8 +63,11 @@ export function generateReport(
       incomeCents += amountCents;
     } else {
       expenseCents += amountCents;
-      categoryCents[r.categoryCode] =
-        (categoryCents[r.categoryCode] || 0) + amountCents;
+      // 后端会把中文分类名（食材、水电…）和旧版 11 类 code 直接写进
+      // category_code。不先归一，这些支出会进总额、却进不了下面的分类表，
+      // 页面上的占比合计就凑不满 100%。
+      const code = resolveCategoryCode(r.categoryCode) ?? r.categoryCode;
+      categoryCents[code] = (categoryCents[code] || 0) + amountCents;
     }
 
     if (r.invoiceDate) {

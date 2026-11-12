@@ -11,6 +11,7 @@
  */
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import PageHeader from "@/components/page-header";
@@ -33,9 +34,17 @@ interface PackViewProps {
   /** 只读页显示项目名；用户自己的页面用标题代替 */
   projectName?: string;
   readOnly?: boolean;
+  /** 当前套餐能不能导出；只读分享页不传，默认放行（分享页本来就没有操作） */
+  canExport?: boolean;
 }
 
-export default function PackView({ projectId, pack, projectName, readOnly = false }: PackViewProps) {
+export default function PackView({
+  projectId,
+  pack,
+  projectName,
+  readOnly = false,
+  canExport = true,
+}: PackViewProps) {
   const { t } = useI18n();
   const router = useRouter();
   const { showToast } = useToast();
@@ -127,17 +136,26 @@ export default function PackView({ projectId, pack, projectName, readOnly = fals
               />
             </div>
 
+            {!canExport && (
+              <div className="rounded-lg bg-[#FFF7ED] px-3 py-2.5 text-xs leading-relaxed text-[#B45309]">
+                {t("pack.exportLocked")}{" "}
+                <Link href="/member" className="font-medium text-brand underline">
+                  {t("pack.upgrade")}
+                </Link>
+              </div>
+            )}
+
             <div className="flex gap-2">
               <button
                 onClick={handleCsv}
-                disabled={csvBusy}
+                disabled={csvBusy || !canExport}
                 className="flex-1 bg-white border border-[#E2E8F0] text-[#475569] py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 btn-press"
               >
                 {csvBusy ? t("pack.downloading") : t("pack.downloadCsv")}
               </button>
               <button
                 onClick={handleShare}
-                disabled={shareBusy}
+                disabled={shareBusy || !canExport}
                 className="flex-1 bg-white border border-[#E2E8F0] text-brand py-2.5 rounded-xl text-sm font-medium disabled:opacity-50 btn-press"
               >
                 {shareBusy ? t("pack.sharing") : t("pack.createShare")}
@@ -150,7 +168,7 @@ export default function PackView({ projectId, pack, projectName, readOnly = fals
               </button>
             </div>
 
-            {share && (
+            {share && canExport && (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2">
                   <input

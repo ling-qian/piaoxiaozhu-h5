@@ -9,6 +9,7 @@
 
 import { apiFetch, apiFetchText } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import { requireExportPlan } from "@/lib/plan";
 
 export interface PackSummary {
   record_count: number;
@@ -89,6 +90,7 @@ export async function getPack(projectId: string, month: string): Promise<PackRes
 /** 取 CSV 原文。下载动作在浏览器里做，服务端只负责把文本取回来 */
 export async function getPackCsv(projectId: string, month: string): Promise<string> {
   await requireUser();
+  await requireExportPlan();
   return apiFetchText(`/api/projects/${projectId}/pack/csv?month=${month}`);
 }
 
@@ -100,6 +102,7 @@ export async function getPackCsv(projectId: string, month: string): Promise<stri
  */
 export async function createPackShare(projectId: string, month: string): Promise<PackShare> {
   await requireUser();
+  await requireExportPlan();
   return apiFetch<PackShare>(`/api/projects/${projectId}/pack/share`, {
     method: "POST",
     body: { month },
