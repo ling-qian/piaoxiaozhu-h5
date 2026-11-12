@@ -1,0 +1,55 @@
+# SortReceipts 前端的门禁。
+#
+# 只在这个子项目有改动时触发：同一仓库里还有小程序和后端 Worker，
+# 它们的提交不该拉起这份前端检查。
+name: sortreceipts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "sortreceipts/**"
+      - ".github/workflows/sortreceipts.yml"
+  pull_request:
+    paths:
+      - "sortreceipts/**"
+      - ".github/workflows/sortreceipts.yml"
+
+defaults:
+  run:
+    working-directory: sortreceipts
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          # 锁文件在子目录里，缓存 key 要跟着走
+          cache-dependency-path: sortreceipts/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      - name: 代码检查
+        run: npm run lint
+
+      - name: 单元测试
+        run: npm test
+
+      # 构建期变量必须显式给：NEXT_PUBLIC_* 会被内联进产物，
+      # 缺失时构建仍然成功，但产物里的站点地区会被判成默认值。
+      - name: 构建
+        run: npm run build
+        env:
+          NEXT_PUBLIC_REGION: intl
+          NEXT_PUBLIC_CURRENCY: USD
+          NEXT_PUBLIC_BASE_URL: https://sortreceipts.qianling-tech.top
+          WORKER_API_URL: https://api.qianling-tech.top
