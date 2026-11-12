@@ -13,7 +13,8 @@ import type { Env } from "../env";
 import type { PackRecord } from "../lib/pack";
 import { buildPack, isMonthKey, previousMonth, renderPackCsv } from "../lib/pack";
 import type { UserRow } from "../db/types";
-import { badRequest, isUuid, notFound } from "../lib/http";
+import { badRequest, forbidden, isUuid, notFound } from "../lib/http";
+import { effectivePlanCode, getPlan } from "../lib/plans";
 import { nowIso } from "../lib/time";
 
 const router = new Hono<{ Bindings: Env; Variables: { user: UserRow } }>();
@@ -29,6 +30,19 @@ async function assertProject(db: D1Database, projectId: string, userId: string) 
     .first<{ id: string; name: string }>();
   if (!row) throw notFound("Project not found");
   return row;
+}
+
+/**
+ * 导出与分享属于付费权益（PLANS[].canExport）。
+ *
+ * 查看交付包本身不拦：免费用户也要能看到汇总，才知道自己买的是什么。
+ * 套餐按到期时间惰性判定，和 `/api/me/quota` 用的是同一套逻辑。
+ */
+function assertCanExport(u: UserRow): void {
+  const plan = getPlan(effectivePlanCode(u.plan_code, u.plan_expires_at));
+  if (!plan.canExport) {
+    throw forbidden("当前套餐不含导出，升级后可以下载 CSV 和生成分享链接");
+  }
 }
 
 function resolveMonth(raw: string | undefined | null): string {
@@ -106,6 +120,7 @@ router.get("/projects/:projectId/pack/csv", async (c) => {
   const projectId = c.req.param("projectId");
   if (!isUuid(projectId)) throw notFound("Project not found");
   await assertProject(c.env.DB, projectId, u.id);
+  assertCanExport(u);
 
   const month = resolveMonth(c.req.query("month"));
   const csv = renderPackCsv(await loadRecords(c.env.DB, projectId, u.id), month);
@@ -122,6 +137,7 @@ router.post("/projects/:projectId/pack/share", async (c) => {
   const projectId = c.req.param("projectId");
   if (!isUuid(projectId)) throw notFound("Project not found");
   await assertProject(c.env.DB, projectId, u.id);
+  assertCanExport(u);
 
   const body = await c.req.json<any>().catch(() => ({}));
   const month = resolveMonth(body?.month);
