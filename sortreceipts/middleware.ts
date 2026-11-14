@@ -85,6 +85,8 @@ const PUBLIC_PREFIXES = [
   "/api/auth", // 登录接口本身
   "/api/admin/login", // 后台登录：校验令牌后自己写 cookie
   "/api/admin/logout",
+  // 退订链接来自邮件：用户可能没登录，凭签名访问，交给后端验签
+  "/api/email/unsubscribe",
   // 月度交付包的只读分享：会计没有账号，凭令牌访问
   "/share/",
   // 主题子文带 slug，用前缀一次覆盖，新增一篇不必再来改中间件

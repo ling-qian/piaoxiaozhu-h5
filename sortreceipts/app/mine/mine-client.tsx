@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/lib/actions/auth-actions";
-import { getInboxAddress, sendDigestTest, testInboundReceipt, updateUserName } from "@/lib/actions/user-actions";
+import { getInboxAddress, sendDigestTest, setEmailReminder, testInboundReceipt, updateUserName } from "@/lib/actions/user-actions";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/lib/i18n";
 import { SHOW_CHECKIN } from "@/lib/region";
@@ -16,6 +16,7 @@ interface UserInfo {
   planCode: string;
   quotaUsed: number;
   quotaTotal: number;
+  emailOptOut: boolean;
 }
 
 /** FileReader 版本的 base64，图片无法用 canvas 解码时兜底 */
@@ -75,6 +76,7 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
   const [showAbout, setShowAbout] = useState(false);
   const [inbox, setInbox] = useState<{ address: string; configured: boolean } | null>(null);
   const [sendingDigest, setSendingDigest] = useState(false);
+  const [savingReminder, setSavingReminder] = useState(false);
   const [testingReceipt, setTestingReceipt] = useState(false);
 
   useEffect(() => {
@@ -99,9 +101,26 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
     setSendingDigest(true);
     try {
       const r = await sendDigestTest();
-      showToast(r.ok ? t("mine.inboxDigestSent") : r.error, r.ok ? "success" : "error");
+      showToast(r.ok ? t("mine.inboxDigestSent") : t("mine.inboxDigestFail"), r.ok ? "success" : "error");
     } finally {
       setSendingDigest(false);
+    }
+  }
+
+  async function handleToggleReminder() {
+    if (savingReminder) return;
+    const next = !user.emailOptOut;
+    setSavingReminder(true);
+    try {
+      const r = await setEmailReminder(next);
+      if (!r.ok) {
+        showToast(t("common.error"), "error");
+        return;
+      }
+      setUser((prev) => ({ ...prev, emailOptOut: !next }));
+      showToast(next ? t("mine.emailReminderOn") : t("mine.emailReminderOff"), "success");
+    } finally {
+      setSavingReminder(false);
     }
   }
 
@@ -239,7 +258,7 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <button
               onClick={handleDigestTest}
-              disabled={sendingDigest}
+              disabled={sendingDigest || user.emailOptOut}
               className="text-xs px-3 py-1.5 rounded-lg border border-[#E2E8F0] text-[#475569] btn-press disabled:opacity-50"
             >
               {t("mine.inboxDigest")}
@@ -254,6 +273,30 @@ export default function MineClient({ user: initialUser }: { user: UserInfo }) {
                 onChange={handleReceiptFile}
               />
             </label>
+          </div>
+
+          {/* 邮件底部只能退订，没有反向入口；这个开关让用户误点之后还能自己打开 */}
+          <div className="mt-4 pt-3 border-t border-[#E2E8F0] flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm text-[#0F172A]">{t("mine.emailReminder")}</p>
+              <p className="mt-0.5 text-xs text-[#64748B]">{t("mine.emailReminderDesc")}</p>
+            </div>
+            <button
+              role="switch"
+              aria-checked={!user.emailOptOut}
+              aria-label={t("mine.emailReminder")}
+              onClick={handleToggleReminder}
+              disabled={savingReminder}
+              className={`shrink-0 flex items-center w-11 h-6 rounded-full transition-colors btn-press disabled:opacity-50 ${
+                user.emailOptOut ? "bg-[#E2E8F0]" : "bg-brand"
+              }`}
+            >
+              <span
+                className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                  user.emailOptOut ? "translate-x-0.5" : "translate-x-[22px]"
+                }`}
+              />
+            </button>
           </div>
         </div>
 

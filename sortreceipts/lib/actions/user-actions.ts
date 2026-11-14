@@ -124,7 +124,14 @@ export async function getUserInfo() {
   if (!session?.user) return null;
 
   const [me, quota] = await Promise.all([
-    apiFetch<{ id: string; email: string | null; nickname: string | null; avatar_url: string | null; created_at: string }>("/api/me"),
+    apiFetch<{
+      id: string;
+      email: string | null;
+      nickname: string | null;
+      avatar_url: string | null;
+      created_at: string;
+      email_opt_out: number;
+    }>("/api/me"),
     apiFetch<{
       plan_code: string;
       plan_name: string;
@@ -149,6 +156,7 @@ export async function getUserInfo() {
     canExport: quota.can_export,
     planExpiresAt: quota.plan_expires_at,
     createdAt: me.created_at,
+    emailOptOut: Boolean(me.email_opt_out),
   };
 }
 
@@ -206,13 +214,33 @@ export async function getInboxAddress(): Promise<{ address: string; configured: 
 /** 给自己发一封「本月发现」测试邮件，用来确认发信通道是通的 */
 export async function sendDigestTest(): Promise<ActionOutcome> {
   const session = await auth();
-  if (!session?.user) return { ok: false, error: "未登录" };
+  if (!session?.user) return { ok: false, error: "unauthorized" };
 
   try {
     await apiFetch<{ sent_to: string }>("/api/email/digest/test", { method: "POST", body: {} });
     return { ok: true };
-  } catch (e) {
-    return failure(e, "测试邮件没发出去，请稍后再试");
+  } catch {
+    // 后端返回的是中文排查文案，页面语言可能是英文，所以只回一个码，
+    // 由客户端按当前语言取文案。
+    return { ok: false, error: "digest_failed" };
+  }
+}
+
+/**
+ * 打开 / 关闭「本月发现」邮件。
+ *
+ * 邮件底部的退订链接只能关，用户误点之后回到产品就没有入口再打开，
+ * 所以这个开关是退订的反向操作，两边写的是同一个字段。
+ */
+export async function setEmailReminder(enabled: boolean): Promise<ActionOutcome> {
+  const session = await auth();
+  if (!session?.user) return { ok: false, error: "unauthorized" };
+
+  try {
+    await apiFetch("/api/me", { method: "PATCH", body: { email_opt_out: enabled ? 0 : 1 } });
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "update_failed" };
   }
 }
 
