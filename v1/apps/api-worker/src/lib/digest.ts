@@ -274,8 +274,10 @@ export async function runFindingsDigest(
     const projects = await loadProjects(env.DB, user.id, month);
     const totalRecords = projects.reduce((sum, p) => sum + p.recordCount, 0);
 
-    // 没记账的人不发：他还没把这件事交给我们，收到邮件只会觉得被打扰
-    if (totalRecords === 0) {
+    // 没记账的人不发：他还没把这件事交给我们，收到邮件只会觉得被打扰。
+    // 手动测试要跳过这一条：测试按钮的用途就是「让我看看这封邮件长什么样」，
+    // 而用户点它的时候往往本月还没记几笔。
+    if (totalRecords === 0 && !opts.force) {
       skipped += 1;
       continue;
     }

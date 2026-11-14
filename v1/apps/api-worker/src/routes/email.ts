@@ -54,7 +54,8 @@ router.post("/email/digest/test", async (c) => {
 
   const result = await runFindingsDigest(c.env, currentMonth(), { userId: u.id, force: true });
   if (result.sent === 0) {
-    return c.json({ detail: "这封邮件没发出去，检查 Resend 配置或稍后再试" }, 502);
+    // detail 只给日志和排查用；前端按 code 显示本地化文案，不要直接把中文抛给用户
+    return c.json({ code: "send_failed", detail: "这封邮件没发出去，检查 Resend 配置或稍后再试" }, 502);
   }
   return c.json({ sent_to: u.email, month: currentMonth(), at: nowIso() });
 });

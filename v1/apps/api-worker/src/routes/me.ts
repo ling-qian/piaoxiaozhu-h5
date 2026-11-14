@@ -24,6 +24,8 @@ router.get("/me", async (c) => {
     plan_code: u.plan_code,
     created_at: u.created_at,
     plan_expires_at: u.plan_expires_at,
+    // 邮件提醒开关。退订链接只会写 1，没有反向入口，所以会员页要读它才能显示真实状态。
+    email_opt_out: u.email_opt_out ?? 0,
   });
 });
 
@@ -39,6 +41,8 @@ router.patch("/me", async (c) => {
 
   const nickname = body?.nickname === undefined ? undefined : String(body.nickname).trim().slice(0, 40);
   const avatar = body?.avatar_url === undefined ? undefined : String(body.avatar_url).slice(0, 500);
+  // 退订的反向操作。邮件底部只能关，页面上的开关要能重新打开。
+  const optOut = body?.email_opt_out === undefined ? undefined : Number(body.email_opt_out) ? 1 : 0;
 
   const sets: string[] = [];
   const args: unknown[] = [];
@@ -50,6 +54,10 @@ router.patch("/me", async (c) => {
   if (avatar !== undefined) {
     sets.push("avatar_url = ?");
     args.push(avatar || null);
+  }
+  if (optOut !== undefined) {
+    sets.push("email_opt_out = ?");
+    args.push(optOut);
   }
   if (sets.length === 0) throw badRequest("没有要更新的字段");
 
@@ -64,6 +72,7 @@ router.patch("/me", async (c) => {
     id: fresh!.id,
     nickname: fresh!.nickname,
     avatar_url: fresh!.avatar_url,
+    email_opt_out: fresh!.email_opt_out ?? 0,
   });
 });
 
