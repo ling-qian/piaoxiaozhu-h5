@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Money found — October 2026 · SortReceipts sample report</title>
+<style>
+  :root {
+    --brand: #2563EB;
+    --ink: #0F172A;
+    --muted: #64748B;
+    --line: #E2E8F0;
+    --soft: #F8FAFC;
+    --red: #DC2626;
+    --amber: #D97706;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #EEF2F7;
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page {
+    max-width: 820px;
+    margin: 32px auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(15, 23, 42, .10);
+    padding: 40px 44px 28px;
+  }
+  .top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .mark {
+    width: 26px; height: 26px; border-radius: 7px;
+    background: var(--brand);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mark svg { width: 15px; height: 15px; }
+  .brand-name { font-size: 15px; font-weight: 650; letter-spacing: .01em; }
+  .doc-meta { text-align: right; font-size: 12px; color: var(--muted); }
+  .doc-meta strong { display: block; color: var(--ink); font-size: 13px; font-weight: 600; }
+  .sample-badge {
+    display: inline-block; margin-top: 6px;
+    font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--amber); background: #FEF3C7; border: 1px solid #FDE68A;
+    padding: 2px 7px; border-radius: 999px;
+  }
+
+  h1 {
+    font-size: 26px; line-height: 1.2; letter-spacing: -.02em;
+    margin: 26px 0 6px; font-weight: 700;
+  }
+  .lede { color: var(--muted); font-size: 13.5px; margin: 0 0 22px; max-width: 60ch; }
+
+  .hero {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 20px;
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 22px 24px;
+  }
+  .hero .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .08em;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .hero .amount {
+    font-size: 40px; font-weight: 700; letter-spacing: -.03em;
+    color: var(--red); line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .hero .sub { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .hero-side { border-left: 1px solid var(--line); padding-left: 20px; }
+  .hero-side dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12.5px; }
+  .hero-side dt { color: var(--muted); }
+  .hero-side dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0 6px; }
+  .card { border: 1px solid var(--line); border-radius: 9px; padding: 14px 15px; }
+  .card .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+  .card h3 { margin: 0 0 4px; font-size: 12.5px; font-weight: 600; }
+  .card .n { font-size: 21px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .card p { margin: 5px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+  .dot-red { background: var(--red); }
+  .dot-amber { background: var(--amber); }
+  .dot-slate { background: #94A3B8; }
+
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); margin: 26px 0 10px; font-weight: 600; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th {
+    text-align: left; font-weight: 500; color: var(--muted);
+    border-bottom: 1px solid var(--line); padding: 8px 8px;
+    font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  }
+  td { padding: 9px 8px; border-bottom: 1px solid #F1F5F9; vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 0; }
+  .tag {
+    display: inline-block; font-size: 10.5px; padding: 1px 6px; border-radius: 4px;
+    background: #FEE2E2; color: #991B1B; white-space: nowrap;
+  }
+  .tag.amber { background: #FEF3C7; color: #92400E; }
+  .tag.slate { background: #F1F5F9; color: #475569; }
+  .vendor { font-weight: 550; }
+  .small { color: var(--muted); font-size: 11.5px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  ol, ul { margin: 0; padding-left: 18px; }
+  li { margin-bottom: 7px; }
+  li::marker { color: var(--brand); }
+
+  .note {
+    margin-top: 18px; padding: 12px 14px; border-left: 3px solid var(--brand);
+    background: #EFF6FF; border-radius: 0 6px 6px 0; font-size: 11.5px; color: #1E3A8A;
+  }
+
+  .foot {
+    margin-top: 26px; padding-top: 14px; border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; gap: 20px;
+    font-size: 11px; color: #94A3B8;
+  }
+
+  @media print {
+    body { background: #fff; font-size: 11.5px; zoom: .95; }
+    .page { margin: 0; box-shadow: none; border-radius: 0; padding: 0; max-width: none; }
+    .no-print { display: none !important; }
+    .top { padding-bottom: 12px; }
+    h1 { font-size: 21px; margin: 14px 0 4px; }
+    .lede { font-size: 11.5px; margin-bottom: 14px; }
+    h2 { margin: 14px 0 6px; font-size: 11px; }
+    .hero { padding: 14px 16px; gap: 14px; }
+    .hero .amount { font-size: 30px; }
+    .hero-side dl { font-size: 11.5px; gap: 4px 12px; }
+    .cards { gap: 9px; margin: 10px 0 2px; }
+    .card { padding: 10px 11px; }
+    .card .n { font-size: 18px; }
+    .card p { font-size: 11px; }
+    table { font-size: 11.5px; }
+    th { padding: 4px 6px; }
+    td { padding: 4px 6px; }
+    .two-col { margin-top: 12px !important; gap: 18px; }
+    .note { margin-top: 8px; padding: 9px 11px; font-size: 11px; }
+    .foot { margin-top: 6px; padding-top: 8px; }
+    .cards { break-inside: avoid; }
+    tr { break-inside: avoid; }
+  }
+  @page { size: A4; margin: 12mm 12mm; }
+</style>
+</head>
+<body>
+<main class="page">
+
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7h16M4 12h16M4 17h10"/>
+        </svg>
+      </span>
+      <span class="brand-name">SortReceipts</span>
+    </div>
+    <div class="doc-meta">
+      <strong>Money found — October 2026</strong>
+      Sample Bistro · one location
+      <div class="sample-badge">Sample data</div>
+    </div>
+  </header>
+
+  <h1>$1,660.90 in payments worth checking.</h1>
+  <p class="lede">
+    Built from 186 invoices recorded in October. Three items need a look before this reaches your accountant.
+  </p>
+
+  <section class="hero" aria-label="Summary">
+    <div>
+      <div class="label">Payments to verify</div>
+      <div class="amount">$1,660.90</div>
+      <div class="sub">2.1% of October spend ($78,240.00) · two items, eight records</div>
+    </div>
+    <div class="hero-side">
+      <dl>
+        <dt>Invoices scanned</dt><dd>186</dd>
+        <dt>Month</dt><dd>Oct 2026</dd>
+        <dt>Checks run</dt><dd>4</dd>
+        <dt>Estimated figures</dt><dd>0</dd>
+      </dl>
+    </div>
+  </section>
+
+  <div class="cards">
+    <article class="card">
+      <h3><span class="dot dot-red"></span>Paid twice</h3>
+      <div class="n">$1,248.60</div>
+      <p>Invoice INV-20418 appears on Oct 6 and Oct 14, same vendor, same amount.</p>
+    </article>
+    <article class="card">
+      <h3><span class="dot dot-amber"></span>No receipt attached</h3>
+      <div class="n">$412.30</div>
+      <p>Six expenses have no invoice number and no photo. Your accountant will ask.</p>
+    </article>
+    <article class="card">
+      <h3><span class="dot dot-slate"></span>Worth confirming</h3>
+      <div class="n">$3,890.00</div>
+      <p>One Food &amp; ingredients purchase, 6.3× the median for the category.</p>
+    </article>
+  </div>
+
+  <h2>What needs a look</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:82px">Date</th>
+        <th>Vendor</th>
+        <th>Detail</th>
+        <th class="num" style="width:104px">Amount</th>
+        <th style="width:118px">Check</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Oct 6</td>
+        <td class="vendor">Pacific Produce Co.</td>
+        <td class="small">Invoice INV-20418 · produce delivery</td>
+        <td class="num">$1,248.60</td>
+        <td><span class="tag">Paid twice</span></td>
+      </tr>
+      <tr>
+        <td>Oct 14</td>
+        <td class="vendor">Pacific Produce Co.</td>
+        <td class="small">Invoice INV-20418 · identical amount, eight days later</td>
+        <td class="num">$1,248.60</td>
+        <td><span class="tag">Paid twice</span></td>
+      </tr>
+      <tr>
+        <td>Oct 3</td>
+        <td class="vendor">Corner Hardware</td>
+        <td class="small">No invoice number, no photo attached</td>
+        <td class="num">$64.20</td>
+        <td><span class="tag amber">Missing receipt</span></td>
+      </tr>
+      <tr>
+        <td>Oct 9</td>
+        <td class="vendor">City Water</td>
+        <td class="small">No invoice number, no photo attached</td>
+        <td class="num">$182.40</td>
+        <td><span class="tag amber">Missing receipt</span></td>
+      </tr>
+      <tr>
+        <td>Oct 17</td>
+        <td class="vendor">J&amp;J Cleaning</td>
+        <td class="small">No invoice number, no photo attached</td>
+        <td class="num">$58.90</td>
+        <td><span class="tag amber">Missing receipt</span></td>
+      </tr>
+      <tr>
+        <td>Oct 21–29</td>
+        <td class="vendor">3 more vendors</td>
+        <td class="small">Small purchases, no receipt attached · $106.80 combined</td>
+        <td class="num">$106.80</td>
+        <td><span class="tag amber">Missing receipt</span></td>
+      </tr>
+      <tr>
+        <td>Oct 22</td>
+        <td class="vendor">Restaurant Depot</td>
+        <td class="small">Food &amp; ingredients · 6.3× the October median for this category</td>
+        <td class="num">$3,890.00</td>
+        <td><span class="tag slate">Confirm</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="two-col" style="margin-top:26px">
+    <section>
+      <h2>How this was produced</h2>
+      <p class="small" style="margin:0 0 10px">
+        Every invoice recorded in October was checked against four rules. Nothing here is an estimate or a model output.
+      </p>
+      <ul class="small">
+        <li>Same invoice number recorded more than once</li>
+        <li>Expense with no invoice number and no attached file</li>
+        <li>Amount far above the median for its own category</li>
+        <li>Record with no date, which cannot land in any month</li>
+      </ul>
+    </section>
+    <section>
+      <h2>What to do this week</h2>
+      <ol class="small">
+        <li>Ask Pacific Produce to credit the duplicate $1,248.60 — or confirm it was a second delivery.</li>
+        <li>Attach the six missing receipts before your accountant asks for them.</li>
+        <li>Confirm whether the Oct 22 order was a real bulk purchase. If it was, this line disappears.</li>
+      </ol>
+    </section>
+  </div>
+
+  <p class="note">
+    The $3,890.00 purchase is not counted in the $1,660.90 above — it may be a normal bulk order.
+    The report flags it and asks, rather than deciding for you.
+  </p>
+
+  <footer class="foot">
+    <span>Prepared by SortReceipts · sortreceipts.qianling-tech.top</span>
+    <span>Sample data for demonstration. Your report uses your own invoices.</span>
+  </footer>
+
+</main>
+</body>
+</html>
