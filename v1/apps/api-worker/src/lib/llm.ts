@@ -29,11 +29,31 @@ export interface LlmResult {
   ok: boolean;
   text: string;
   failure?: LlmFailure;
+  /** 上游 HTTP 状态码；超时和连不通没有这个值 */
+  status?: number;
+  /** 上游返回的原文（截断到 120 字）。失败原因要能说清楚，否则用户只看到一句「不可用」 */
+  detail?: string;
 }
 
+/**
+ * 调一次模型。失败时把状态码和原文一起带回去，重试判断与报错文案都靠它。
+ */
 export async function chat(opts: LlmCallOptions): Promise<LlmResult> {
   if (!opts.apiKey) return { ok: false, text: "", failure: "no_key" };
 
+  // 429（含服务商网关的 1015 限流页）和 5xx 多是一次性的，隔几秒再打一次常能过。
+  // 其余 4xx 是请求本身有问题（密钥、模型名、参数），重试没有意义。
+  let last: LlmResult = { ok: false, text: "", failure: "network" };
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 3000));
+    last = await chatOnce(opts);
+    if (last.ok) return last;
+    if (!last.status || (last.status !== 429 && last.status < 500)) return last;
+  }
+  return last;
+}
+
+async function chatOnce(opts: LlmCallOptions): Promise<LlmResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? 30_000);
 
@@ -54,20 +74,41 @@ export async function chat(opts: LlmCallOptions): Promise<LlmResult> {
     });
 
     if (!resp.ok) {
-      console.error("[llm] HTTP", resp.status, (await resp.text()).slice(0, 200));
-      return { ok: false, text: "", failure: "bad_response" };
+      // 只读前 300 字：网关的限流页和鉴权错误都很短，读全了反而拖慢失败路径
+      const body = (await resp.text()).slice(0, 300);
+      console.error("[llm] HTTP", resp.status, body.slice(0, 200));
+      return {
+        ok: false,
+        text: "",
+        failure: "bad_response",
+        status: resp.status,
+        detail: body.slice(0, 120),
+      };
     }
 
-    const data = (await resp.json()) as {
+    let data: {
       choices?: Array<{ message?: { content?: string } }>;
     };
+    try {
+      data = (await resp.json()) as typeof data;
+    } catch {
+      // 200 但正文不是 JSON，通常是网关插了一页 HTML
+      return { ok: false, text: "", failure: "bad_response", status: resp.status, detail: "response is not JSON" };
+    }
     const text = data.choices?.[0]?.message?.content ?? "";
-    if (!text.trim()) return { ok: false, text: "", failure: "bad_response" };
+    if (!text.trim()) {
+      return { ok: false, text: "", failure: "bad_response", status: resp.status, detail: "empty content" };
+    }
     return { ok: true, text };
   } catch (e) {
     const isAbort = e instanceof Error && /abort|timeout/i.test(e.message);
     console.error("[llm] 调用失败:", e);
-    return { ok: false, text: "", failure: isAbort ? "timeout" : "network" };
+    return {
+      ok: false,
+      text: "",
+      failure: isAbort ? "timeout" : "network",
+      detail: e instanceof Error ? e.message.slice(0, 120) : undefined,
+    };
   } finally {
     clearTimeout(timer);
   }
@@ -95,10 +136,10 @@ export function extractJson(content: string): Record<string, unknown> | null {
   }
 }
 
-/** 金额格式化：¥1,234.50（与 Python 的 `{:,.2f}` 一致） */
-export function formatMoney(v: number): string {
+/** 金额格式化：¥1,234.50（与 Python 的 `{:,.2f}` 一致）。symbol 由项目币种决定。 */
+export function formatMoney(v: number, symbol = "¥"): string {
   const n = Number.isFinite(v) ? v : 0;
-  return `¥${n.toLocaleString("en-US", {
+  return `${symbol}${n.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;

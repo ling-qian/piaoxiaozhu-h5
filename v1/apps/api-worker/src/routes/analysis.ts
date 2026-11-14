@@ -12,6 +12,7 @@ import type { Env } from "../env";
 import type { UserRow } from "../db/types";
 import { badRequest, isUuid, notFound, paymentRequired, serverError } from "../lib/http";
 import { chat, formatMoney } from "../lib/llm";
+import { currencySymbol } from "../lib/currency";
 import { COST_AI_ANALYSIS, consumePoints, getBalance, logPoints } from "../lib/points";
 import { nowIso } from "../lib/time";
 import { getLocale, type Locale } from "../lib/locale";
@@ -33,9 +34,14 @@ const pct = (v: number) => `${(v * 100).toFixed(1)}%`;
 function buildPrompt(
   projectName: string,
   rows: Row[],
-  locale: Locale = "zh"
+  locale: Locale = "zh",
+  currency = "USD"
 ): { prompt: string; summary: Record<string, unknown> } {
   const isEn = locale === "en";
+  // 金额按项目币种显示。模型看到什么符号就写什么符号，
+  // 不告诉它币种，它会在正文里自己猜一个。
+  const symbol = currencySymbol(currency);
+  const money = (v: number) => formatMoney(v, symbol);
   // 数据缺分类/商户/日期时的兜底文案，也要跟当前语言一致，
   // 否则英文 prompt 里会冒出「未知商户」这种中文。
   const UNCATEGORIZED = isEn ? "Uncategorized" : "其他";
@@ -70,33 +76,34 @@ function buildPrompt(
 
   const categoryLines = [...byCat.entries()]
     .sort((a, b) => b[1] - a[1])
-    .map(([k, v]) => `- ${k}: ${formatMoney(v)}`)
+    .map(([k, v]) => `- ${k}: ${money(v)}`)
     .join("\n");
 
   const monthlyLines = [...byMonth.entries()]
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([m, d]) =>
       isEn
-        ? `- ${m}: revenue ${formatMoney(d.income)}, expense ${formatMoney(d.expense)}, profit ${formatMoney(d.income - d.expense)}`
-        : `- ${m}: 收入 ${formatMoney(d.income)}，支出 ${formatMoney(d.expense)}，利润 ${formatMoney(d.income - d.expense)}`
+        ? `- ${m}: revenue ${money(d.income)}, expense ${money(d.expense)}, profit ${money(d.income - d.expense)}`
+        : `- ${m}: 收入 ${money(d.income)}，支出 ${money(d.expense)}，利润 ${money(d.income - d.expense)}`
     )
     .join("\n");
 
   const topMerchants = [...byMerchant.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
-    .map(([name, amount]) => `- ${name}: ${formatMoney(amount)}`)
+    .map(([name, amount]) => `- ${name}: ${money(amount)}`)
     .join("\n");
 
   const prompt = isEn
     ? `You are a financial advisor for small businesses. Analyze the operating data below and produce a profit analysis with actionable advice.
 
 ## Project: ${projectName}
+- Currency: ${currency}
 
 ### Totals
-- Revenue: ${formatMoney(income)}
-- Expenses: ${formatMoney(expense)}
-- Gross profit: ${formatMoney(grossProfit)}
+- Revenue: ${money(income)}
+- Expenses: ${money(expense)}
+- Gross profit: ${money(grossProfit)}
 - Gross margin: ${grossMargin.toFixed(1)}%
 - Records: ${rows.length}
 
@@ -122,11 +129,12 @@ do not restate the data I gave you — go straight to conclusions and actions.`
     : `你是一位专业的小微商户财务顾问。请根据以下经营数据，提供利润分析与经营建议。
 
 ## 项目：${projectName}
+- 币种：${currency}
 
 ### 总体数据
-- 总收入：${formatMoney(income)}
-- 总支出：${formatMoney(expense)}
-- 毛利润：${formatMoney(grossProfit)}
+- 总收入：${money(income)}
+- 总支出：${money(expense)}
+- 毛利润：${money(grossProfit)}
 - 毛利率：${grossMargin.toFixed(1)}%
 - 记录总数：${rows.length} 条
 
@@ -167,9 +175,11 @@ router.post("/projects/:id/analysis", async (c) => {
   const projectId = c.req.param("id");
   if (!isUuid(projectId)) throw notFound("Project not found");
 
-  const project = await c.env.DB.prepare("SELECT name FROM projects WHERE id = ? AND user_id = ?")
+  const project = await c.env.DB.prepare(
+    "SELECT name, currency FROM projects WHERE id = ? AND user_id = ?"
+  )
     .bind(projectId, u.id)
-    .first<{ name: string }>();
+    .first<{ name: string; currency: string | null }>();
   if (!project) throw notFound("Project not found");
 
   const { results } = await c.env.DB.prepare(
@@ -194,7 +204,7 @@ router.post("/projects/:id/analysis", async (c) => {
   await consumePoints(c.env.DB, u.id, COST_AI_ANALYSIS, "consume_ai_analysis", `AI 经营分析：${project.name}`, ts);
 
   const locale = getLocale(c);
-  const { prompt, summary } = buildPrompt(project.name, rows, locale);
+  const { prompt, summary } = buildPrompt(project.name, rows, locale, project.currency ?? "USD");
 
   const res = await chat({
     baseUrl: c.env.LLM_BASE_URL,
@@ -219,15 +229,15 @@ router.post("/projects/:id/analysis", async (c) => {
   if (!res.ok) {
     // 没产出结果不该收钱
     await logPoints(c.env.DB, u.id, "consume_ai_analysis", COST_AI_ANALYSIS, "AI 分析失败退款", nowIso());
-    throw serverError(
-      locale === "en"
-        ? res.failure === "timeout"
-          ? "AI analysis timed out, please try again"
-          : "AI analysis is temporarily unavailable, please try again"
-        : res.failure === "timeout"
-          ? "AI 分析超时，请稍后重试"
-          : "AI 分析服务暂时不可用，请稍后重试"
-    );
+    // 把上游的线索带给用户：429 限流、401 密钥、404 模型名、超时，
+    // 处理办法完全不同，压成一句「暂时不可用」等于什么也没说。
+    const why = res.status
+      ? `HTTP ${res.status}${res.detail ? `: ${res.detail}` : ""}`
+      : res.detail
+        ? `${res.failure}: ${res.detail}`
+        : (res.failure ?? "unknown");
+    console.error("[analysis] 模型调用失败:", why);
+    throw serverError(locale === "en" ? `AI analysis failed (${why})` : `AI 分析失败（${why}）`);
   }
 
   const balanceAfter = await getBalance(c.env.DB, u.id);

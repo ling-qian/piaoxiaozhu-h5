@@ -97,10 +97,18 @@ export async function recognize(
   // 失败时回落到外部 OCR 服务——两家互为备份，谁在用谁的兜底。
   if (env.LLM_API_KEY) {
     // 图片优先经 COS 中转（服务商拉取），直嵌 base64 会被其网关按 429 拒掉
-    const imageUrl = await imageUrlForVision(image, env);
-    const vision = await recognizeViaLLM(imageUrl, env, locale);
+    const upload = await imageUrlForVision(image, env);
+    const vision = await recognizeViaLLM(upload.url, env, locale);
     if (vision.ok) return vision;
-    console.error("[ocr] 视觉识别失败，尝试外部 OCR 服务:", vision.message);
+    console.error("[ocr] 视觉识别失败，尝试外部 OCR 服务:", vision.message, "cosFailed=", upload.cosFailed);
+    // 中转失败意味着图片是内联发过去的，服务商很可能因此 429。
+    // 把这一层说明带上，否则用户和运维都只会看到一句 429，无从下手。
+    if (upload.cosFailed) {
+      const hint = isEn
+        ? " (image upload to storage failed, so the image was sent inline; the provider often rejects inline images)"
+        : "（图片没能上传到存储中转，只能用内联方式发送，服务商通常会拒掉这类请求）";
+      vision.message = `${vision.message}${hint}`;
+    }
     // 视觉失败但外部服务也没配，就把视觉的失败原因带回去
     if (!serviceUrl) return vision;
   }
@@ -209,6 +217,8 @@ export async function imageUrlForVision(
     COS_SECRET_ID?: string;
     COS_SECRET_KEY?: string;
   }
-): Promise<string> {
-  return (await cosUploadForVision(image, env)) ?? toDataUrl(image);
+): Promise<{ url: string; cosFailed: boolean }> {
+  const upload = await cosUploadForVision(image, env);
+  if ("url" in upload) return { url: upload.url, cosFailed: false };
+  return { url: toDataUrl(image), cosFailed: upload.reason === "upload_failed" };
 }

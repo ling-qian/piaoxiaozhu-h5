@@ -98,9 +98,10 @@ export async function recognizeViaLLM(imageUrl: string, env: {
 
   const url = `${env.LLM_BASE_URL.replace(/\/+$/, "")}/chat/completions`;
 
-  // 共享出口 IP 的限流按时间窗口放行，退避重试常能过。间隔故意不等比：1s/4s
-  // 覆盖「瞬时抖动」和「一分钟窗口」两种典型窗口，三次都 429 就是真的被限了。
-  const BACKOFFS = [0, 1000, 4000];
+  // 共享出口 IP 的限流按时间窗口放行，退避重试常能过。
+  // 但服务商的网关（Cloudflare 1015）是按 IP 累计的：短时间内连打反而
+  // 把窗口越推越远，所以只重试一次，间隔拉到 8 秒。
+  const BACKOFFS = [0, 8000];
   let lastError: { failure: OcrCallResult["failure"]; message: string } | null = null;
 
   for (const delay of BACKOFFS) {
@@ -210,11 +211,13 @@ export async function recognizeViaLLM(imageUrl: string, env: {
           : `识别服务商返回 ${resp.status}：${text.slice(0, 80)}`,
       };
     }
+    // 重试后仍失败时把原文带回去：同样是 429，可能是额度用尽、
+    // 并发超限，也可能是请求体太大，三种原因的处置完全不同
     lastError = {
       failure: "bad_response",
       message: isEn
-        ? `Recognition provider returned ${resp.status}`
-        : `识别服务商返回 ${resp.status}`,
+        ? `Recognition provider returned ${resp.status}: ${text.slice(0, 120)}`
+        : `识别服务商返回 ${resp.status}：${text.slice(0, 120)}`,
     };
   }
 

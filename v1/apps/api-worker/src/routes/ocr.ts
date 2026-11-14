@@ -108,11 +108,19 @@ router.post("/ocr/recognize-bill", async (c) => {
 
   // 账单通道只走视觉模型，不回退到本地 OCR：后者按单张票据设计，
   // 拿不到版式里的多行结构。
-  const res = await recognizeBillViaLLM(await imageUrlForVision(buf, c.env), c.env, locale);
+  const upload = await imageUrlForVision(buf, c.env);
+  const res = await recognizeBillViaLLM(upload.url, c.env, locale);
 
   if (!res.ok) {
     const status = res.failure === "timeout" || res.failure === "no_service" ? 503 : 502;
-    throw new ApiError(status, res.message ?? (isEn ? "Recognition failed" : "识别失败"));
+    // 图片没能上传中转时会内联发送，服务商常因此直接 429，
+    // 不说明这一层，用户只会看到一句莫名其妙的限流
+    const hint = upload.cosFailed
+      ? (isEn
+          ? " (image upload to storage failed, so the image was sent inline; the provider often rejects inline images)"
+          : "（图片没能上传到存储中转，只能用内联方式发送，服务商通常会拒掉这类请求）")
+      : "";
+    throw new ApiError(status, `${res.message ?? (isEn ? "Recognition failed" : "识别失败")}${hint}`);
   }
 
   const d = res.data;

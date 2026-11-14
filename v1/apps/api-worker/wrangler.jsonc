@@ -26,8 +26,8 @@
   "observability": { "enabled": true },
 
   /**
-   * 定时任务。「本月发现」在每月 1 日与 15 日发送，内部自带日期判断，
-   * 所以每小时跑一次也不会重复发。
+   * 定时对账。PayPal 回跳可能根本不会发生（用户关掉标签页），
+   * 每小时扫一遍停在 pending 的订单，钱扣了就补发货。
    */
   "triggers": { "crons": ["0 * * * *"] },
 
@@ -44,7 +44,9 @@
     // 邮件收票地址的域。子域单独在 Email Routing 的 Settings → Subdomains 里添加，
     // 主域的 MX 只用来把认不出的收件人退回去。
     "INBOX_DOMAIN": "in.qianling-tech.top",
-    "LLM_BASE_URL": "https://apihub.agnes-ai.com/v1",
+    // 2026-11-10 从 .com 切到 .cn：.com 的网关给 Worker 出口 IP 回 1015
+    // （Cloudflare 限流页），识别全部失败。同 Key 同模型，只换入口。
+    "LLM_BASE_URL": "https://apihub.agnes-ai.cn/v1",
     // 模型名必须是服务商当前在售的。旧值 agnes-2.0-flash 已下线，
     // 写错了不会启动报错，而是调用时 503、分类环节静默跳过。
     "LLM_MODEL_NAME": "agnes-3.0-flash"

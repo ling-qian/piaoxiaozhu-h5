@@ -69,13 +69,13 @@ describe("recognizeViaLLM", () => {
     expect(r.failure).toBe("bad_response");
   });
 
-  it("服务商 5xx 返回 bad_response（含两次退避重试，约 5 秒）", { timeout: 20_000 }, async () => {
+  it("服务商 5xx 返回 bad_response（退避一次，约 8 秒）", { timeout: 20_000 }, async () => {
     mockFetch(500, { error: "boom" });
     const r = await recognizeViaLLM("https://cos.example.com/img.jpg?sig=1", ENV);
     expect(r.ok).toBe(false);
     expect(r.failure).toBe("bad_response");
-    // 重试逻辑真的跑了：三次请求而不是一次
-    expect(vi.mocked(fetch).mock.calls.length).toBe(3);
+    // 重试逻辑真的跑了：两次请求而不是一次。再多会加剧网关按 IP 累计的限流
+    expect(vi.mocked(fetch).mock.calls.length).toBe(2);
   });
 
   it("网络超时返回 timeout", async () => {

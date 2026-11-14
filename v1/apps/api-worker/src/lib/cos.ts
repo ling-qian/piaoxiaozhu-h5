@@ -183,6 +183,10 @@ export async function cosDeleteObject(opts: CosPresignOptions): Promise<void> {
  * 返回预签名 GET 而不是公网地址：桶保持私有，签名一小时有效，
  * 足够模型拉取，也不会把用户的票据长期暴露在公网。
  */
+export type CosUploadResult =
+  | { url: string }
+  | { reason: "not_configured" | "upload_failed" };
+
 export async function cosUploadForVision(
   bytes: ArrayBuffer,
   env: {
@@ -191,9 +195,11 @@ export async function cosUploadForVision(
     COS_SECRET_ID?: string;
     COS_SECRET_KEY?: string;
   }
-): Promise<string | null> {
+): Promise<CosUploadResult> {
   const { COS_BUCKET_NAME, COS_REGION, COS_SECRET_ID, COS_SECRET_KEY } = env;
-  if (!COS_BUCKET_NAME || !COS_REGION || !COS_SECRET_ID || !COS_SECRET_KEY) return null;
+  if (!COS_BUCKET_NAME || !COS_REGION || !COS_SECRET_ID || !COS_SECRET_KEY) {
+    return { reason: "not_configured" };
+  }
 
   const key = `ocr-tmp/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.jpg`;
   const common = {
@@ -208,8 +214,8 @@ export async function cosUploadForVision(
   const put = await fetch(putUrl, { method: "PUT", body: bytes });
   if (!put.ok) {
     console.error("[cos] 临时上传失败:", put.status, (await put.text()).slice(0, 120));
-    return null;
+    return { reason: "upload_failed" };
   }
 
-  return cosPresignGet({ ...common, expires: 3600 });
+  return { url: await cosPresignGet({ ...common, expires: 3600 }) };
 }
