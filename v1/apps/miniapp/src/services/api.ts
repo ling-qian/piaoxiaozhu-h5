@@ -104,6 +104,13 @@ interface RequestOptions {
   needAuth?: boolean;
   /** 超时毫秒数。AI 分析等长耗时接口需要放宽（Taro 默认 60s）。 */
   timeout?: number;
+  /**
+   * 失败时不弹全局提示，由调用方自己决定怎么提示。
+   *
+   * 上传页是逐条任务展示状态的，全局再弹一次会和任务行里的提示叠在一起，
+   * 用户一次失败看到两条 toast。这类页面传 true，自己负责文案。
+   */
+  silent?: boolean;
 }
 
 function getToken(): string {
@@ -192,7 +199,7 @@ function sendRequest(
 }
 
 async function request<T = any>(options: RequestOptions): Promise<T> {
-  const { url, method = 'GET', data, header = {}, needAuth = true, timeout } = options;
+  const { url, method = 'GET', data, header = {}, needAuth = true, timeout, silent } = options;
 
   if (needAuth) {
     const token = getToken();
@@ -221,7 +228,7 @@ async function request<T = any>(options: RequestOptions): Promise<T> {
 
     throw new Error(res.data?.detail || res.data?.message || '请求失败');
   } catch (error: any) {
-    if (error.message !== '登录已过期') {
+    if (error.message !== '登录已过期' && !silent) {
       // Taro 的 request:fail 抛出的对象通常没有 message 字段，只显示兜底文案
       // 会让真机排查无从下手（域名校验失败、超时、连不通都长一个样）。
       // 这里优先透出 errMsg，把真实原因显示出来。
@@ -450,7 +457,11 @@ export const fileApi = {
    *   且只需在小程序后台配置对象存储域名的 request 合法域名，不依赖自有域名。
    * 未配对象存储时（本地开发）自动回退到后端中转。
    */
-  upload: async (filePath: string, projectId: string): Promise<UploadResult> => {
+  upload: async (
+    filePath: string,
+    projectId: string,
+    opts?: { silent?: boolean },
+  ): Promise<UploadResult> => {
     const filename = filePath.split('/').pop() || 'upload.jpg';
     const ext = (filename.split('.').pop() || '').toLowerCase();
     const contentType = MIME_BY_EXT[ext] || 'application/octet-stream';
@@ -460,6 +471,7 @@ export const fileApi = {
       ticket = await request<UploadTicket>({
         url: '/api/files/upload-url',
         data: { project_id: projectId, filename, content_type: contentType },
+        silent: opts?.silent,
       });
     } catch {
       // 后端明确不支持直传（未配置对象存储）时回退；其他错误继续往上抛
@@ -475,6 +487,7 @@ export const fileApi = {
     return request<UploadResult>({
       url: '/api/files/register',
       method: 'POST',
+      silent: opts?.silent,
       data: {
         project_id: projectId,
         file_id: ticket.file_id,
@@ -485,11 +498,16 @@ export const fileApi = {
     });
   },
 
-  triggerOcr: (fileId: string) =>
-    request({ url: '/api/ocr/parse', method: 'POST', data: { file_id: fileId } }),
+  triggerOcr: (fileId: string, opts?: { silent?: boolean }) =>
+    request({
+      url: '/api/ocr/parse',
+      method: 'POST',
+      data: { file_id: fileId },
+      silent: opts?.silent,
+    }),
 
-  getOcrStatus: (fileId: string) =>
-    request({ url: `/api/ocr/status/${fileId}` }),
+  getOcrStatus: (fileId: string, opts?: { silent?: boolean }) =>
+    request({ url: `/api/ocr/status/${fileId}`, silent: opts?.silent }),
 };
 
 /** 票面自检结果。channel 恒为 local——不是税局真伪查验结果。 */

@@ -5,7 +5,22 @@ import { fileApi } from '../../services/api';
 import { useStore } from '../../store';
 import './index.scss';
 
-type UploadStep = 'idle' | 'uploading' | 'ocr_processing' | 'archived' | 'ocr_done' | 'ocr_failed';
+type UploadStep = 'queued' | 'idle' | 'uploading' | 'ocr_processing' | 'archived' | 'ocr_done' | 'ocr_failed';
+
+/**
+ * 同时进行的上传数量。
+ *
+ * 相册一次最多选 9 张。全并发时 9 个 uploadFile 加 9 次轮询会把手机的上行
+ * 带宽占满，单个文件的进度反而更慢，失败率也更高。压到 2 条，总耗时接近，
+ * 但每条都能跑完。
+ */
+const MAX_CONCURRENT_UPLOADS = 2;
+
+/** 轮询：首次间隔、最大间隔、总时长上限、连续网络错误上限 */
+const POLL_FIRST_DELAY_MS = 2000;
+const POLL_MAX_DELAY_MS = 8000;
+const POLL_MAX_DURATION_MS = 3 * 60 * 1000;
+const POLL_MAX_ERRORS = 3;
 
 interface UploadTask {
   filePath: string;
@@ -21,12 +36,35 @@ interface UploadTask {
 export default function Upload() {
   const { projects, currentProject, fetchProjects, setCurrentProject } = useStore();
   const [tasks, setTasks] = useState<UploadTask[]>([]);
-  const pollingMapRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
+  const pollingMapRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // 上传队列：waiting 存尚未开始的作业，running 记录在跑的数量
+  const waitingRef = useRef<Array<() => void>>([]);
+  const runningRef = useRef(0);
+
+  /**
+   * 把作业塞进队列，最多同时跑 MAX_CONCURRENT_UPLOADS 条。
+   *
+   * 用法上它替代了原来的直接调用：调用方不用关心排队，交进来就行。
+   */
+  const enqueue = useCallback((job: () => Promise<void>) => {
+    const run = () => {
+      runningRef.current += 1;
+      void job().finally(() => {
+        runningRef.current -= 1;
+        waitingRef.current.shift()?.();
+      });
+    };
+    if (runningRef.current < MAX_CONCURRENT_UPLOADS) run();
+    else waitingRef.current.push(run);
+  }, []);
 
   useEffect(() => {
     return () => {
-      pollingMapRef.current.forEach((timer) => clearInterval(timer));
+      pollingMapRef.current.forEach((timer) => clearTimeout(timer));
       pollingMapRef.current.clear();
+      // 排队的作业也要丢掉：页面已经卸载，跑完只会对着已关闭的界面 setState
+      waitingRef.current = [];
     };
   }, []);
 
@@ -50,30 +88,53 @@ export default function Upload() {
     );
   }, []);
 
-  const pollOcrStatus = useCallback((fileId: string, filePath: string) => {
+  /**
+   * 轮询 OCR 状态。
+   *
+   * 与原实现的三点差别：
+   *
+   * 1. 间隔从固定 2 秒改成退避（2s → 3s → 4.5s → 6s → 8s 封顶）。识别通常十几秒
+   *    出结果，前几次查得勤有意义；服务器还在排队时每 2 秒问一次纯属浪费。
+   *    批量 9 张时，这一项把渲染次数砍掉一半以上。
+   * 2. 上限按总时长算（3 分钟）而不是次数。退避之后次数和时长的关系不再是线性的，
+   *    用次数卡会让总等待时间随退避一起漂移。
+   * 3. 单次网络失败不再直接判「识别失败」。手机网络抖一下很常见，判死等于让用户
+   *    白传一次。连续失败 3 次才认，中间照常重试。
+   */
+  const pollOcrStatus = useCallback((fileId: string, filePath: string, autoOpen: boolean) => {
     const existing = pollingMapRef.current.get(fileId);
-    if (existing) clearInterval(existing);
+    if (existing) clearTimeout(existing);
 
-    let attempts = 0;
-    const maxAttempts = 60;
+    const startedAt = Date.now();
+    let delay = POLL_FIRST_DELAY_MS;
+    let errorStreak = 0;
 
-    const timer = setInterval(async () => {
-      attempts++;
-      if (attempts > maxAttempts) {
-        clearInterval(timer);
-        pollingMapRef.current.delete(fileId);
-        updateTask(filePath, { step: 'ocr_failed' });
-        Taro.showToast({ title: '识别超时，请重试', icon: 'none' });
+    const stop = () => {
+      pollingMapRef.current.delete(fileId);
+    };
+
+    const fail = (message: string) => {
+      stop();
+      updateTask(filePath, { step: 'ocr_failed' });
+      Taro.showToast({ title: message, icon: 'none' });
+    };
+
+    const schedule = () => {
+      pollingMapRef.current.set(fileId, setTimeout(tick, delay));
+    };
+
+    const tick = async () => {
+      if (Date.now() - startedAt > POLL_MAX_DURATION_MS) {
+        fail('识别超时，请重试');
         return;
       }
 
       try {
-        const res = await fileApi.getOcrStatus(fileId);
-        const ocrStatus = res.ocr_status;
+        const res = await fileApi.getOcrStatus(fileId, { silent: true });
+        errorStreak = 0;
 
-        if (ocrStatus === 'done') {
-          clearInterval(timer);
-          pollingMapRef.current.delete(fileId);
+        if (res.ocr_status === 'done') {
+          stop();
           const records = res.records || [];
           if (records.length > 0) {
             const record = records[0];
@@ -82,29 +143,38 @@ export default function Upload() {
               recordId: record.id,
               recordData: record,
             });
-            const encodedData = encodeURIComponent(JSON.stringify(record));
-            Taro.navigateTo({
-              url: `/pages/result/index?id=${record.id}&data=${encodedData}`,
-            });
+            // 只有单张拍摄才自动跳转。批量时每张都跳会让页面栈溢出
+            // （微信上限 10 层），用户在列表里点「查看」更可控。
+            if (autoOpen) {
+              const encodedData = encodeURIComponent(JSON.stringify(record));
+              Taro.navigateTo({
+                url: `/pages/result/index?id=${record.id}&data=${encodedData}`,
+              });
+            }
           } else {
             updateTask(filePath, { step: 'ocr_done' });
             Taro.showToast({ title: '识别完成，但未提取到记录', icon: 'none' });
           }
-        } else if (ocrStatus === 'failed') {
-          clearInterval(timer);
-          pollingMapRef.current.delete(fileId);
-          updateTask(filePath, { step: 'ocr_failed' });
-          Taro.showToast({ title: '识别失败，请重试', icon: 'none' });
+          return;
+        }
+
+        if (res.ocr_status === 'failed') {
+          fail('识别失败，请重试');
+          return;
         }
       } catch {
-        clearInterval(timer);
-        pollingMapRef.current.delete(fileId);
-        updateTask(filePath, { step: 'ocr_failed' });
-        Taro.showToast({ title: '识别异常，请重试', icon: 'none' });
+        errorStreak += 1;
+        if (errorStreak >= POLL_MAX_ERRORS) {
+          fail('识别异常，请重试');
+          return;
+        }
       }
-    }, 2000);
 
-    pollingMapRef.current.set(fileId, timer);
+      delay = Math.min(Math.round(delay * 1.5), POLL_MAX_DELAY_MS);
+      schedule();
+    };
+
+    schedule();
   }, [updateTask]);
 
   const getProjectId = (): string | null => {
@@ -115,19 +185,23 @@ export default function Upload() {
     return null;
   };
 
-  const processFile = useCallback(async (filePath: string) => {
+  /**
+   * 执行单个文件的上传与识别。由 `processFile` 排队后调用。
+   *
+   * `autoOpen` 决定识别完成后是否自动跳到结果页：单张拍摄时跳转符合预期，
+   * 批量选图时每张都跳会把页面栈撑爆（微信上限 10 层）。
+   */
+  const processOne = useCallback(async (filePath: string, autoOpen: boolean) => {
     const projectId = getProjectId();
     if (!projectId) {
+      updateTask(filePath, { step: 'ocr_failed' });
       Taro.showToast({ title: '请先选择项目', icon: 'none' });
       return;
     }
 
-    const task: UploadTask = { filePath, step: 'uploading', progress: 0 };
-    setTasks((prev) => [...prev, task]);
-
     try {
-      updateTask(filePath, { progress: 20 });
-      const uploadRes = await fileApi.upload(filePath, projectId);
+      updateTask(filePath, { step: 'uploading', progress: 20 });
+      const uploadRes = await fileApi.upload(filePath, projectId, { silent: true });
       const fileId = uploadRes.file_id;
 
       if (!fileId) throw new Error('上传返回无效');
@@ -158,36 +232,67 @@ export default function Upload() {
           return;
         }
         updateTask(filePath, { step: 'ocr_done', progress: 100 });
-        const statusRes = await fileApi.getOcrStatus(fileId);
+        const statusRes = await fileApi.getOcrStatus(fileId, { silent: true });
         const rec = (statusRes.records || [])[0];
         if (rec) {
           updateTask(filePath, { step: 'ocr_done', recordId: rec.id, recordData: rec });
           // 只带 id：结果页会自己拉详情，拿得到查重命中与票面自检
-          Taro.navigateTo({ url: `/pages/result/index?id=${rec.id}` });
+          if (autoOpen) Taro.navigateTo({ url: `/pages/result/index?id=${rec.id}` });
         } else {
           Taro.showToast({ title: '文件已归档，未解析出票据信息', icon: 'none' });
         }
         return;
       }
 
-      await fileApi.triggerOcr(fileId);
+      await fileApi.triggerOcr(fileId, { silent: true });
       updateTask(filePath, { step: 'ocr_processing', progress: 70 });
-      pollOcrStatus(fileId, filePath);
+      pollOcrStatus(fileId, filePath, autoOpen);
     } catch (error: any) {
       updateTask(filePath, { step: 'ocr_failed' });
       Taro.showToast({ title: error.message || '上传失败', icon: 'none' });
     }
   }, [currentProject, projects, updateTask, pollOcrStatus]);
 
-/**
- * 选图被用户取消是高频操作，不是错误。不写 fail 回调时微信会走全局 fail，
- * 在控制台留下一条「chooseImage:fail cancel」的未处理 Promise 异常，干扰排错。
- * 这里显式吞掉 cancel，其余失败才提示。
- */
-const onChooseImageCancelSafe = (err?: { errMsg?: string }) => {
-  if (err?.errMsg?.includes('cancel')) return;
-  Taro.showToast({ title: '选择图片失败，请重试', icon: 'none' });
-};
+  /**
+   * 对外入口：登记任务后排队执行。
+   *
+   * 任务先置 queued（而不是 uploading），用户在列表里立刻能看到「还有几张在等」。
+   * 否则点了相册选 9 张，界面只冒出来 2 条，剩下的像是丢了。
+   *
+   * 同一个文件重复选中不重复登记：updateTask 按 filePath 匹配，
+   * 登记两次会让两条记录同步更新，进度看着像卡住。
+   */
+  const processFile = useCallback(
+    (filePath: string, autoOpen = false) => {
+      setTasks((prev) => {
+        // 任务还在跑就跳过：updateTask 按 filePath 匹配，同一文件登记两次
+        // 会让两条记录同步更新，进度看着像卡住。
+        const active = prev.some(
+          (t) =>
+            t.filePath === filePath &&
+            (t.step === 'queued' || t.step === 'uploading' || t.step === 'ocr_processing'),
+        );
+        if (active) return prev;
+
+        // 重传同一张照片时先清掉旧记录。否则两行共用 filePath，
+        // 后续每一条 updateTask 都会同时改两行，显示的进度是错的。
+        const kept = prev.filter((t) => t.filePath !== filePath);
+        return [...kept, { filePath, step: 'queued' as UploadStep, progress: 0 }];
+      });
+      enqueue(() => processOne(filePath, autoOpen));
+    },
+    [enqueue, processOne],
+  );
+
+  /**
+   * 选图被用户取消是高频操作，不是错误。不写 fail 回调时微信会走全局 fail，
+   * 在控制台留下一条「chooseImage:fail cancel」的未处理 Promise 异常，干扰排错。
+   * 这里显式吞掉 cancel，其余失败才提示。
+   */
+  const onChooseImageCancelSafe = (err?: { errMsg?: string }) => {
+    if (err?.errMsg?.includes('cancel')) return;
+    Taro.showToast({ title: '选择图片失败，请重试', icon: 'none' });
+  };
 
   const handleCamera = () => {
     if (!getProjectId()) {
@@ -198,7 +303,7 @@ const onChooseImageCancelSafe = (err?: { errMsg?: string }) => {
       count: 1,
       sizeType: ['compressed'],
       sourceType: ['camera'],
-      success: (res) => processFile(res.tempFilePaths[0]),
+      success: (res) => processFile(res.tempFilePaths[0], true),
       fail: onChooseImageCancelSafe,
     });
   };
@@ -238,7 +343,7 @@ const onChooseImageCancelSafe = (err?: { errMsg?: string }) => {
       extension: ['xml', 'ofd'],
       success: (res) => {
         const picked = res.tempFiles?.[0];
-        if (picked?.path) processFile(picked.path);
+        if (picked?.path) processFile(picked.path, true);
       },
     });
   };
@@ -250,6 +355,7 @@ const onChooseImageCancelSafe = (err?: { errMsg?: string }) => {
 
   const getStepText = (step: UploadStep): string => {
     switch (step) {
+      case 'queued': return '排队中...';
       case 'uploading': return '上传中...';
       case 'ocr_processing': return '识别中...';
       case 'archived': return '原件已归档';

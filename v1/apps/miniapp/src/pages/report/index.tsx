@@ -6,6 +6,7 @@ import { SHARE_ENABLED } from '../../config/features';
 import { useStore } from '../../store';
 import CategoryTag from '../../components/CategoryTag';
 import './index.scss';
+import { formatAmount, formatPercent } from '../../utils/format';
 
 interface ProjectInfo {
   id: string;
@@ -33,15 +34,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   'food_material': '#FF6B35', 'rent': '#722ED1', 'salary': '#1890FF', 'utilities': '#597EF7',
   'platform_fee': '#FA541C', 'advertising': '#EB2F96', 'office': '#52C41A', 'other': '#8C8C8C',
 };
-
-function formatAmount(val: number): string {
-  const num = Number(val) || 0;
-  return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function formatPercent(val: number): string {
-  return (Number(val) || 0).toFixed(1) + '%';
-}
 
 function normalizeCostByCategory(data: any): CategoryCost[] {
   if (Array.isArray(data)) return data;

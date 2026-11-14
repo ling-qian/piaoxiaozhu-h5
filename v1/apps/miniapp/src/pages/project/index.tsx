@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import { projectApi, recordApi } from '../../services/api';
 import CategoryTag from '../../components/CategoryTag';
 import './index.scss';
+import { formatAmount } from '../../utils/format';
 
 interface ProjectDetail {
   id: string;
@@ -49,11 +50,6 @@ const STATUS_MAP: Record<string, { label: string; className: string }> = {
 };
 
 const PAGE_SIZE = 20;
-
-function formatAmount(val: number): string {
-  const num = Number(val) || 0;
-  return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 
 function normalizeCostByCategory(data: any): CostCategory[] {
   if (Array.isArray(data)) return data;

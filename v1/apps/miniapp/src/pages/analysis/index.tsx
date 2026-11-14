@@ -5,6 +5,7 @@ import { useStore } from '../../store';
 import { reportApi } from '../../services/api';
 import './index.scss';
 import { requireLogin } from '../../utils/authGate';
+import { formatMoney } from '../../utils/format';
 
 interface Summary {
   totalIncome: number;
@@ -23,10 +24,6 @@ function plainText(md: string): string {
     .replace(/\*\*(.+?)\*\*/g, '$1')
     .replace(/^#{1,6}\s*/gm, '')
     .replace(/^[-*]\s+/gm, '· ');
-}
-
-function money(n: number): string {
-  return `¥${n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default function Analysis() {
@@ -103,16 +100,16 @@ export default function Analysis() {
           <View className='stat-grid'>
             <View className='stat-card'>
               <Text className='stat-label'>总收入</Text>
-              <Text className='stat-value income'>{money(summary.totalIncome)}</Text>
+              <Text className='stat-value income'>{formatMoney(summary.totalIncome)}</Text>
             </View>
             <View className='stat-card'>
               <Text className='stat-label'>总支出</Text>
-              <Text className='stat-value expense'>{money(summary.totalExpense)}</Text>
+              <Text className='stat-value expense'>{formatMoney(summary.totalExpense)}</Text>
             </View>
             <View className='stat-card'>
               <Text className='stat-label'>毛利润</Text>
               <Text className={`stat-value ${summary.grossProfit >= 0 ? 'income' : 'expense'}`}>
-                {money(summary.grossProfit)}
+                {formatMoney(summary.grossProfit)}
               </Text>
             </View>
             <View className='stat-card'>
@@ -128,7 +125,7 @@ export default function Analysis() {
                 <View className='bar-row' key={name}>
                   <View className='bar-head'>
                     <Text className='bar-name'>{name}</Text>
-                    <Text className='bar-num'>{money(amount)}</Text>
+                    <Text className='bar-num'>{formatMoney(amount)}</Text>
                   </View>
                   <View className='bar-track'>
                     <View
@@ -153,10 +150,10 @@ export default function Analysis() {
                   <View className='month-row' key={month}>
                     <Text className='month-label'>{month}</Text>
                     <Text className='month-detail'>
-                      收 {money(d.income)} · 支 {money(d.expense)}
+                      收 {formatMoney(d.income)} · 支 {formatMoney(d.expense)}
                     </Text>
                     <Text className={`month-profit ${profit >= 0 ? 'income' : 'expense'}`}>
-                      {money(profit)}
+                      {formatMoney(profit)}
                     </Text>
                   </View>
                 );

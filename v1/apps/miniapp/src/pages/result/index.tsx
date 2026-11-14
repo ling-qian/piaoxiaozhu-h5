@@ -5,6 +5,7 @@ import { recordApi, fileApi } from '../../services/api';
 import { useStore } from '../../store';
 import CategoryTag from '../../components/CategoryTag';
 import './index.scss';
+import { formatAmount, formatAmountInput } from '../../utils/format';
 
 const CATEGORIES = [
   { code: 'food_material', name: '食材', l1: '食材', l2: '食材' },
@@ -148,10 +149,6 @@ function getConfidenceHint(confidence: number): string {
 function findCategoryIndex(code: string): number {
   const idx = CATEGORIES.findIndex((c) => c.code === code);
   return idx >= 0 ? idx : 0;
-}
-
-function formatAmount(val: number): string {
-  return (Number(val) || 0).toFixed(2);
 }
 
 function parseAmountInput(input: string): number {
@@ -648,7 +645,7 @@ export default function Result() {
           {duplicateDetail && (
             <View className='dup-detail'>
               <Text className='dup-detail-text'>
-                {`原件：${duplicateDetail.invoice_date || '日期未知'} · ￥${formatAmount(
+                {`原件：${duplicateDetail.invoice_date || '日期未知'} · ¥${formatAmount(
                   duplicateDetail.amount ?? 0,
                 )}${duplicateDetail.merchant_name ? ` · ${duplicateDetail.merchant_name}` : ''}`}
               </Text>
@@ -691,7 +688,7 @@ export default function Result() {
           <Input
             className='field-input'
             type='digit'
-            value={formatAmount(record.amount)}
+            value={formatAmountInput(record.amount)}
             onInput={(e) => updateField('amount', parseAmountInput(e.detail.value))}
             placeholder='0.00'
           />
@@ -702,7 +699,7 @@ export default function Result() {
           <Input
             className='field-input'
             type='digit'
-            value={formatAmount(record.tax_amount)}
+            value={formatAmountInput(record.tax_amount)}
             onInput={(e) => updateField('tax_amount', parseAmountInput(e.detail.value))}
             placeholder='0.00'
           />

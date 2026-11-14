@@ -6,6 +6,7 @@ import { PAYMENT_ENABLED } from '../../config/features';
 import { waitForOrderPaid } from '../../utils/orderStatus';
 import './index.scss';
 import { requireLogin } from '../../utils/authGate';
+import { formatDateTime } from '../../utils/format';
 
 interface LogItem {
   action: string;
@@ -31,14 +32,6 @@ const ACTION_META: Record<string, { label: string; icon: string }> = {
   consume_ai_analysis: { label: 'AI 经营分析', icon: '✨' },
   purchase_legacy: { label: '历史记录（不计积分）', icon: '📜' },
 };
-
-function formatTime(iso: string): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
 
 export default function PointsDetail() {
   const [items, setItems] = useState<LogItem[]>([]);
@@ -148,7 +141,7 @@ export default function PointsDetail() {
               <Text className='log-icon'>{meta.icon}</Text>
               <View className='log-main'>
                 <Text className='log-label'>{meta.label}</Text>
-                <Text className='log-time'>{formatTime(item.created_at)}</Text>
+                <Text className='log-time'>{formatDateTime(item.created_at)}</Text>
               </View>
               <Text className={`log-delta ${isZero ? 'zero' : isPlus ? 'plus' : 'minus'}`}>
                 {isZero ? '0' : isPlus ? `+${item.delta}` : item.delta}

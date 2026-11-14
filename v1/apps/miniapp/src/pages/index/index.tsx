@@ -1,7 +1,7 @@
 import { View, Text } from '@tarojs/components';
 import { requireLogin } from '../../utils/authGate';
 import Taro, { useDidShow, useShareAppMessage } from '@tarojs/taro';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { pointsApi, projectApi } from '../../services/api';
 import { useStore } from '../../store';
 import './index.scss';
@@ -47,7 +47,23 @@ export default function Index() {
     }
   };
 
+  /**
+   * 切 tab 回来的次数远多于数据变化的次数。
+   *
+   * 首页是 tab 页，用户在「首页 / 工具箱 / 我的」之间来回点，每次显示都会触发
+   * useDidShow。原来这里无条件打 4 个请求，来回切三次就是 12 个。
+   *
+   * 15 秒的窗口取的是经验值：上传一张票、签一次到都要超过这个时间，
+   * 所以从那些页面回来仍然能看到最新状态；而快速切 tab 不会产生请求。
+   */
+  const lastSyncRef = useRef(0);
+  const SYNC_TTL_MS = 15_000;
+
   useDidShow(() => {
+    const now = Date.now();
+    if (now - lastSyncRef.current < SYNC_TTL_MS) return;
+    lastSyncRef.current = now;
+
     fetchUserInfo();
     fetchQuota();
     fetchProjects();
