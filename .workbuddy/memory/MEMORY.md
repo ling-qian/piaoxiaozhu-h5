@@ -3,8 +3,8 @@
 ## 主线与现状
 - 主线产品在 **`v1/`**：Taro 3.6 微信小程序（`apps/miniapp`）+ FastAPI（`services/api`）+ PaddleOCR + Celery/Redis + PostgreSQL + 对象存储。
   根目录是 taxhacker 开源参考代码，`piaoxiaozhu-h5/` 是 Web 版（Vercel 线），都不是小程序发布主体。
-- **主体是个人**（后续改企业）⇒ 不能用微信支付、不能用手机号快速验证组件、类目仅限工具类。
-- 支付整体关闭：`apps/miniapp/src/config/features.ts` 的 `PAYMENT_ENABLED=false`（会员页此时不渲染价目表）；
+- **主体是个体工商户**（2026-11-03 用户确认；微信认证已通过）⇒ 可用微信支付（标准 JSAPI，结算到经营者个人账户）、可用手机号快速验证组件（1000 次体验额度后 0.03 元/次）。
+- 支付：`apps/miniapp/src/config/features.ts` 的 `PAYMENT_ENABLED=true`（价目表展示；服务端缺商户凭据时下单返回 503）；`SHARE_ENABLED=false`（分享域名未部署，死链风险）。
   服务端 `PAYMENT_MOCK_ENABLED` 必须保持 false。
 
 ## 部署（权威文档：`v1/infra/cloud-hosting.md`）
