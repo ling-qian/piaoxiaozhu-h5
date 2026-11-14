@@ -547,6 +547,9 @@ export default function LandingView({ locale }: { locale: LandingLocale }) {
             <a href={locale === "zh" ? "/zh/terms" : "/terms"} className="transition-colors hover:text-white">
               {locale === "zh" ? "服务条款" : "Terms"}
             </a>
+            <a href={locale === "zh" ? "/zh/refund" : "/refund"} className="transition-colors hover:text-white">
+              {locale === "zh" ? "退款政策" : "Refunds"}
+            </a>
             <a href={locale === "zh" ? "/zh/contact" : "/contact"} className="transition-colors hover:text-white">
               {locale === "zh" ? "联系我们" : "Contact"}
             </a>

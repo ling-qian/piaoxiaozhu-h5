@@ -29,9 +29,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // 法务与联系页：搜索引擎不靠它们带来流量，但缺了它们，推广平台会先扣分
     { url: `${base}/privacy`, lastModified, changeFrequency: "yearly", priority: 0.4 },
     { url: `${base}/terms`, lastModified, changeFrequency: "yearly", priority: 0.4 },
+    { url: `${base}/refund`, lastModified, changeFrequency: "yearly", priority: 0.4 },
     { url: `${base}/contact`, lastModified, changeFrequency: "yearly", priority: 0.4 },
     { url: `${base}/zh/privacy`, lastModified, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/zh/terms`, lastModified, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${base}/zh/refund`, lastModified, changeFrequency: "yearly", priority: 0.3 },
     { url: `${base}/zh/contact`, lastModified, changeFrequency: "yearly", priority: 0.3 },
     ...TOPICS.flatMap((topic) => [
       {

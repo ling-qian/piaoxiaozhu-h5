@@ -14,12 +14,13 @@ import { CONTACT_EMAIL, LEGAL_SUMMARY, LEGAL_TITLE, LEGAL_UPDATED, legalSections
 import type { LegalKind } from "./content";
 import { legalPath } from "./meta";
 
-const READ_MINUTES: Record<LegalKind, number> = { privacy: 6, terms: 7, contact: 3 };
+const READ_MINUTES: Record<LegalKind, number> = { privacy: 6, terms: 7, refund: 5, contact: 3 };
 
 const LABELS: Record<DocLocale, Record<LegalKind | "guide" | "faq" | "about" | "related", string>> = {
   en: {
     privacy: "Privacy Policy",
     terms: "Terms of Service",
+    refund: "Refund Policy",
     contact: "Contact",
     guide: "Guide",
     faq: "FAQ",
@@ -29,6 +30,7 @@ const LABELS: Record<DocLocale, Record<LegalKind | "guide" | "faq" | "about" | "
   zh: {
     privacy: "隐私政策",
     terms: "服务条款",
+    refund: "退款政策",
     contact: "联系我们",
     guide: "指南",
     faq: "常见问题",
@@ -39,7 +41,7 @@ const LABELS: Record<DocLocale, Record<LegalKind | "guide" | "faq" | "about" | "
 
 export function LegalView({ kind, locale }: { kind: LegalKind; locale: DocLocale }) {
   const labels = LABELS[locale];
-  const others: LegalKind[] = (["privacy", "terms", "contact"] as LegalKind[]).filter((k) => k !== kind);
+  const others: LegalKind[] = (["privacy", "terms", "refund", "contact"] as LegalKind[]).filter((k) => k !== kind);
 
   return (
     <DocShell

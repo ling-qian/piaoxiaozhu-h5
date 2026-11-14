@@ -14,13 +14,14 @@ import type { DocLocale, DocSection } from "@/app/guide/content";
 export const CONTACT_EMAIL = "support@qianling-tech.top";
 
 /** 内容改动时同步这一天，页面上的「更新于」用它 */
-export const LEGAL_UPDATED = "2026-10-31";
+export const LEGAL_UPDATED = "2026-11-09";
 
-export type LegalKind = "privacy" | "terms" | "contact";
+export type LegalKind = "privacy" | "terms" | "refund" | "contact";
 
 export const LEGAL_TITLE: Record<LegalKind, Record<DocLocale, string>> = {
   privacy: { en: "Privacy Policy", zh: "隐私政策" },
   terms: { en: "Terms of Service", zh: "服务条款" },
+  refund: { en: "Refund Policy", zh: "退款政策" },
   contact: { en: "Contact", zh: "联系我们" },
 };
 
@@ -32,6 +33,10 @@ export const LEGAL_SUMMARY: Record<LegalKind, Record<DocLocale, string>> = {
   terms: {
     en: "The rules for using SortReceipts: what the service does, what each plan includes, what you may not do, and what happens when something goes wrong.",
     zh: "使用 SortReceipts 的规则：服务做什么、每个套餐包含什么、什么不能做、出问题时怎么处理。",
+  },
+  refund: {
+    en: "When a payment can be refunded, what to include in the request, and how long each step takes.",
+    zh: "什么情况下可以退款、申请时要写什么、每一步要多久。",
   },
   contact: {
     en: "How to reach Qianling Tech about SortReceipts, and what to include so the first reply can actually solve the problem.",
@@ -55,7 +60,7 @@ export const PRIVACY_SECTIONS: Record<DocLocale, DocSection[]> = {
         "Receipt images: the photos you upload, stored under a key tied to your account.",
         "Extracted fields: merchant name, amount, tax, date, category, and the raw text the model read from the image. Each receipt also gets a fingerprint so duplicates can be spotted.",
         "Records you type in: project names, customer names and contact details, and the contents of monthly reports.",
-        "Payment records: plan, amount, currency and transaction ID. Card numbers go straight to Stripe or PayPal and never reach our servers.",
+        "Payment records: plan, amount, currency and transaction ID. Card numbers go straight to Dodo Payments, Stripe or PayPal and never reach our servers.",
         "Abuse prevention: hashed IP addresses rather than raw ones, counts of failed sign-ins, per-user API call counters, and hashed email verification codes.",
       ],
     },
@@ -75,7 +80,7 @@ export const PRIVACY_SECTIONS: Record<DocLocale, DocSection[]> = {
       bullets: [
         "Cloudflare — hosts the site, the API and the account database.",
         "Tencent Cloud COS — stores the receipt images.",
-        "Stripe and PayPal — process card and PayPal payments.",
+        "Stripe, PayPal and Dodo Payments — process card and PayPal payments. Dodo Payments acts as merchant of record on some transactions, meaning it sells to you in its own name and remits the sales tax or VAT.",
         "Resend — delivers the six-digit verification email.",
         "An external vision model API — receives the image during recognition, because that is how the fields are produced.",
       ],
@@ -135,7 +140,7 @@ export const PRIVACY_SECTIONS: Record<DocLocale, DocSection[]> = {
         "票据图片：你上传的照片，按与账号绑定的路径存放。",
         "识别出的字段：商户名、金额、税额、日期、分类，以及模型从图片里读到的原始文字。每张票据还会生成一个指纹，用来查重。",
         "你手动录入的内容：项目名、客户名与联系方式、月度报表内容。",
-        "支付记录：套餐、金额、币种、交易号。卡号直接交给 Stripe 或 PayPal，不会经过我们的服务器。",
+        "支付记录：套餐、金额、币种、交易号。卡号直接交给 Dodo Payments、Stripe 或 PayPal，不会经过我们的服务器。",
         "防滥用数据：加盐哈希后的 IP（不留原始地址）、登录失败次数、按用户计的接口调用数、哈希后的邮箱验证码。",
       ],
     },
@@ -153,7 +158,7 @@ export const PRIVACY_SECTIONS: Record<DocLocale, DocSection[]> = {
       bullets: [
         "Cloudflare：托管站点、接口与账号数据库。",
         "腾讯云 COS：存放票据图片。",
-        "Stripe 与 PayPal：处理银行卡和 PayPal 付款。",
+        "Stripe、PayPal 与 Dodo Payments：处理银行卡和 PayPal 付款，其中 Dodo Payments 作为记录商户（MoR）代收并代缴销售税或增值税。",
         "Resend：发送六位邮箱验证码。",
         "外部视觉模型接口：识别时接收图片，字段就是这样读出来的。",
       ],
@@ -224,19 +229,20 @@ export const TERMS_SECTIONS: Record<DocLocale, DocSection[]> = {
         rows: [
           ["Free", "$0", "5 per month", "1", "No"],
           ["Pro", "$3.99 per month", "200 per month", "10", "Yes"],
-          ["Business", "$13.99 per month", "Unlimited", "Unlimited", "Yes"],
+          ["Enterprise", "$13.99 per month", "Unlimited", "Unlimited", "Yes"],
         ],
       },
       paragraphs: [
-        "Prices are in US dollars for accounts billed through Stripe or PayPal. Longer periods are sold at a discount, and the checkout page shows the exact amount and currency before you confirm.",
+        "Prices are in US dollars. Payments are processed by Dodo Payments, Stripe or PayPal, and the checkout page shows the exact amount and currency before you confirm.",
+        "Dodo Payments acts as merchant of record for some transactions. Where it does, the invoice is issued in its name and sales tax or VAT is collected and remitted by it. Stripe and PayPal transactions are processed on our behalf and their own terms apply.",
         "A plan is bought for a fixed period. We do not charge again automatically when it ends. When the period runs out, the account returns to the free plan unless you renew.",
       ],
     },
     {
       title: "Payments and problems",
       paragraphs: [
-        "Stripe and PayPal handle the money, and their own terms apply to each transaction.",
-        `If a charge looks wrong, email ${CONTACT_EMAIL} with the date and the amount. We will look at the order record and answer.`,
+        "Stripe, PayPal and Dodo Payments handle the money, and their own terms apply to each transaction.",
+        `If a charge looks wrong, email ${CONTACT_EMAIL} with the date and the amount. We will look at the order record and answer. Refunds are covered by the Refund Policy.`,
       ],
     },
     {
@@ -322,15 +328,16 @@ export const TERMS_SECTIONS: Record<DocLocale, DocSection[]> = {
         ],
       },
       paragraphs: [
-        "通过 Stripe 或 PayPal 付款的账号，价格以美元计。购买更长周期有折扣，付款页会在你确认前显示准确的金额与币种。",
+        "价格以美元计，付款由 Dodo Payments、Stripe 或 PayPal 处理。付款页会在你确认前显示准确的金额与币种。",
+        "部分交易由 Dodo Payments 作为记录商户（MoR）销售：发票以其名义开具，销售税或增值税由它代收代缴。Stripe 与 PayPal 的交易由它们代我们处理，同时适用它们的条款。",
         "套餐按固定周期购买。周期结束时我们不会自动扣款；到期不续费，账号回到免费版。",
       ],
     },
     {
       title: "付款与异常",
       paragraphs: [
-        "款项由 Stripe 与 PayPal 处理，每一笔交易同时适用它们的条款。",
-        `如果某笔扣款看起来不对，写信到 ${CONTACT_EMAIL}，附上日期与金额。我们会查订单记录再答复。`,
+        "款项由 Dodo Payments、Stripe 与 PayPal 处理，每一笔交易同时适用它们的条款。",
+        `如果某笔扣款看起来不对，写信到 ${CONTACT_EMAIL}，附上日期与金额。我们会查订单记录再答复。退款规则见退款政策。`,
       ],
     },
     {
@@ -380,6 +387,141 @@ export const TERMS_SECTIONS: Record<DocLocale, DocSection[]> = {
     {
       title: "条款变更",
       paragraphs: ["条款有改动时，新版本会发在这里并更新日期。改动后继续使用，视为接受新版本。"],
+    },
+  ],
+};
+
+export const REFUND_SECTIONS: Record<DocLocale, DocSection[]> = {
+  en: [
+    {
+      title: "The short version",
+      lead: "Plans are bought for a fixed period, not as an automatically renewing subscription. Nothing is charged again when the period ends.",
+      paragraphs: [
+        "Ask for a refund within 14 days of the payment and we refund it in full, whether or not you have used the plan. After 14 days we refund the unused part only in the cases listed below.",
+      ],
+    },
+    {
+      title: "Within 14 days",
+      bullets: [
+        "Any first purchase of a plan: full refund, no questions asked.",
+        "A renewal you did not intend, reported before the period ends: full refund of that period.",
+        "A duplicate charge for the same order: the extra charge is refunded in full.",
+      ],
+      paragraphs: [
+        "European Union and United Kingdom buyers keep their statutory 14-day right of withdrawal. Because the service starts immediately after payment, you agree when you pay that delivery has begun; that agreement does not remove your right to a refund under this policy.",
+      ],
+    },
+    {
+      title: "After 14 days",
+      bullets: [
+        "The plan was unavailable for a sustained period because of our failure: we refund the days affected.",
+        "A feature described on the pricing page never worked for you and we could not fix it: we refund the unused part of the period.",
+        "Accounts we end for a reason other than a breach of the terms: we refund the unused part of the period.",
+      ],
+      paragraphs: [
+        "We do not refund a period that was simply not used, or an OCR result that came out wrong. Recognition is a machine reading a photo, and the terms say so before you pay.",
+      ],
+    },
+    {
+      title: "What is not refundable",
+      bullets: [
+        "Point packs already spent on recognitions.",
+        "Periods that have already run out.",
+        "Accounts closed for breaking the terms.",
+        "Amounts withheld as taxes: these are collected and remitted by Dodo Payments or Stripe, and are refunded only as their rules allow.",
+      ],
+    },
+    {
+      title: "How to ask",
+      lead: `Write to ${CONTACT_EMAIL} from the address on the account.`,
+      bullets: [
+        "The email on the account.",
+        "The date and amount of the charge, and the currency.",
+        "The order number if you have it; it starts with a letter followed by 36 characters.",
+        "One sentence on why you want the refund.",
+      ],
+      paragraphs: [
+        "Requests that match the cases above are approved without further questions. If a request falls outside them, we say so in the first reply and explain what would change the answer.",
+      ],
+    },
+    {
+      title: "How long it takes",
+      paragraphs: [
+        "We reply within two business days. Approved refunds are sent back to the original payment method within five business days of approval.",
+        "Dodo Payments and Stripe then take their own time to post the credit; card refunds usually appear within 5 to 10 business days, and that part is outside our control.",
+      ],
+    },
+    {
+      title: "Disputes",
+      paragraphs: [
+        "If a charge looks wrong, write to us before opening a dispute with your card issuer or payment provider. We can see the order record and usually resolve it faster than a chargeback, and a dispute opened first makes the refund path slower for everyone.",
+      ],
+    },
+  ],
+  zh: [
+    {
+      title: "一句话版本",
+      lead: "套餐按固定周期购买，不是自动续费的订阅。周期结束后不会再扣款。",
+      paragraphs: [
+        "付款后 14 天内提出退款，全额退回，用没用过都一样。超过 14 天，只在下面列出的几种情况里退未使用部分。",
+      ],
+    },
+    {
+      title: "14 天以内",
+      bullets: [
+        "任何套餐的首次购买：全额退款，不问理由。",
+        "并非本意的续费，在周期结束前提出：该周期全额退款。",
+        "同一订单被重复扣款：多扣的那笔全额退回。",
+      ],
+      paragraphs: [
+        "欧盟与英国买家保留法定的 14 天撤销权。由于服务在付款后立即开始，你在付款时即同意服务已开始交付；这份同意不影响你按本政策获得退款的权利。",
+      ],
+    },
+    {
+      title: "超过 14 天",
+      bullets: [
+        "因我们的故障导致套餐长时间不可用：退受影响天数的费用。",
+        "定价页上写明的功能对你始终不可用，且我们未能修复：退该周期未使用部分。",
+        "因非违约原因被我们终止账号：退该周期未使用部分。",
+      ],
+      paragraphs: [
+        "单纯没用完的周期不退，识别结果出错也不退。识别是机器在读照片，付款前条款里已经写明这一点。",
+      ],
+    },
+    {
+      title: "不退的情况",
+      bullets: [
+        "已经消耗在识别上的积分包。",
+        "已经走完的周期。",
+        "因违反条款被关闭的账号。",
+        "作为税款扣缴的部分：这部分由 Dodo Payments 或 Stripe 代收代缴，只能按它们的规则退回。",
+      ],
+    },
+    {
+      title: "怎么申请",
+      lead: `用账号绑定的邮箱写信到 ${CONTACT_EMAIL}。`,
+      bullets: [
+        "账号邮箱。",
+        "扣款日期、金额与币种。",
+        "有订单号就附上，它以字母开头，后面跟 36 个字符。",
+        "一句话说明退款原因。",
+      ],
+      paragraphs: [
+        "符合上面情况的申请，不再追问，直接处理。不符合的，我们会在第一封回信里说明原因，以及什么情况下结论会变。",
+      ],
+    },
+    {
+      title: "要多久",
+      paragraphs: [
+        "我们两个工作日内回信。批准后的退款在五个工作日内退回原支付方式。",
+        "之后 Dodo Payments 和 Stripe 有自己的入账时间，银行卡退款通常 5 到 10 个工作日到账，这一段不在我们控制范围内。",
+      ],
+    },
+    {
+      title: "争议",
+      paragraphs: [
+        "觉得扣款有问题，请先写信给我们，不要直接向发卡行或支付平台发起争议。我们能看到订单记录，通常比拒付处理更快；先发起争议反而会让退款这条路变慢。",
+      ],
     },
   ],
 };
@@ -466,5 +608,6 @@ export const CONTACT_SECTIONS: Record<DocLocale, DocSection[]> = {
 export function legalSections(kind: LegalKind): Record<DocLocale, DocSection[]> {
   if (kind === "privacy") return PRIVACY_SECTIONS;
   if (kind === "terms") return TERMS_SECTIONS;
+  if (kind === "refund") return REFUND_SECTIONS;
   return CONTACT_SECTIONS;
 }
