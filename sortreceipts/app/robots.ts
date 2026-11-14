@@ -10,7 +10,7 @@ import { NEXT_PUBLIC_BASE_URL } from "@/lib/env";
  * 让对方知道这不是「没拦住」，而是「允许」。每条规则都带上同样的
  * disallow——只写 `Allow: /` 的组没有排除项，会把 `/api/` 一起放进来。
  */
-const DISALLOW = ["/api/", "/admin", "/auth/login", "/auth/register"];
+const DISALLOW = ["/api/", "/admin", "/auth/login", "/auth/register", "/share/"];
 
 /** 主流生成式引擎的抓取与索引爬虫 */
 const AI_BOTS = [

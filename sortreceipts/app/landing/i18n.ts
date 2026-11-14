@@ -23,58 +23,58 @@ export const LOCALE_META: Record<LandingLocale, LocaleMeta> = {
   en: {
     ogLocale: "en_US",
     label: "English",
-    title: "SortReceipts — Receipts and Costs for Small Restaurants",
+    title: "SortReceipts — Month-End Books for Small Restaurants",
     description:
-      "Photograph supplier invoices and café receipts: SortReceipts files each one under one of 8 restaurant cost categories and keeps monthly revenue, expenses and gross margin current. Free plan, no app.",
+      "Photograph supplier invoices; SortReceipts sorts them into eight restaurant cost categories and builds a month-end pack your accountant opens from a link, with no account. Free plan.",
   },
   zh: {
     ogLocale: "zh_CN",
     label: "中文",
-    title: "SortReceipts — 小餐饮店的票据与成本记账",
+    title: "SortReceipts — 小餐饮店的月底交付包",
     description:
-      "拍供应商发票和小票，SortReceipts 把每张票归到 8 个餐饮成本分类，并让当月营业额、支出和毛利保持最新。浏览器直接用，免费版不需要信用卡。",
+      "拍供应商发票，自动归进 8 个餐饮成本分类，月底生成一个链接，会计不用注册就能看。免费版每月 5 张，浏览器直接用。",
   },
   es: {
     ogLocale: "es_ES",
     label: "Español",
-    title: "SortReceipts — Recibos y costes para restaurantes",
+    title: "SortReceipts — Cierre de mes para restaurantes",
     description:
-      "Fotografía facturas de proveedor y recibos del local: SortReceipts los clasifica en una de 8 categorías de coste y mantiene al día ingresos, gastos y margen bruto del mes. Gratis y sin app.",
+      "Fotografía facturas de proveedor: SortReceipts las clasifica en ocho categorías de coste y arma un cierre de mes que tu contador abre desde un enlace, sin cuenta. Plan gratis.",
   },
   pt: {
     ogLocale: "pt_BR",
     label: "Português",
-    title: "SortReceipts — Recibos e custos para restaurantes",
+    title: "SortReceipts — Fechamento do mês para restaurantes",
     description:
-      "Fotografe notas de fornecedor e recibos do salão: o SortReceipts classifica cada um em uma das 8 categorias de custo e mantém receita, despesas e margem bruta do mês em dia. Grátis, sem aplicativo.",
+      "Fotografe notas de fornecedor: o SortReceipts classifica em oito categorias de custo e monta um fechamento que seu contador abre por um link, sem conta. Plano grátis.",
   },
   fr: {
     ogLocale: "fr_FR",
     label: "Français",
-    title: "SortReceipts — Reçus et coûts pour restaurants",
+    title: "SortReceipts — Clôture mensuelle pour restaurants",
     description:
-      "Photographiez factures fournisseurs et reçus de salle : SortReceipts classe chacun dans l'une des 8 catégories de coûts et tient à jour recettes, dépenses et marge brute du mois. Gratuit, sans app.",
+      "Photographiez vos factures fournisseurs : SortReceipts les classe en huit catégories de coûts et prépare une clôture mensuelle que votre comptable ouvre par un lien, sans compte. Offre gratuite.",
   },
   de: {
     ogLocale: "de_DE",
     label: "Deutsch",
-    title: "SortReceipts — Belege und Kosten für Restaurants",
+    title: "SortReceipts — Monatsabschluss für Restaurants",
     description:
-      "Lieferantenrechnungen und Thekenbelege fotografieren: SortReceipts ordnet jeden Beleg einer von 8 Restaurant-Kostenkategorien zu und hält Umsatz, Ausgaben und Rohertrag des Monats aktuell. Kostenlos, ohne App.",
+      "Lieferantenrechnungen fotografieren: SortReceipts ordnet sie acht Kostenkategorien zu und erstellt einen Monatsabschluss, den Ihre Buchhaltung per Link ohne Konto öffnet. Gratis.",
   },
   ja: {
     ogLocale: "ja_JP",
     label: "日本語",
-    title: "SortReceipts — 飲食店のレシートと原価管理",
+    title: "SortReceipts — 飲食店の月末締めパッケージ",
     description:
-      "仕入れ先の請求書や店頭レシートを撮るだけで、8 つの飲食店向け原価カテゴリに分類し、当月の売上・支出・粗利を最新に保ちます。ブラウザで完結、無料プランあり。",
+      "仕入れ先の請求書を撮ると 8 つの原価カテゴリに分類し、会計担当が登録なしで開ける月末パッケージを作ります。無料プランあり、ブラウザで完結。",
   },
   ko: {
     ogLocale: "ko_KR",
     label: "한국어",
-    title: "SortReceipts — 음식점 영수증과 원가 관리",
+    title: "SortReceipts — 음식점 월말 마감 패키지",
     description:
-      "공급업체 청구서와 매장 영수증을 찍으면 8개의 음식점 원가 분류로 나누고, 이번 달 매출·지출·매출총이익을 최신으로 유지합니다. 브라우저에서 바로 쓰고 무료 플랜이 있습니다.",
+      "공급업체 청구서를 찍으면 8개 원가 분류로 정리하고, 회계 담당자가 가입 없이 여는 월말 패키지를 만듭니다. 무료 플랜, 브라우저에서 바로 사용.",
   },
 };
 
@@ -192,8 +192,8 @@ export const LANDING_STRINGS: Record<LandingLocale, LandingStrings> = {
     navStart: "Start free",
 
     badge: "Bookkeeping for restaurants, cafés and food trucks",
-    h1: "A bag of supplier receipts, turned into a month of numbers.",
-    sub: "SortReceipts reads supplier invoices and counter receipts, files each one under a restaurant cost category — food, payroll, rent, platform fees — and keeps revenue, expenses and gross margin current. It runs in your browser — no app to install.",
+    h1: "Month end: one page your accountant opens without an account.",
+    sub: "Photograph supplier invoices and counter receipts. SortReceipts reads vendor, date, amount and tax, files each one under a restaurant cost category, and turns the month into one link your accountant opens without signing up. It runs in your browser — no app to install.",
     ctaPrimary: "Start free",
     ctaSecondary: "See how it works",
     ctaNote: "5 receipts a month, free. No credit card.",
@@ -295,8 +295,8 @@ export const LANDING_STRINGS: Record<LandingLocale, LandingStrings> = {
     navStart: "免费开始",
 
     badge: "为餐馆、咖啡店和餐车做的记账",
-    h1: "一袋供应商票据，变成一份月底能看的数",
-    sub: "SortReceipts 读供应商发票和小票，把每张票归到餐饮成本分类——食材、工资、房租、平台服务费——并让营业额、支出和毛利保持最新。用浏览器打开就能用，不用装 App。",
+    h1: "月底给会计一页纸，他不用注册。",
+    sub: "拍供应商发票和柜台小票，自动读出商户、日期、金额和税额，归进餐饮成本分类。月底把这一个月变成一个链接，会计点开就能看，对面不用注册。用浏览器打开就能用，不装 App。",
     ctaPrimary: "免费开始",
     ctaSecondary: "看看怎么用",
     ctaNote: "每月 5 张免费 · 不需要信用卡",
@@ -398,8 +398,8 @@ export const LANDING_STRINGS: Record<LandingLocale, LandingStrings> = {
     navStart: "Empezar gratis",
 
     badge: "Contabilidad para restaurantes, cafeterías y food trucks",
-    h1: "Una bolsa de facturas de proveedor, convertida en las cifras del mes.",
-    sub: "SortReceipts lee facturas de proveedor y recibos del local, clasifica cada uno en una categoría de coste —comida, nómina, alquiler, comisiones de plataforma— y mantiene al día ingresos, gastos y margen bruto. Funciona en el navegador, sin instalar nada.",
+    h1: "Cierre de mes: una página que tu contador abre sin cuenta.",
+    sub: "Fotografía facturas de proveedor y recibos de caja. SortReceipts lee proveedor, fecha, importe e impuestos, clasifica cada gasto en una categoría de restaurante y convierte el mes en un enlace que tu contador abre sin registrarse. Funciona en el navegador, sin instalar nada.",
     ctaPrimary: "Empezar gratis",
     ctaSecondary: "Ver cómo funciona",
     ctaNote: "5 recibos al mes, gratis. Sin tarjeta.",
@@ -501,8 +501,8 @@ export const LANDING_STRINGS: Record<LandingLocale, LandingStrings> = {
     navStart: "Começar grátis",
 
     badge: "Contabilidade para restaurantes, cafeterias e food trucks",
-    h1: "Uma sacola de notas de fornecedor vira os números do mês.",
-    sub: "O SortReceipts lê notas de fornecedor e recibos do salão, classifica cada um em uma categoria de custo — comida, folha, aluguel, taxas de plataforma — e mantém receita, despesas e margem bruta em dia. Roda no navegador, sem instalar aplicativo.",
+    h1: "Fechamento do mês: uma página que seu contador abre sem conta.",
+    sub: "Fotografe notas de fornecedor e recibos do caixa. O SortReceipts lê fornecedor, data, valor e impostos, classifica cada gasto em uma categoria de restaurante e transforma o mês em um link que o contador abre sem se cadastrar. Roda no navegador, sem instalar aplicativo.",
     ctaPrimary: "Começar grátis",
     ctaSecondary: "Ver como funciona",
     ctaNote: "5 recibos por mês, grátis. Sem cartão.",
@@ -604,8 +604,8 @@ export const LANDING_STRINGS: Record<LandingLocale, LandingStrings> = {
     navStart: "Commencer gratuitement",
 
     badge: "Comptabilité pour restaurants, cafés et food trucks",
-    h1: "Un sac de factures fournisseurs, transformé en chiffres du mois.",
-    sub: "SortReceipts lit les factures fournisseurs et les reçus de salle, classe chacun dans une catégorie de coût — aliments, salaires, loyer, commissions de plateforme — et tient à jour recettes, dépenses et marge brute. Tout se passe dans le navigateur, sans rien installer.",
+    h1: "Fin de mois : une page que votre comptable ouvre sans compte.",
+    sub: "Photographiez factures fournisseurs et tickets de caisse. SortReceipts lit le fournisseur, la date, le montant et les taxes, classe chaque dépense dans une catégorie de restaurant et transforme le mois en un lien que votre comptable ouvre sans s'inscrire. Tout se passe dans le navigateur, sans rien installer.",
     ctaPrimary: "Commencer gratuitement",
     ctaSecondary: "Voir comment ça marche",
     ctaNote: "5 reçus par mois, gratuit. Sans carte bancaire.",
@@ -707,8 +707,8 @@ export const LANDING_STRINGS: Record<LandingLocale, LandingStrings> = {
     navStart: "Kostenlos starten",
 
     badge: "Buchhaltung für Restaurants, Cafés und Foodtrucks",
-    h1: "Eine Tüte Lieferantenrechnungen wird zu den Zahlen des Monats.",
-    sub: "SortReceipts liest Lieferantenrechnungen und Thekenbelege, ordnet jeden einer Kostenkategorie zu — Lebensmittel, Löhne, Miete, Plattformgebühren — und hält Umsatz, Ausgaben und Rohertrag aktuell. Läuft im Browser, ohne App.",
+    h1: "Monatsabschluss: eine Seite, die Ihre Buchhaltung ohne Konto öffnet.",
+    sub: "Lieferantenrechnungen und Thekenbelege fotografieren. SortReceipts liest Lieferant, Datum, Betrag und Steuer, ordnet jede Ausgabe einer Restaurantkategorie zu und macht aus dem Monat einen Link, den die Buchhaltung ohne Anmeldung öffnet. Läuft im Browser, ohne App.",
     ctaPrimary: "Kostenlos starten",
     ctaSecondary: "So funktioniert's",
     ctaNote: "5 Belege pro Monat, kostenlos. Ohne Karte.",
@@ -810,8 +810,8 @@ export const LANDING_STRINGS: Record<LandingLocale, LandingStrings> = {
     navStart: "無料で始める",
 
     badge: "飲食店・カフェ・キッチンカーのための記帳",
-    h1: "仕入れの請求書の束を、その月の数字に。",
-    sub: "SortReceipts は仕入れ先の請求書やレシートを読み取り、食材・人件費・家賃・プラットフォーム手数料といった原価カテゴリに分類し、売上・支出・粗利を最新に保ちます。ブラウザで動くので、アプリのインストールは不要です。",
+    h1: "月末は、会計担当が登録なしで開ける 1 ページで。",
+    sub: "仕入れ先の請求書やレシートを撮るだけ。仕入れ先・日付・金額・税額を読み取り、飲食店のカテゴリに分類し、月末には会計担当が登録なしで開ける 1 本のリンクにまとめます。ブラウザで動くので、アプリのインストールは不要です。",
     ctaPrimary: "無料で始める",
     ctaSecondary: "使い方を見る",
     ctaNote: "月 5 枚まで無料・クレジットカード不要",
@@ -913,8 +913,8 @@ export const LANDING_STRINGS: Record<LandingLocale, LandingStrings> = {
     navStart: "무료로 시작",
 
     badge: "음식점, 카페, 푸드트럭을 위한 장부",
-    h1: "공급업체 청구서 한 뭉치를 그 달의 숫자로.",
-    sub: "SortReceipts는 공급업체 청구서와 매장 영수증을 읽어 식자재, 인건비, 임대료, 플랫폼 수수료 같은 원가 분류에 넣고 매출·지출·매출총이익을 최신으로 유지합니다. 브라우저에서 바로 쓰고, 앱을 설치할 필요가 없습니다.",
+    h1: "월말엔, 회계 담당자가 가입 없이 여는 한 페이지.",
+    sub: "공급업체 청구서와 매장 영수증을 찍으면 상호, 날짜, 금액, 세액을 읽어 음식점 분류로 정리하고, 월말에는 회계 담당자가 가입 없이 열 수 있는 링크 하나로 만들어 줍니다. 브라우저에서 바로 쓰고, 앱을 설치할 필요가 없습니다.",
     ctaPrimary: "무료로 시작",
     ctaSecondary: "사용 방법 보기",
     ctaNote: "월 5장 무료 · 카드 등록 없음",

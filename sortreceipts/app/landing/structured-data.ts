@@ -31,7 +31,7 @@ export function landingStructuredData(locale: LandingLocale) {
         // 只有站内链接时，实体消歧的证据不够。
         sameAs: ["https://www.producthunt.com/products/sortreceipts/sortreceipts"],
         description:
-          "A browser-based receipt scanner and cost tracker for small restaurants, cafés and food trucks. Supplier invoices become categorized cost records, monthly revenue and gross margin.",
+          "A browser-based bookkeeping tool for small restaurants, cafés and food trucks. Supplier invoices become categorized cost records, and each month becomes a read-only pack an accountant opens without an account.",
         availableLanguage: ["en", "zh"],
       },
       {

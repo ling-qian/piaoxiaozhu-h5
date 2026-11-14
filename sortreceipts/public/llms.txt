@@ -1,6 +1,6 @@
 # SortReceipts
 
-> SortReceipts is a browser-based receipt scanner and cost tracker for small restaurants, cafés and food trucks. Photograph a printed supplier invoice or receipt; the app reads the vendor, amount, date and tax, files it under one of 8 restaurant cost categories, and keeps monthly revenue, expenses and gross margin current. Nothing to install — it runs in a browser.
+> SortReceipts is a browser-based bookkeeping tool for small restaurants, cafés and food trucks. Photograph a printed supplier invoice; the app reads the vendor, amount, date and tax, files it under one of 8 restaurant cost categories, and at month end builds a read-only pack — summary, category subtotals, exceptions list and CSV — that your accountant opens from a link without creating an account. Nothing to install — it runs in a browser.
 
 Full content for retrieval: https://sortreceipts.qianling-tech.top/llms-full.txt
 Long-form guide: https://sortreceipts.qianling-tech.top/guide
@@ -12,7 +12,8 @@ Company and product facts: https://sortreceipts.qianling-tech.top/about
 - **Month-end catch-up**: receipts sit in a drawer until the last day. SortReceipts records each one when it happens, so the month closes without a backlog.
 - **Retyping totals**: vendor, amount, date and tax are read from the photo instead of typed by hand.
 - **Not knowing where the money went**: every expense carries one of 8 restaurant cost categories, and the category split plus margin trend sit on one screen.
-- **Reformatting before handing books to an accountant**: monthly reports export as CSV, which Excel, Numbers and Google Sheets open directly.
+- **Reformatting before handing books to an accountant**: the month becomes a read-only pack your accountant opens from a link without an account, and exports as CSV when they want the raw rows.
+- **Missing and duplicate invoices**: the pack lists expenses with no receipt attached, invoice numbers that appear twice, and amounts far above the usual range for their category.
 
 ## Who it is for
 
@@ -23,15 +24,17 @@ Independent restaurants, cafés and food trucks that deal with paper supplier in
 1. Create a project (one store or one line of business).
 2. Photograph the supplier invoice and check the four extracted fields: vendor, amount, date, tax.
 3. Confirm the cost category: Food & ingredients, Payroll, Rent, Utilities, Platform fees, Advertising, Office supplies, Other.
-4. Read the monthly report: revenue, expenses, category split, gross margin and profit. Export to CSV at month end.
+4. Read the monthly report: revenue, expenses, category split, gross margin and profit. At month end, send the accountant a read-only pack link or export the CSV.
 
 ## What it does
 
-- Reads printed receipts and supplier invoices from photos in JPG, PNG or WebP, up to 10 MB each.
+- Reads printed receipts and supplier invoices from photos in JPG, PNG or WebP, up to 15 MB each.
 - Extracts vendor, total amount, invoice date and tax amount from the recognised text.
 - Files each expense under one of 8 restaurant cost categories: Food & ingredients, Payroll, Rent, Utilities, Platform fees, Advertising, Office supplies, Other.
 - Tracks daily revenue and computes gross margin: revenue minus recorded invoice spend.
 - Builds monthly reports: revenue, expenses, category split, margin and profit trend.
+- Builds a month-end pack with a summary, category subtotals, a list of exceptions (missing receipt, duplicate invoice number, unusual amount, missing date) and CSV. The pack is shared as a read-only link that opens without an account.
+- Flags the same exceptions on the project page during the month, so they are fixed before month end.
 - Exports reports as CSV on paid plans.
 - The product interface is available in English and Chinese. The marketing site also has pages in Spanish, Portuguese, French, German, Japanese and Korean.
 
@@ -39,7 +42,7 @@ Independent restaurants, cafés and food trucks that deal with paper supplier in
 
 - Free: 5 invoices a month, 1 project, basic reports, no CSV export.
 - Pro: $3.99 — 200 invoices a month, 10 projects, CSV export, AI business review.
-- Enterprise: $13.99 — unlimited invoices and projects, priority support.
+- Business: $13.99 — unlimited invoices and projects, priority support, AI business review.
 
 ## Limitations
 
@@ -62,6 +65,8 @@ Independent restaurants, cafés and food trucks that deal with paper supplier in
 - Topic — restaurant receipts: https://sortreceipts.qianling-tech.top/guide/restaurant-receipts
 - Topic — travel expenses: https://sortreceipts.qianling-tech.top/guide/travel-expenses
 - Topic — month-end close: https://sortreceipts.qianling-tech.top/guide/month-end-close
+- Topic — receipt apps compared: https://sortreceipts.qianling-tech.top/guide/receipt-apps-compared
+- Topic — receipt apps compared (Chinese): https://sortreceipts.qianling-tech.top/zh/guide/receipt-apps-compared
 - FAQ (English): https://sortreceipts.qianling-tech.top/faq
 - FAQ (Chinese): https://sortreceipts.qianling-tech.top/zh/faq
 - About (operator: Qianling Tech): https://sortreceipts.qianling-tech.top/about
@@ -74,4 +79,4 @@ Independent restaurants, cafés and food trucks that deal with paper supplier in
 ## Notes
 
 - Data is stored on Cloudflare infrastructure and encrypted in transit; records can be deleted from the account, and the whole account can be deleted by email request.
-- Last updated: 2026-11-02
+- Last updated: 2026-11-12
