@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 // recognizeImage (Tesseract.js) 已移除：中文票据识别效果极差
-import { createRecordFromOcr } from "@/lib/actions/record-actions";
+import { createRecordFromOcrSafe } from "@/lib/actions/record-actions";
 import { getProjects } from "@/lib/actions/project-actions";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/lib/i18n";
@@ -146,7 +146,10 @@ function UploadContent() {
           prev.map((i) => (i.id === item.id ? { ...i, status: "recognizing" as const, progress: 40 } : i))
         );
 
-        const record = await createRecordFromOcr(projectId, "", item.file);
+        const result = await createRecordFromOcrSafe(projectId, "", item.file);
+        // 失败原因从返回值拿：直接抛错会被 Next 换成一句通用文案，
+        // 用户看不到「识别服务商返回 429」这类真正有用的信息
+        if (!result.ok) throw new Error(result.error);
 
         setBatchItems((prev) =>
           prev.map((i) => (i.id === item.id ? { ...i, status: "done" as const, progress: 100 } : i))
@@ -157,6 +160,9 @@ function UploadContent() {
         setBatchItems((prev) =>
           prev.map((i) => (i.id === item.id ? { ...i, status: "error" as const, error: message } : i))
         );
+        // 缩略图上的角标只放得下 12 个字，完整原因用弹窗显示一次，
+        // 否则用户只知道「失败了」，不知道失败在哪一步
+        showToast(message, "error");
         failCount++;
       }
     }

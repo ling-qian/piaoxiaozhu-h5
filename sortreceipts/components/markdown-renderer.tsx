@@ -145,71 +145,65 @@ function parseTableRow(row: string): string[] {
 
 /** 渲染粗体和斜体 */
 function renderInlineFormat(text: string): React.ReactNode {
-  // 先处理粗体：**text**
-  const boldParts = text.split(/(\*\*(.*?)\*\*)/g);
-  const result: React.ReactNode[] = [];
+  // 只留一层捕获组：split 的奇数位就是整段匹配（含 **）。
+  // 原来多套了一层括号，匹配段和它的内层文本会各占一位，
+  // 于是「**标题**」既被当粗体输出，又被当普通文字再输出一遍，
+  // 页面上就成了「**标题**标题」。
+  const parts = text.split(/(\*\*.+?\*\*)/g);
 
-  for (let bi = 0; bi < boldParts.length; bi++) {
-    const part = boldParts[bi];
-    if (bi % 4 === 1) {
-      // 粗体匹配组
-      result.push(
-        <strong key={bi} className="font-semibold text-[#0F172A]">
-          {renderInlineCode(part)}
-        </strong>
-      );
-    } else {
-      // 非粗体部分用 Fragment 包裹并加 key，避免 React key 警告
-      result.push(<Fragment key={bi}>{renderInlineCode(part)}</Fragment>);
-    }
-  }
-
-  return <>{result}</>;
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <strong key={i} className="font-semibold text-[#0F172A]">
+            {renderInlineCode(part.slice(2, -2))}
+          </strong>
+        ) : (
+          <Fragment key={i}>{renderInlineCode(part)}</Fragment>
+        )
+      )}
+    </>
+  );
 }
 
 /** 渲染行内代码 */
 function renderInlineCode(text: string): React.ReactNode {
-  const parts = text.split(/(`(.*?)`)/g);
+  const parts = text.split(/(`[^`]+`)/g);
   if (parts.length === 1) return text;
 
-  const result: React.ReactNode[] = [];
-  for (let pi = 0; pi < parts.length; pi++) {
-    const part = parts[pi];
-    if (pi % 4 === 1) {
-      // 行内代码匹配
-      result.push(
-        <code
-          key={pi}
-          className="bg-[#F8FAFC] text-[#E54545] px-1 py-0.5 rounded text-xs font-mono"
-        >
-          {part}
-        </code>
-      );
-    } else {
-      result.push(<Fragment key={pi}>{renderItalic(part)}</Fragment>);
-    }
-  }
-  return <>{result}</>;
+  return (
+    <>
+      {parts.map((part, i) =>
+        i % 2 === 1 ? (
+          <code
+            key={i}
+            className="bg-[#F8FAFC] text-[#E54545] px-1 py-0.5 rounded text-xs font-mono"
+          >
+            {part.slice(1, -1)}
+          </code>
+        ) : (
+          <Fragment key={i}>{renderItalic(part)}</Fragment>
+        )
+      )}
+    </>
+  );
 }
 
 /** 渲染斜体 */
 function renderItalic(text: string): React.ReactNode[] {
-  const parts = text.split(/((?:^|[^*])\*(?:[^*]|(?!\*))+(?:^|[^*])\*)/);
+  // 走到这一步时 ** 已经被去掉，剩下的单个 * 就是斜体
+  const parts = text.split(/(\*[^*]+\*)/g);
   if (parts.length <= 1) return [text];
-  const result: React.ReactNode[] = [];
-  for (let pi = 0; pi < parts.length; pi++) {
-    const part = parts[pi];
-    if (pi % 4 === 1) {
-      result.push(
-        <em key={pi} className="italic">
-          {part.replace(/^\*|\*$/g, "")}
-        </em>
-      );
-    } else {
-      result.push(part);
-    }
-  }
-  return result;
+
+  return parts.map((part, i) =>
+    i % 2 === 1 ? (
+      <em key={i} className="italic">
+        {part.slice(1, -1)}
+      </em>
+    ) : (
+      part
+    )
+  );
 }
 
 /** Markdown 渲染组件入口 */

@@ -92,6 +92,7 @@ export default async function AnalysisPage({
     <AnalysisClient
       projectId={projectId}
       projectName={project.name}
+      currency={project.currency}
       existingAnalysis={null}
       analysisAt={null}
       planCode={user?.planCode || "free"}

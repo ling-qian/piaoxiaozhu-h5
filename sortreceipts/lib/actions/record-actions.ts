@@ -262,6 +262,27 @@ export async function createRecordFromOcr(
   }
 }
 
+/**
+ * 识别并入库，把失败原因当成返回值传出去。
+ *
+ * Server Action 在生产环境抛错时，Next 会把消息换成一句通用的
+ * 「An error occurred in the Server Components render」，真实的
+ * 「识别服务商返回 429」被吞掉，页面只能显示一句看不懂的话。
+ * 返回值不经过这层替换，调用方拿到什么就显示什么。
+ */
+export async function createRecordFromOcrSafe(
+  projectId: string,
+  rawText: string,
+  imageFile: File | null,
+): Promise<{ ok: true; record: Awaited<ReturnType<typeof createRecordFromOcr>> } | { ok: false; error: string }> {
+  try {
+    const record = await createRecordFromOcr(projectId, rawText, imageFile);
+    return { ok: true, record };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error && e.message ? e.message : "识别失败" };
+  }
+}
+
 export async function createManualRecord(
   projectId: string,
   data: {

@@ -1,6 +1,6 @@
 "use client";
 
-import { CURRENCY_SYMBOL, NUMBER_LOCALE } from "@/lib/currency";
+import { currencySymbolOf, NUMBER_LOCALE } from "@/lib/currency";
 import { categoryLabel } from "@/lib/constants";
 import { useI18n } from "@/lib/i18n";
 import { useState } from "react";
@@ -25,6 +25,8 @@ import {
 interface Props {
   projectId: string;
   projectName: string;
+  /** 项目记账币种；页面上所有金额都按它显示 */
+  currency: string;
   existingAnalysis: string | null;
   analysisAt: string | null;
   planCode: string;
@@ -40,17 +42,28 @@ interface SummaryData {
   monthlyData: Record<string, { income: number; expense: number }>;
 }
 
+/** 后端返回的汇总只给四个总数，字段名是下划线 */
+interface BackendSummary {
+  total_income?: number;
+  total_expense?: number;
+  gross_profit?: number;
+  gross_margin?: number;
+  record_count?: number;
+}
+
 const PIE_COLORS = ["#2563EB", "#60A5FA", "#BFDBFE", "#DBEAFE", "#07C160", "#1677FF", "#722ED1", "#EB2F96", "#D97706", "#13C2C2"];
 
 export default function AnalysisClient({
   projectId,
   projectName,
+  currency,
   existingAnalysis,
   analysisAt,
   planCode,
   initialSummary,
 }: Props) {
   const { t } = useI18n();
+  const symbol = currencySymbolOf(currency);
   const router = useRouter();
   const { showToast } = useToast();
   const [analysis, setAnalysis] = useState(existingAnalysis);
@@ -80,7 +93,20 @@ export default function AnalysisClient({
       }
 
       setAnalysis(data.analysis);
-      setSummary(data.summary || null);
+      // 后端只回四个总数，字段还是下划线。图表用的分类与月度数据它不给，
+      // 直接整块替换会让 monthlyData 变 undefined，下一行 Object.entries
+      // 就把整页打崩（线上出现过：分析成功反而白屏）。
+      const s = data.summary as BackendSummary | null;
+      if (s) {
+        setSummary((prev) => ({
+          totalIncome: Number(s.total_income ?? 0),
+          totalExpense: Number(s.total_expense ?? 0),
+          grossProfit: Number(s.gross_profit ?? 0),
+          grossMargin: Number(s.gross_margin ?? 0),
+          categoryBreakdown: prev?.categoryBreakdown ?? {},
+          monthlyData: prev?.monthlyData ?? {},
+        }));
+      }
       showToast(t("analysis.done"), "success");
     } catch {
       showToast(t("analysis.networkError"), "error");
@@ -162,21 +188,28 @@ export default function AnalysisClient({
           </div>
         )}
 
+        {/* 分析结果：用户点按钮等的是这一段，放在数字和图表上面 */}
+        {analysis && (
+          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
+            <MarkdownRenderer content={analysis} />
+          </div>
+        )}
+
         {/* 数据概览卡片 */}
         {summary && (
           <div className="grid grid-cols-2 gap-2 animate-fade-in-up">
             <div className="bg-white rounded-md p-3 shadow-card">
               <p className="text-xs text-[#64748B]">{t("analysis.totalIncome")}</p>
-              <p className="text-lg font-bold text-[#07C160]">{CURRENCY_SYMBOL}{summary.totalIncome.toLocaleString(NUMBER_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-lg font-bold text-[#07C160]">{symbol}{summary.totalIncome.toLocaleString(NUMBER_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-white rounded-md p-3 shadow-card">
               <p className="text-xs text-[#64748B]">{t("analysis.totalExpense")}</p>
-              <p className="text-lg font-bold text-[#2563EB]">{CURRENCY_SYMBOL}{summary.totalExpense.toLocaleString(NUMBER_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+              <p className="text-lg font-bold text-[#2563EB]">{symbol}{summary.totalExpense.toLocaleString(NUMBER_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             </div>
             <div className="bg-white rounded-md p-3 shadow-card">
               <p className="text-xs text-[#64748B]">{t("analysis.grossProfit")}</p>
               <p className={`text-lg font-bold ${summary.grossProfit >= 0 ? "text-[#07C160]" : "text-[#DC2626]"}`}>
-                {CURRENCY_SYMBOL}{summary.grossProfit.toLocaleString(NUMBER_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {symbol}{summary.grossProfit.toLocaleString(NUMBER_LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             <div className="bg-white rounded-md p-3 shadow-card">
@@ -198,7 +231,7 @@ export default function AnalysisClient({
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748B" }} />
                 <YAxis tick={{ fontSize: 11, fill: "#64748B" }} />
                 <Tooltip
-                  formatter={(value: number) => `${CURRENCY_SYMBOL}${value.toLocaleString(NUMBER_LOCALE)}`}
+                  formatter={(value: number) => `${symbol}${value.toLocaleString(NUMBER_LOCALE)}`}
                   contentStyle={{ fontSize: 12, borderRadius: 8 }}
                 />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
@@ -231,7 +264,7 @@ export default function AnalysisClient({
                     ))}
                   </Pie>
                   <Tooltip
-                    formatter={(value: number) => `${CURRENCY_SYMBOL}${value.toLocaleString(NUMBER_LOCALE)}`}
+                    formatter={(value: number) => `${symbol}${value.toLocaleString(NUMBER_LOCALE)}`}
                     contentStyle={{ fontSize: 12, borderRadius: 8 }}
                   />
                 </PieChart>
@@ -251,13 +284,6 @@ export default function AnalysisClient({
                 ))}
               </div>
             </div>
-          </div>
-        )}
-
-        {/* 分析结果 */}
-        {analysis && (
-          <div className="bg-white rounded-md p-4 shadow-card animate-fade-in-up">
-            <MarkdownRenderer content={analysis} />
           </div>
         )}
 

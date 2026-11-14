@@ -60,7 +60,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "记录加载失败，请稍后重试" }, { status: 500 });
   }
 
-  const header = ["开票日期", "商户", "金额", "收支", "一级分类", "二级分类", "税号", "发票号", "备注"];
+  // 表头用英文，和后端交付包的 CSV（v1/apps/api-worker/src/lib/pack.ts）保持一致。
+  // 两个导出面向的是同一批会计：一份中文表头、一份英文表头，他们得对两遍列名。
+  const header = ["Date", "Merchant", "Amount", "Direction", "Category", "Subcategory", "Tax No", "Invoice No", "Note"];
 
   // 按日期倒序，和页面上的显示顺序一致
   const sorted = [...records].sort((a, b) => String(b.invoiceDate).localeCompare(String(a.invoiceDate)));
@@ -72,7 +74,7 @@ export async function GET(req: NextRequest) {
         escapeCsv(r.invoiceDate),
         escapeCsv(r.merchantName),
         escapeCsv(r.amount ?? 0),
-        isIncome(r.direction) ? "收入" : "支出",
+        isIncome(r.direction) ? "Income" : "Expense",
         escapeCsv(r.categoryL1),
         escapeCsv(r.categoryL2),
         escapeCsv(r.taxNo),
