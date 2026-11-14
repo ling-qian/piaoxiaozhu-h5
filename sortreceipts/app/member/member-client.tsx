@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useToast } from "@/components/toast";
 import { useI18n } from "@/lib/i18n";
 import { formatPrice, CURRENCY_SYMBOL } from "@/lib/currency";
-import { capturePaypalOrder, getIntlPaymentConfig, registerPlanInterest, startIntlCheckout, syncStripeOrder } from "@/lib/actions/payment-actions";
+import { capturePaypalOrder, getIntlPaymentConfig, registerPlanInterest, startIntlCheckout, syncDodoOrder, syncStripeOrder } from "@/lib/actions/payment-actions";
 import { IS_CN_REGION } from "@/lib/region";
 import PageHeader from "@/components/page-header";
 
@@ -96,7 +96,7 @@ export default function MemberClient({ currentPlan, currentEmail }: { currentPla
   const [payPlan, setPayPlan] = useState<{ code: string; name: string; price: string; accentColor: string } | null>(null);
   const [payMethod, setPayMethod] = useState<PayMethod>("wechat");
   const [qrConfig, setQrConfig] = useState<QrConfig | null>(null);
-  const [intlConfig, setIntlConfig] = useState<{ stripe: boolean; paypal: boolean } | null>(null);
+  const [intlConfig, setIntlConfig] = useState<{ stripe: boolean; paypal: boolean; dodo: boolean } | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [pendingRequests, setPendingRequests] = useState<UpgradeRequest[]>([]);
   // 支付没开通时，购买按钮改成留邮箱。这三个状态服务于那个弹窗
@@ -108,9 +108,10 @@ export default function MemberClient({ currentPlan, currentEmail }: { currentPla
   const isIntlMode = !IS_CN_REGION;
   const hasStripe = Boolean(intlConfig?.stripe);
   const hasPaypal = Boolean(intlConfig?.paypal);
-  const paymentsOpen = hasStripe || hasPaypal;
+  const hasDodo = Boolean(intlConfig?.dodo);
+  const paymentsOpen = hasStripe || hasPaypal || hasDodo;
 
-  // 支付回跳处理：Stripe 用 sync 核对，PayPal 用 capture 扣款
+  // 支付回跳处理：Stripe 和 Dodo 用 sync 核对，PayPal 用 capture 扣款
   useEffect(() => {
     async function settle() {
       if (searchParams.get("cancel") === "1") {
@@ -122,12 +123,19 @@ export default function MemberClient({ currentPlan, currentEmail }: { currentPla
       const orderId = searchParams.get("order");
       const isStripeBack = searchParams.get("paid") === "1";
       const isPaypalBack = searchParams.get("paypal") === "1";
-      if (!orderId || (!isStripeBack && !isPaypalBack)) return;
+      const isDodoBack = searchParams.get("dodo") === "1";
+      if (!orderId || (!isStripeBack && !isPaypalBack && !isDodoBack)) return;
 
       try {
         if (isStripeBack) {
           const r = await syncStripeOrder(orderId);
           // 未确认时不说「失败」——webhook 可能还在路上，说失败会让人重复付款
+          showToast(
+            r.paid ? t("member.paymentSuccess") : t("member.processing"),
+            r.paid ? "success" : "info"
+          );
+        } else if (isDodoBack) {
+          const r = await syncDodoOrder(orderId);
           showToast(
             r.paid ? t("member.paymentSuccess") : t("member.processing"),
             r.paid ? "success" : "info"
@@ -152,9 +160,9 @@ export default function MemberClient({ currentPlan, currentEmail }: { currentPla
       .catch(() => {});
 
     // 境外版页面上决定显示哪些支付按钮：卡片要看后端有没有配 Stripe，
-    // PayPal 按钮要看有没有配 PayPal
+    // PayPal 按钮看 PayPal，Dodo 按钮看 Dodo
     getIntlPaymentConfig()
-      .then((cfg) => setIntlConfig({ stripe: cfg.stripe, paypal: cfg.paypal }))
+      .then((cfg) => setIntlConfig({ stripe: cfg.stripe, paypal: cfg.paypal, dodo: cfg.dodo }))
       .catch(() => {});
 
     fetch("/api/upgrade-requests")
@@ -221,6 +229,19 @@ export default function MemberClient({ currentPlan, currentEmail }: { currentPla
     setPurchasing(payPlan.code);
     try {
       const r = await startIntlCheckout(payPlan.code, 1, "paypal");
+      window.location.href = r.url;
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : t("member.createPaymentFailed"), "error");
+      setPurchasing(null);
+    }
+  }
+
+  // Dodo：整页跳转到它托管的收银页，发货以 webhook 为准，回跳只做核对
+  async function handleDodoCheckout() {
+    if (!payPlan) return;
+    setPurchasing(payPlan.code);
+    try {
+      const r = await startIntlCheckout(payPlan.code, 1, "dodo");
       window.location.href = r.url;
     } catch (e) {
       showToast(e instanceof Error ? e.message : t("member.createPaymentFailed"), "error");
@@ -477,6 +498,17 @@ export default function MemberClient({ currentPlan, currentEmail }: { currentPla
                 </>
                 )}
 
+                {hasDodo && (
+                <button
+                  onClick={handleDodoCheckout}
+                  disabled={purchasing === payPlan.code}
+                  className="w-full mt-2.5 py-3.5 rounded-xl text-white text-sm font-semibold btn-press disabled:opacity-50"
+                  style={{ backgroundColor: payPlan.accentColor }}
+                >
+                  {purchasing === payPlan.code ? t("member.redirecting") : t("member.payWithCard")}
+                </button>
+                )}
+
                 {hasPaypal && (
                 <button
                   onClick={handlePaypalCheckout}
@@ -488,11 +520,11 @@ export default function MemberClient({ currentPlan, currentEmail }: { currentPla
                 </button>
                 )}
 
-                {!hasStripe && !hasPaypal && (
+                {!hasStripe && !hasPaypal && !hasDodo && (
                   <p className="text-sm text-[#64748B] text-center py-4">{t("member.paymentNotReady")}</p>
                 )}
 
-                {(hasStripe || hasPaypal) && (
+                {(hasStripe || hasPaypal || hasDodo) && (
                 <p className="text-[11px] text-[#94A3B8] mt-3 text-center">
                   {t("member.securePage")}
                 </p>

@@ -10,7 +10,7 @@
 import { ApiError, apiFetch } from "@/lib/api";
 import { auth } from "@/lib/auth";
 
-export type PayProvider = "stripe" | "paypal";
+export type PayProvider = "stripe" | "paypal" | "dodo";
 
 export interface CheckoutResult {
   orderId: string;
@@ -25,6 +25,8 @@ export interface IntlPaymentConfig {
   stripe: boolean;
   paypal: boolean;
   paypalLive: boolean;
+  dodo: boolean;
+  dodoLive: boolean;
 }
 
 /**
@@ -35,15 +37,27 @@ export interface IntlPaymentConfig {
  */
 export async function getIntlPaymentConfig(): Promise<IntlPaymentConfig> {
   const session = await auth();
-  if (!session?.user) return { stripe: false, paypal: false, paypalLive: false };
+  if (!session?.user) {
+    return { stripe: false, paypal: false, paypalLive: false, dodo: false, dodoLive: false };
+  }
 
   try {
-    const d = await apiFetch<{ stripe?: boolean; paypal?: boolean; paypal_live?: boolean }>(
-      "/api/payments/intl/config",
-    );
-    return { stripe: Boolean(d.stripe), paypal: Boolean(d.paypal), paypalLive: Boolean(d.paypal_live) };
+    const d = await apiFetch<{
+      stripe?: boolean;
+      paypal?: boolean;
+      paypal_live?: boolean;
+      dodo?: boolean;
+      dodo_live?: boolean;
+    }>("/api/payments/intl/config");
+    return {
+      stripe: Boolean(d.stripe),
+      paypal: Boolean(d.paypal),
+      paypalLive: Boolean(d.paypal_live),
+      dodo: Boolean(d.dodo),
+      dodoLive: Boolean(d.dodo_live),
+    };
   } catch {
-    return { stripe: false, paypal: false, paypalLive: false };
+    return { stripe: false, paypal: false, paypalLive: false, dodo: false, dodoLive: false };
   }
 }
 
@@ -92,6 +106,27 @@ export async function syncStripeOrder(orderId: string): Promise<{ paid: boolean;
 
   try {
     return await apiFetch<{ paid: boolean; status: string }>("/api/payments/stripe/sync", {
+      method: "POST",
+      body: { orderId },
+    });
+  } catch (e) {
+    if (e instanceof ApiError) throw new Error(e.message);
+    throw new Error("核对支付结果失败");
+  }
+}
+
+/**
+ * 用户从 Dodo 回跳后核对支付结果。
+ *
+ * 发货以 webhook 为准，这里只是让页面当场知道结果，
+ * 免得用户付完看到「未支付」又付一次。
+ */
+export async function syncDodoOrder(orderId: string): Promise<{ paid: boolean; status: string }> {
+  const session = await auth();
+  if (!session?.user) throw new Error("请先登录");
+
+  try {
+    return await apiFetch<{ paid: boolean; status: string }>("/api/payments/dodo/sync", {
       method: "POST",
       body: { orderId },
     });
