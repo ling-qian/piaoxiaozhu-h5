@@ -533,7 +533,8 @@ describe("POST /payments/paypal/capture", () => {
     mockPaypal("3.99", "USD", "PENDING");
 
     const res = await post(makeApp(), "/payments/paypal/capture", { orderId: "order-1" }, env(db));
-    expect(res.status).toBe(500); // paypalCaptureOrder 抛错，被包成服务端错误
+    // 扣款状态不是 COMPLETED → 409（客户端可判断的冲突），不是服务端故障
+    expect(res.status).toBe(409);
     expect(store.orders.get("order-1")!.status).toBe("pending");
   });
 

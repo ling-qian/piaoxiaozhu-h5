@@ -1,0 +1,45 @@
+# 后端 Worker 的门禁。
+#
+# 支付（Dodo / PayPal 对账）和 OCR 的逻辑全在这里，但以前没有任何自动检查：
+# 改完只在本地跑一遍就部署，出错只能等线上下单失败才发现。
+#
+# 只在这个子项目有改动时触发，不拉起前端和小程序的检查。
+# 测试都是 mock 的，不需要 D1 和 secrets，装完依赖就能跑。
+name: api-worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "v1/apps/api-worker/**"
+      - ".github/workflows/api-worker.yml"
+  pull_request:
+    paths:
+      - "v1/apps/api-worker/**"
+      - ".github/workflows/api-worker.yml"
+
+defaults:
+  run:
+    working-directory: v1/apps/api-worker
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          # 锁文件在子目录里，缓存 key 要跟着走
+          cache-dependency-path: v1/apps/api-worker/package-lock.json
+
+      - name: 安装依赖
+        run: npm ci
+
+      - name: 类型检查
+        run: npm run typecheck
+
+      - name: 单元测试
+        run: npm test

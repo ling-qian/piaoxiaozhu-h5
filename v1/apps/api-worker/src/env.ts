@@ -50,6 +50,23 @@ export interface Env {
   PAYPAL_CLIENT_SECRET?: string;
   /** sandbox 或 live。非法值按 sandbox 处理，避免误扣真钱 */
   PAYPAL_ENV?: string;
+  /**
+   * webhook 的 ID，在 PayPal 后台建完端点后生成，形如 `8PT597110X687430LKGECATA`。
+   * 它只用于验签，不是密钥本身；缺了就无法确认回调真实性。
+   */
+  PAYPAL_WEBHOOK_ID?: string;
+
+  // ── Dodo Payments（MoR，代收代缴 VAT）──
+  /** API Key。测试环境以 dodo_test_ 开头 */
+  DODO_API_KEY?: string;
+  /** webhook 签名密钥，以 whsec_ 开头。缺了就无法确认回调真实性 */
+  DODO_WEBHOOK_SECRET?: string;
+  /** live 或 test。非法值按 test 处理，避免误扣真钱 */
+  DODO_ENV?: string;
+  /** Pro 套餐对应的产品 ID，形如 pdt_xxx */
+  DODO_PRO_PRODUCT_ID?: string;
+  /** Enterprise 套餐对应的产品 ID。没建产品就留空，该套餐不显示购买按钮 */
+  DODO_ENT_PRODUCT_ID?: string;
 
   // ── 注册安全 ──
   /** Resend 的 API Key。为空表示邮件服务未开通，验证码发不出去 */

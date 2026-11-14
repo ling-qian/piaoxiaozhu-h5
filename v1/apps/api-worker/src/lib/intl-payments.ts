@@ -248,6 +248,22 @@ export async function paypalCreateOrder(
   return { paypalOrderId: data.id, approveUrl: approve };
 }
 
+/**
+ * 扣款失败时带上 PayPal 的错误码。
+ *
+ * PayPal 的失败原因在 `details[0].issue` 里，`message` 往往只有一句
+ * "The requested action could not be performed"。调用方要靠 issue
+ * 区分「用户没付款」和「已经扣过了」，这两种情况给用户的提示完全不同。
+ */
+export class PaypalCaptureError extends Error {
+  constructor(
+    public issue: string,
+    message: string
+  ) {
+    super(message);
+  }
+}
+
 /** 捕获（扣款）PayPal 订单。返回实付金额与币种，用于和本地订单核对 */
 export async function paypalCaptureOrder(p: {
   clientId: string;
@@ -269,6 +285,8 @@ export async function paypalCaptureOrder(p: {
   const data = (await res.json()) as {
     status?: string;
     message?: string;
+    name?: string;
+    details?: { issue?: string; description?: string }[];
     purchase_units?: {
       payments?: {
         captures?: { id: string; amount: { currency_code: string; value: string } }[];
@@ -278,12 +296,115 @@ export async function paypalCaptureOrder(p: {
 
   const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
   if (!res.ok || data.status !== "COMPLETED" || !capture) {
-    throw new Error(data.message || `PayPal 扣款未完成（状态 ${data.status ?? "未知"}）`);
+    const issue = data.details?.[0]?.issue ?? data.name ?? `HTTP_${res.status}`;
+    throw new PaypalCaptureError(
+      issue,
+      data.details?.[0]?.description || data.message || `PayPal 扣款未完成（${issue}）`
+    );
   }
 
   return {
     status: data.status,
     // 字符串 "3.99" 转回美分整数。用 Math.round 兜住浮点误差
+    amountCents: Math.round(Number(capture.amount.value) * 100),
+    currency: capture.amount.currency_code,
+    captureId: capture.id,
+  };
+}
+
+/**
+ * 校验 PayPal 回调签名。
+ *
+ * PayPal 不做本地 HMAC，而是把收到的请求头原样送回它的
+ * `/v1/notifications/verify-webhook-signature` 接口，由它自己判断真假。
+ * 所以我们拿不到「密钥」，只有一个 webhook_id 用来指明是哪个端点。
+ *
+ * `webhook_event` 必须传解析后的对象。PayPal 会按自己的顺序重新序列化，
+ * 传原始字符串反而对不上。
+ */
+export async function paypalVerifyWebhook(p: {
+  clientId: string;
+  clientSecret: string;
+  env?: string;
+  webhookId: string;
+  authAlgo: string;
+  certId: string;
+  transmissionId: string;
+  transmissionSig: string;
+  transmissionTime: string;
+  event: unknown;
+}): Promise<boolean> {
+  // 缺任何一个头都没法验签。先挡掉，省一次网络往返
+  if (
+    !p.webhookId ||
+    !p.authAlgo ||
+    !p.certId ||
+    !p.transmissionId ||
+    !p.transmissionSig ||
+    !p.transmissionTime
+  ) {
+    return false;
+  }
+
+  const base = paypalBase(p.env);
+  const token = await paypalToken(base, p.clientId, p.clientSecret);
+
+  const res = await fetch(`${base}/v1/notifications/verify-webhook-signature`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      auth_algo: p.authAlgo,
+      cert_id: p.certId,
+      transmission_id: p.transmissionId,
+      transmission_sig: p.transmissionSig,
+      transmission_time: p.transmissionTime,
+      webhook_id: p.webhookId,
+      webhook_event: p.event,
+    }),
+  });
+
+  const data = (await res.json()) as { verification_status?: string };
+  return res.ok && data.verification_status === "SUCCESS";
+}
+
+/**
+ * 查订单里已有的扣款记录。
+ *
+ * 只在 capture 返回「已经扣过」时用。上一次 capture 可能已经扣了钱，
+ * 但写本地订单时网络或 D1 抖了一下，订单还停在 pending。
+ * 这时把扣款结果查回来补发货，用户才不会遇到「钱扣了、套餐没到」。
+ * 没有扣款记录返回 null，由调用方决定怎么提示。
+ */
+export async function paypalRetrieveCaptures(p: {
+  clientId: string;
+  clientSecret: string;
+  env?: string;
+  paypalOrderId: string;
+}): Promise<{ status: string; amountCents: number; currency: string; captureId: string } | null> {
+  const base = paypalBase(p.env);
+  const token = await paypalToken(base, p.clientId, p.clientSecret);
+
+  const res = await fetch(`${base}/v2/checkout/orders/${encodeURIComponent(p.paypalOrderId)}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  const data = (await res.json()) as {
+    status?: string;
+    purchase_units?: {
+      payments?: {
+        captures?: { id: string; amount: { currency_code: string; value: string } }[];
+      };
+    }[];
+  };
+
+  const capture = data.purchase_units?.[0]?.payments?.captures?.[0];
+  if (!res.ok || !capture) return null;
+
+  return {
+    status: data.status ?? "UNKNOWN",
     amountCents: Math.round(Number(capture.amount.value) * 100),
     currency: capture.amount.currency_code,
     captureId: capture.id,
